@@ -75,7 +75,8 @@ function installProject() {
   // For this project, it's already in the package folder.
   
   console.log('[\x1b[36mOK\x1b[0m] Dardcor Agent berhasil diinstal secara global.');
-  console.log('Gunakan perintah: \x1b[35mdardcor agent\x1b[0m untuk menjalankan.\n');
+  console.log('Gunakan perintah: \x1b[35mdardcor agent\x1b[0m untuk menjalankan.');
+  console.log('Atau jalankan: \x1b[35mnpx dardcor agent\x1b[0m tanpa instalasi.\n');
 }
 
 function printHelp() {
