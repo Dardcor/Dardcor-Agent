@@ -64,13 +64,23 @@
 
 ### 🎮 Usage
 
-Running the agent is simple with the custom `dardcor` command helper:
+Running the agent is simple with the custom `dardcor` command helper or NPM:
 
-*   **To start the agent (Dev Mode):**
+*   **To start the agent (The easiest way):**
+    ```cmd
+    npm run dardcor
+    ```
+    *or directly:*
     ```cmd
     dardcor run
     ```
-    This will start the backend on port `25001` and the React UI on `25000`.
+    This will start the integrated agent on port `25000`.
+
+*   **To start in Development Mode:**
+    ```cmd
+    npm run dev
+    ```
+    Starts the React UI with HMR on port `25001` (proxied to backend on `25000`).
 
 *   **To build for production:**
     ```cmd
@@ -82,7 +92,7 @@ Running the agent is simple with the custom `dardcor` command helper:
 
 ## 🔒 Security & Privacy
 *   **Local-First Architecture**: Your data stays on your machine.
-*   **Ignored Data**: Specifically configured `.gitignore` to ensure your local `data/` logs and conversations are never pushed to public repositories.
+*   **Single Port Access**: Runs entirely on port `25000` for a clean, unified experience.
 
 ## 📄 License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

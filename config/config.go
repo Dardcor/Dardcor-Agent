@@ -46,7 +46,7 @@ func Init() (*Config, error) {
 
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "25001"
+		port = "25000"
 	}
 
 	cfg := &Config{
