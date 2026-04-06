@@ -169,7 +169,7 @@ export interface APIResponse<T = unknown> {
 
 // ==================== UI Types ====================
 
-export type TabType = 'chat' | 'files' | 'terminal' | 'system';
+export type TabType = 'chat' | 'files' | 'terminal' | 'system' | 'workspace';
 
 export interface Notification {
   id: string;

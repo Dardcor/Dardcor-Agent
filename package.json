@@ -8,7 +8,8 @@
     "dardcor": "cli.js"
   },
   "scripts": {
-    "dev": "vite",
+    "dev": "dardcor.bat dev",
+    "dev:vite": "vite --port 25099 --host 127.0.0.1 --strictPort",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "agent": "dardcor.bat run"
@@ -19,7 +20,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/syahr/Dardcor-Agent"
+    "url": "git+https://github.com/syahr/Dardcor-Agent.git"
   },
   "files": [
     "cli.js",

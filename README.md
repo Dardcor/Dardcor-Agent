@@ -1,4 +1,4 @@
-# 🤖 Dardcor Agent: AI-Powered Autonomous System Controller
+# Dardcor Agent: AI-Powered Autonomous System Controller
 
 ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
 ![Go](https://img.shields.io/badge/Go-00ADD8?style=flat&logo=go&logoColor=white)
@@ -54,7 +54,7 @@
 ### Installation
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/dardcor-agent.git
+   git clone https://github.com/dardcor/dardcor-agent.git
    cd dardcor-agent
    ```
 2. Install frontend dependencies:
@@ -94,9 +94,12 @@ If you have the source code folder:
 
 | Command | Action |
 | :--- | :--- |
-| **`dardcor agent`** | Launch the Autonomous Agent & Dashboard (Port 25000) |
+| **`dardcor agent`** | Launch the Autonomous Agent & Dashboard (http://127.0.0.1:25000) |
+| **`dardcor dev`** | Launch in Development Mode with Real-time UI (http://127.0.0.1:25000) |
 | **`dardcor build`** | Compile the Go Core and React UI |
 | **`dardcor install`** | Setup project assets |
+
+> **Note:** All modes run exclusively on a single port: `http://127.0.0.1:25000`. No other ports are exposed.
 
 ## 📄 License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

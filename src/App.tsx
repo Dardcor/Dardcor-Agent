@@ -3,6 +3,7 @@ import ChatPanel from './components/ChatPanel'
 import FileExplorer from './components/FileExplorer'
 import Terminal from './components/Terminal'
 import SystemDashboard from './components/SystemDashboard'
+import Workspace from './components/Workspace'
 import { useWebSocket, useChat } from './hooks/useAgent'
 import type { TabType } from './types'
 
@@ -32,6 +33,7 @@ const App: React.FC = () => {
     { id: 'files', label: 'File Explorer', icon: '📁' },
     { id: 'terminal', label: 'Terminal', icon: '💻' },
     { id: 'system', label: 'System Monitor', icon: '📊' },
+    { id: 'workspace', label: 'Workspace', icon: '🛠️' },
   ]
 
   const handleSelectConversation = (id: string) => {
@@ -79,6 +81,8 @@ const App: React.FC = () => {
         return <Terminal />
       case 'system':
         return <SystemDashboard />
+      case 'workspace':
+        return <Workspace />
       default:
         return null
     }

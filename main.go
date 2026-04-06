@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"path/filepath"
 
@@ -76,16 +78,30 @@ func main() {
 	r.HandleFunc("/ws", wsHandler.HandleWebSocket)
 
 	// Serve frontend static files
-	frontendDist := filepath.Join("dist")
-	if _, err := os.Stat(frontendDist); err == nil {
-		spa := spaHandler{staticPath: frontendDist, indexPath: "index.html"}
-		r.PathPrefix("/").Handler(spa)
-	} else {
-		// Development mode - serve a simple health check
-		r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, `{"status":"running","name":"Dardcor Agent","version":"1.0.0","port":"%s"}`, cfg.Port)
+	frontendDevUrl := os.Getenv("DARDCOR_DEV_URL")
+	if frontendDevUrl != "" {
+		log.Printf("🚀 Development Mode: Proxying frontend internally to %s", frontendDevUrl)
+		
+		// Setup proxy
+		target, _ := url.Parse(frontendDevUrl)
+		proxy := httputil.NewSingleHostReverseProxy(target)
+		
+		r.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			// Don't proxy if it's already handled by API or WebSocket
+			proxy.ServeHTTP(w, req)
 		})
+	} else {
+		frontendDist := filepath.Join("dist")
+		if _, err := os.Stat(frontendDist); err == nil {
+			spa := spaHandler{staticPath: frontendDist, indexPath: "index.html"}
+			r.PathPrefix("/").Handler(spa)
+		} else {
+			// Development mode - serve a simple health check
+			r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				fmt.Fprintf(w, `{"status":"running","name":"Dardcor Agent","version":"1.0.0","port":"%s"}`, cfg.Port)
+			})
+		}
 	}
 
 	// Apply middleware

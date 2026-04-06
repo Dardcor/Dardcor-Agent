@@ -1688,3 +1688,223 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* ==================== Workspace Page Styles ==================== */
+.workspace-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  overflow-y: auto;
+  min-height: 100%;
+}
+
+.workspace-card {
+  width: 100%;
+  max-width: 720px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-lg);
+  padding: 40px;
+  box-shadow: var(--shadow-lg);
+  animation: fade-in 0.5s ease-out;
+}
+
+.workspace-header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 40px;
+}
+
+.workspace-icon {
+  font-size: 48px;
+  background: var(--accent-gradient-subtle);
+  width: 88px;
+  height: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--border-radius-lg);
+  border: 1px solid var(--border-active);
+  box-shadow: var(--shadow-glow);
+}
+
+.workspace-title h2 {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.workspace-title p {
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.workspace-form {
+  margin-bottom: 32px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.input-with-button {
+  display: flex;
+  gap: 12px;
+}
+
+.input-with-button input {
+  flex: 1;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius);
+  color: var(--text-primary);
+  padding: 14px 18px;
+  font-size: 15px;
+  font-family: var(--font-mono);
+  outline: none;
+  transition: var(--transition);
+}
+
+.input-with-button input:focus {
+  border-color: var(--accent-primary-light);
+  box-shadow: 0 0 0 3px var(--accent-primary-glow);
+}
+
+.save-btn {
+  background: var(--accent-gradient);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius);
+  padding: 0 28px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: var(--transition);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.save-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-glow);
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.default-suggestion {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  background: rgba(168, 85, 247, 0.05);
+  padding: 10px 14px;
+  border-radius: var(--border-radius-sm);
+  border: 1px dashed var(--border-color);
+}
+
+.suggest-link {
+  background: none;
+  border: none;
+  color: var(--text-accent);
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  font-size: 13px;
+}
+
+.suggest-link:hover {
+  color: white;
+}
+
+.workspace-alert {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--border-radius);
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 32px;
+  animation: slide-down 0.3s ease-out;
+}
+
+.workspace-alert.success {
+  background: var(--success-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--success);
+}
+
+.workspace-guide h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.guide-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.guide-item h4 {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-accent);
+  margin-bottom: 8px;
+}
+
+.guide-item p {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  line-height: 1.5;
+}
+
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 600px) {
+  .workspace-header {
+    flex-direction: column;
+    text-align: center;
+    gap: 16px;
+  }
+  .input-with-button {
+    flex-direction: column;
+  }
+  .save-btn {
+    padding: 14px;
+  }
+  .guide-grid {
+    grid-template-columns: 1fr;
+  }
+}
+

@@ -28,6 +28,8 @@ if (!command) {
 // Handle 'dardcor agent' or 'dardcor run'
 if ((command === 'agent') || (command === 'run')) {
   runAgent();
+} else if (command === 'dev') {
+  runDev();
 } else if (command === 'build') {
   runBuild();
 } else if (command === 'install') {
@@ -47,6 +49,19 @@ function runAgent() {
 
   console.log('[\x1b[35m*\x1b[0m] Meluncurkan Dardcor Agent Core...');
   const child = spawn('cmd.exe', ['/c', batPath, 'run'], {
+    cwd: __dirname,
+    stdio: 'inherit'
+  });
+
+  child.on('exit', (code) => {
+    process.exit(code || 0);
+  });
+}
+
+function runDev() {
+  const batPath = path.join(__dirname, 'dardcor.bat');
+  console.log('[\x1b[35m*\x1b[0m] Meluncurkan Dardcor dalam Mode Development...');
+  const child = spawn('cmd.exe', ['/c', batPath, 'dev'], {
     cwd: __dirname,
     stdio: 'inherit'
   });
@@ -94,11 +109,12 @@ function printHelp() {
  Version: 1.0.0
 
  \x1b[1mPENGGUNAAN:\x1b[0m
-   \x1b[36mdardcor agent\x1b[0m        Menjalankan Agen & Dashboard (Port 25000)
+    \x1b[36mdardcor agent\x1b[0m        Menjalankan Agen & Dashboard (http://127.0.0.1:25000)
+    \x1b[36mdardcor dev\x1b[0m          Mode Development Real-time (http://127.0.0.1:25000)
    \x1b[36mdardcor build\x1b[0m        Melakukan kompilasi sistem
    \x1b[36mdardcor install\x1b[0m      Setup awal project
 
  \x1b[1mCONTOH:\x1b[0m
-   npx dardcor agent
+   dardcor dev
   `);
 }
