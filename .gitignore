@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+*.exe
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Go
+*.test
+
+# Data (local storage and logs)
+data/
+backend.log
+*.exe
+*.bin
+
+# Environment
+.env
+.env.local
