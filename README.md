@@ -62,37 +62,41 @@
    npm install
    ```
 
-### 🎮 Usage
+### 🌐 Public Installation & Usage
 
-Running the agent is simple with the custom `dardcor` command helper or NPM:
+Dardcor Agent can be installed globally or run instantly using **NPX**, just like other professional system agents.
 
-*   **To start the agent (The easiest way):**
-    ```cmd
-    npm run dardcor
-    ```
-    *or directly:*
-    ```cmd
-    dardcor run
-    ```
-    This will start the integrated agent on port `25000`.
+#### ⚡ Method 1: Instant Run (Recommended)
+You don't need to download the source code manually. Simply run this from any terminal:
+```cmd
+npx dardcor agent
+```
 
-*   **To start in Development Mode:**
-    ```cmd
-    npm run dev
-    ```
-    Starts the React UI with HMR on port `25001` (proxied to backend on `25000`).
+#### 🛠️ Method 2: Global Installation
+Install the agent permanently on your machine:
+```cmd
+npm install -g dardcor-agent
+```
+Then use the global command from any directory:
+```cmd
+dardcor agent
+```
 
-*   **To build for production:**
-    ```cmd
-    dardcor build
-    ```
-    Creates a standalone `dardcor-agent.exe` and optimized static assets.
+#### 📦 Method 3: Local Installation
+If you have the source code folder:
+1.  Install dependencies: `npm install`
+2.  Link locally: `npm link`
+3.  Run from anywhere: `dardcor agent`
 
 ---
 
-## 🔒 Security & Privacy
-*   **Local-First Architecture**: Your data stays on your machine.
-*   **Single Port Access**: Runs entirely on port `25000` for a clean, unified experience.
+## 🎮 Available Commands
+
+| Command | Action |
+| :--- | :--- |
+| **`dardcor agent`** | Launch the Autonomous Agent & Dashboard (Port 25000) |
+| **`dardcor build`** | Compile the Go Core and React UI |
+| **`dardcor install`** | Setup project assets |
 
 ## 📄 License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

@@ -1,14 +1,16 @@
 {
-  "name": "frontend",
-  "private": true,
-  "version": "0.0.0",
+  "name": "dardcor-agent",
+  "private": false,
+  "version": "1.0.0",
   "type": "module",
+  "bin": {
+    "dardcor": "./cli.js"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "dardcor": "dardcor.bat run",
-    "run": "dardcor.bat run"
+    "agent": "dardcor.bat run"
   },
   "devDependencies": {
     "@types/react": "^19.2.14",
