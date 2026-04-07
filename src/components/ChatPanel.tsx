@@ -1,215 +1,158 @@
-import React, { useState, useRef, useEffect } from 'react'
-import type { Message } from '../types'
+import React, { useState, useEffect, useRef } from 'react'
+import wsService from '../services/websocket'
 
-interface ChatPanelProps {
-  messages: Message[]
-  isTyping: boolean
-  onSendMessage: (text: string) => void
+interface Message {
+  role: 'user' | 'assistant' | 'system'
+  content: string
+  timestamp: string
+  mode?: 'build' | 'plan'
 }
 
-const ChatPanel: React.FC<ChatPanelProps> = ({ messages, isTyping, onSendMessage }) => {
+const ChatPanel: React.FC = () => {
+  const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
+  const [isConnected, setIsConnected] = useState(false)
+  const [agentMode, setAgentMode] = useState<'build' | 'plan'>('build')
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLTextAreaElement>(null)
+
+  useEffect(() => {
+    const unsub = wsService.on('connection', (msg: any) => {
+      setIsConnected(msg.payload.status === 'connected')
+    })
+
+    const unsubMsg = wsService.on('agent_response', (msg: any) => {
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: msg.payload.content,
+        timestamp: new Date().toLocaleTimeString()
+      }])
+    })
+
+    setIsConnected(wsService.isConnected)
+
+    return () => {
+      unsub()
+      unsubMsg()
+    }
+  }, [])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, isTyping])
+  }, [messages])
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (input.trim()) {
-      onSendMessage(input.trim())
-      setInput('')
-      if (inputRef.current) {
-        inputRef.current.style.height = 'auto'
-      }
+  const handleSubmit = (e?: React.FormEvent) => {
+    e?.preventDefault()
+    if (!input.trim() || !isConnected) return
+
+    let processedInput = input
+    if (input.toLowerCase().startsWith('ultrawork ') || input.toLowerCase().startsWith('ulw ')) {
+      const task = input.replace(/^(ultrawork|ulw)\s+/i, '')
+      processedInput = `[ULTRAWORK MODE] ${task}`
     }
+
+    if (agentMode === 'plan') {
+      processedInput = `[READ-ONLY ANALYSIS MODE] ${processedInput}`
+    }
+
+    const newMessage: Message = {
+      role: 'user',
+      content: input,
+      timestamp: new Date().toLocaleTimeString(),
+      mode: agentMode
+    }
+
+    setMessages(prev => [...prev, newMessage])
+    wsService.send('agent_message', { message: processedInput })
+    setInput('')
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      handleSubmit(e)
+      handleSubmit()
+    }
+    if (e.key === 'Tab') {
+      e.preventDefault()
+      setAgentMode(m => m === 'build' ? 'plan' : 'build')
     }
   }
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInput(e.target.value)
-    e.target.style.height = 'auto'
-    e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'
-  }
-
-  const handleQuickAction = (action: string) => {
-    onSendMessage(action)
-  }
-
-  const formatTime = (timestamp: string) => {
-    const date = new Date(timestamp)
-    return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
-  }
-
-  const renderContent = (content: string) => {
-    return content.split('\n').map((line, i) => {
-      let processed = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      processed = processed.replace(/`([^`]+)`/g, '<code>$1</code>')
-      if (processed.startsWith('• ') || processed.startsWith('- ')) {
-        processed = '  ' + processed
-      }
-      return <span key={i} dangerouslySetInnerHTML={{ __html: processed + '\n' }} />
-    })
-  }
-
-  if (messages.length === 0) {
-    return (
-      <div className="chat-container">
-        <div className="chat-messages">
-          <div className="chat-welcome">
-            <h2>Dardcor Agent</h2>
-            <p>
-              AI Agent yang powerful untuk mengakses dan mengontrol seluruh komputer Anda.
-              Melebihi semua AI Agent yang ada. Ketik perintah atau pilih aksi cepat di bawah.
-            </p>
-            <div className="quick-actions">
-              <button className="quick-action-btn" onClick={() => handleQuickAction('sysinfo')} id="qa-sysinfo">
-                <span className="icon">📊</span>
-                <div className="title">System Info</div>
-                <div className="desc">Lihat info sistem lengkap</div>
-              </button>
-              <button className="quick-action-btn" onClick={() => handleQuickAction('processes')} id="qa-processes">
-                <span className="icon">⚙️</span>
-                <div className="title">Processes</div>
-                <div className="desc">Daftar proses berjalan</div>
-              </button>
-              <button className="quick-action-btn" onClick={() => handleQuickAction('drives')} id="qa-drives">
-                <span className="icon">💽</span>
-                <div className="title">Drives</div>
-                <div className="desc">Lihat drive tersedia</div>
-              </button>
-              <button className="quick-action-btn" onClick={() => handleQuickAction('list C:\\')} id="qa-files">
-                <span className="icon">📂</span>
-                <div className="title">Browse Files</div>
-                <div className="desc">Jelajahi file di drive C</div>
-              </button>
-              <button className="quick-action-btn" onClick={() => handleQuickAction('cpu')} id="qa-cpu">
-                <span className="icon">🔧</span>
-                <div className="title">CPU Info</div>
-                <div className="desc">Detail prosesor</div>
-              </button>
-              <button className="quick-action-btn" onClick={() => handleQuickAction('memory')} id="qa-memory">
-                <span className="icon">🧠</span>
-                <div className="title">Memory</div>
-                <div className="desc">Penggunaan RAM</div>
-              </button>
-              <button className="quick-action-btn" onClick={() => handleQuickAction('whoami')} id="qa-whoami">
-                <span className="icon">🪪</span>
-                <div className="title">Who Am I</div>
-                <div className="desc">Info tentang agent</div>
-              </button>
-              <button className="quick-action-btn" onClick={() => handleQuickAction('help')} id="qa-help">
-                <span className="icon">❓</span>
-                <div className="title">Help</div>
-                <div className="desc">Panduan perintah lengkap</div>
-              </button>
-            </div>
+  return (
+    <div className="chat-panel">
+      <div className="chat-header">
+        <div className="chat-title-group">
+          <h2>Agent Chat</h2>
+          <div className="mode-switcher">
+            <button 
+              className={`mode-pill ${agentMode === 'build' ? 'active build' : ''}`}
+              onClick={() => setAgentMode('build')}
+              title="Full access (Tab)"
+            >
+              BUILD
+            </button>
+            <button 
+              className={`mode-pill ${agentMode === 'plan' ? 'active plan' : ''}`}
+              onClick={() => setAgentMode('plan')}
+              title="Read-only (Tab)"
+            >
+              PLAN
+            </button>
           </div>
         </div>
-        <div className="chat-input-container">
-          <form onSubmit={handleSubmit}>
-            <div className="chat-input-wrapper">
-              <textarea
-                ref={inputRef}
-                className="chat-input"
-                value={input}
-                onChange={handleInputChange}
-                onKeyDown={handleKeyDown}
-                placeholder="Ketik perintah... (contoh: sysinfo, list C:\, run dir, help)"
-                rows={1}
-                id="chat-input"
-              />
-              <button type="submit" className="chat-send-btn" disabled={!input.trim()} id="chat-send-btn">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="22" y1="2" x2="11" y2="13" />
-                  <polygon points="22 2 15 22 11 13 2 9 22 2" />
-                </svg>
-              </button>
-            </div>
-          </form>
-          <div className="chat-input-hint">Tekan Enter untuk kirim, Shift+Enter untuk baris baru</div>
+        <div className={`status-indicator ${isConnected ? 'online' : 'offline'}`}>
+          {isConnected ? 'Online' : 'Offline'}
         </div>
       </div>
-    )
-  }
 
-  return (
-    <div className="chat-container">
-      <div className="chat-messages">
-        {messages.map((msg) => (
-          <div key={msg.id} className={`message ${msg.role}`}>
-            <div className="message-avatar">
-              {msg.role === 'user' ? '👤' : <div className="avatar-img" aria-label="Agent" />}
-            </div>
-            <div className="message-body">
-              <div className="message-content">
-                {renderContent(msg.content)}
-              </div>
-              {msg.actions && msg.actions.length > 0 && (
-                <div className="message-actions">
-                  {msg.actions.map((action, i) => (
-                    <span key={i} className={`action-badge ${action.status}`}>
-                      {action.status === 'completed' ? '✅' : action.status === 'error' ? '❌' : '⏳'}
-                      {' '}{action.type}
-                      {action.duration_ms ? ` (${action.duration_ms}ms)` : ''}
-                    </span>
-                  ))}
-                </div>
-              )}
-              <div className="message-time">{formatTime(msg.timestamp)}</div>
-            </div>
-          </div>
-        ))}
-
-        {isTyping && (
-          <div className="typing-indicator">
-            <div className="message-avatar" style={{ background: 'transparent' }}>
-              <div className="avatar-img" aria-label="Typing" />
-            </div>
-            <div className="typing-dots">
-              <span /><span /><span />
+      <div className="messages-container">
+        {messages.length === 0 && (
+          <div className="welcome-screen">
+            <h2 style={{ fontSize: '28px', color: 'var(--accent-primary)', marginBottom: '8px' }}>Dardcor Agent</h2>
+            <p>Ready to help in <strong>{agentMode.toUpperCase()}</strong> mode.</p>
+            <div className="mode-explain">
+              {agentMode === 'build' ? 
+                '🛠️ BUILD: I can execute commands and modify files.' : 
+                '📄 PLAN: I only analyze and give suggestions.'}
             </div>
           </div>
         )}
-
+        {messages.map((msg, i) => (
+          <div key={i} className={`message ${msg.role} ${msg.mode || ''}`}>
+            <div className="message-header">
+              <span className="role-tag">
+                {msg.role === 'user' ? 'YOU' : 'DARDCOR'}
+                {msg.mode && <span className={`mode-tag ${msg.mode}`}>{msg.mode}</span>}
+              </span>
+              <span className="timestamp">{msg.timestamp}</span>
+            </div>
+            <div className="message-content">
+              {msg.content.split('\n').map((line, j) => (
+                <p key={j}>{line}</p>
+              ))}
+            </div>
+          </div>
+        ))}
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="chat-input-container">
-        <form onSubmit={handleSubmit}>
-          <div className="chat-input-wrapper">
-            <textarea
-              ref={inputRef}
-              className="chat-input"
-              value={input}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              placeholder="Ketik perintah..."
-              rows={1}
-              id="chat-input-active"
-            />
-            <button
-              type="submit"
-              className="chat-send-btn"
-              disabled={!input.trim() || isTyping}
-              id="chat-send-active-btn"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="22" y1="2" x2="11" y2="13" />
-                <polygon points="22 2 15 22 11 13 2 9 22 2" />
-              </svg>
-            </button>
-          </div>
-        </form>
-        <div className="chat-input-hint">Tekan Enter untuk kirim, Shift+Enter untuk baris baru</div>
+      <form className={`input-container ${agentMode}`} onSubmit={handleSubmit}>
+        <textarea
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={agentMode === 'build' ? "Ask anything (BUILD mode)..." : "Ask for analysis (PLAN mode)..."}
+          rows={1}
+        />
+        <button type="submit" disabled={!input.trim() || !isConnected}>
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <line x1="22" y1="2" x2="11" y2="13" />
+            <polygon points="22 2 15 22 11 13 2 9 22 2" />
+          </svg>
+        </button>
+      </form>
+      <div className="input-hint">
+        <span>Tab to switch mode</span>
+        {input.toLowerCase().startsWith('ulw') && <span className="ultrawork-tag">⚡ ULTRAWORK ACTIVE</span>}
       </div>
     </div>
   )

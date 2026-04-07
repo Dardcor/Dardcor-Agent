@@ -2,8 +2,6 @@ package models
 
 import "time"
 
-// ==================== Agent Models ====================
-
 type AgentRequest struct {
 	Message        string `json:"message"`
 	ConversationID string `json:"conversation_id,omitempty"`
@@ -45,8 +43,6 @@ type Message struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
-// ==================== File System Models ====================
-
 type FileInfo struct {
 	Name       string    `json:"name"`
 	Path       string    `json:"path"`
@@ -70,22 +66,20 @@ type FileWriteRequest struct {
 }
 
 type SearchRequest struct {
-	Path      string `json:"path"`
-	Query     string `json:"query"`
-	FileType  string `json:"file_type,omitempty"`
-	MaxDepth  int    `json:"max_depth,omitempty"`
-	SearchContent bool `json:"search_content,omitempty"`
+	Path          string `json:"path"`
+	Query         string `json:"query"`
+	FileType      string `json:"file_type,omitempty"`
+	MaxDepth      int    `json:"max_depth,omitempty"`
+	SearchContent bool   `json:"search_content,omitempty"`
 }
 
 type SearchResult struct {
-	Path       string `json:"path"`
-	Name       string `json:"name"`
-	IsDir      bool   `json:"is_dir"`
-	MatchLine  int    `json:"match_line,omitempty"`
-	MatchText  string `json:"match_text,omitempty"`
+	Path      string `json:"path"`
+	Name      string `json:"name"`
+	IsDir     bool   `json:"is_dir"`
+	MatchLine int    `json:"match_line,omitempty"`
+	MatchText string `json:"match_text,omitempty"`
 }
-
-// ==================== Command Models ====================
 
 type CommandRequest struct {
 	Command    string `json:"command"`
@@ -108,17 +102,15 @@ type CommandHistory struct {
 	Commands []CommandResponse `json:"commands"`
 }
 
-// ==================== System Models ====================
-
 type SystemInfo struct {
-	OS           OSInfo       `json:"os"`
-	CPU          CPUInfo      `json:"cpu"`
-	Memory       MemoryInfo   `json:"memory"`
-	Disks        []DiskInfo   `json:"disks"`
-	Network      []NetInfo    `json:"network"`
-	Uptime       uint64       `json:"uptime"`
-	HostName     string       `json:"hostname"`
-	CollectedAt  time.Time    `json:"collected_at"`
+	OS          OSInfo     `json:"os"`
+	CPU         CPUInfo    `json:"cpu"`
+	Memory      MemoryInfo `json:"memory"`
+	Disks       []DiskInfo `json:"disks"`
+	Network     []NetInfo  `json:"network"`
+	Uptime      uint64     `json:"uptime"`
+	HostName    string     `json:"hostname"`
+	CollectedAt time.Time  `json:"collected_at"`
 }
 
 type OSInfo struct {
@@ -129,11 +121,11 @@ type OSInfo struct {
 }
 
 type CPUInfo struct {
-	ModelName  string  `json:"model_name"`
-	Cores      int     `json:"cores"`
-	Threads    int     `json:"threads"`
+	ModelName    string  `json:"model_name"`
+	Cores        int     `json:"cores"`
+	Threads      int     `json:"threads"`
 	UsagePercent float64 `json:"usage_percent"`
-	Frequency  float64 `json:"frequency_mhz"`
+	Frequency    float64 `json:"frequency_mhz"`
 }
 
 type MemoryInfo struct {
@@ -154,14 +146,12 @@ type DiskInfo struct {
 }
 
 type NetInfo struct {
-	Name        string   `json:"name"`
-	MacAddress  string   `json:"mac_address"`
-	Addresses   []string `json:"addresses"`
-	BytesSent   uint64   `json:"bytes_sent"`
-	BytesRecv   uint64   `json:"bytes_recv"`
+	Name       string   `json:"name"`
+	MacAddress string   `json:"mac_address"`
+	Addresses  []string `json:"addresses"`
+	BytesSent  uint64   `json:"bytes_sent"`
+	BytesRecv  uint64   `json:"bytes_recv"`
 }
-
-// ==================== Process Models ====================
 
 type ProcessInfo struct {
 	PID        int32   `json:"pid"`
@@ -175,8 +165,6 @@ type ProcessInfo struct {
 	CmdLine    string  `json:"cmdline"`
 }
 
-// ==================== WebSocket Models ====================
-
 type WSMessage struct {
 	Type    string      `json:"type"`
 	Payload interface{} `json:"payload"`
@@ -189,16 +177,12 @@ type WSCommandOutput struct {
 	Done      bool   `json:"done"`
 }
 
-// ==================== API Response Wrapper ====================
-
 type APIResponse struct {
 	Success bool        `json:"success"`
 	Data    interface{} `json:"data,omitempty"`
 	Error   string      `json:"error,omitempty"`
 	Message string      `json:"message,omitempty"`
 }
-
-// ==================== Settings ====================
 
 type Settings struct {
 	Theme          string `json:"theme"`

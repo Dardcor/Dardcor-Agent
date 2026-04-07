@@ -17,7 +17,6 @@ func NewFileSystemHandler(service *services.FileSystemService) *FileSystemHandle
 	return &FileSystemHandler{service: service}
 }
 
-// ListDirectory handles GET /api/files?path=...
 func (h *FileSystemHandler) ListDirectory(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Query().Get("path")
 	if path == "" {
@@ -39,7 +38,6 @@ func (h *FileSystemHandler) ListDirectory(w http.ResponseWriter, r *http.Request
 	})
 }
 
-// ReadFile handles GET /api/files/read?path=...
 func (h *FileSystemHandler) ReadFile(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Query().Get("path")
 	if path == "" {
@@ -65,7 +63,6 @@ func (h *FileSystemHandler) ReadFile(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// WriteFile handles POST /api/files/write
 func (h *FileSystemHandler) WriteFile(w http.ResponseWriter, r *http.Request) {
 	var req models.FileWriteRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -90,7 +87,6 @@ func (h *FileSystemHandler) WriteFile(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// DeleteFile handles DELETE /api/files?path=...
 func (h *FileSystemHandler) DeleteFile(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Query().Get("path")
 	if path == "" {
@@ -115,7 +111,6 @@ func (h *FileSystemHandler) DeleteFile(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// SearchFiles handles POST /api/files/search
 func (h *FileSystemHandler) SearchFiles(w http.ResponseWriter, r *http.Request) {
 	var req models.SearchRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -141,7 +136,6 @@ func (h *FileSystemHandler) SearchFiles(w http.ResponseWriter, r *http.Request) 
 	})
 }
 
-// GetFileInfo handles GET /api/files/info?path=...
 func (h *FileSystemHandler) GetFileInfo(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Query().Get("path")
 	if path == "" {
@@ -167,7 +161,6 @@ func (h *FileSystemHandler) GetFileInfo(w http.ResponseWriter, r *http.Request) 
 	})
 }
 
-// CreateDirectory handles POST /api/files/mkdir
 func (h *FileSystemHandler) CreateDirectory(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Path string `json:"path"`
@@ -194,7 +187,6 @@ func (h *FileSystemHandler) CreateDirectory(w http.ResponseWriter, r *http.Reque
 	})
 }
 
-// GetDrives handles GET /api/files/drives
 func (h *FileSystemHandler) GetDrives(w http.ResponseWriter, r *http.Request) {
 	drives := h.service.GetDrives()
 	writeJSON(w, http.StatusOK, models.APIResponse{
@@ -203,7 +195,6 @@ func (h *FileSystemHandler) GetDrives(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// MoveFile handles POST /api/files/move
 func (h *FileSystemHandler) MoveFile(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Source      string `json:"source"`
@@ -231,7 +222,6 @@ func (h *FileSystemHandler) MoveFile(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// CopyFile handles POST /api/files/copy
 func (h *FileSystemHandler) CopyFile(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Source      string `json:"source"`
@@ -259,7 +249,6 @@ func (h *FileSystemHandler) CopyFile(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Helper: CommandHandler
 type CommandHandler struct {
 	service *services.CommandService
 }
@@ -268,7 +257,6 @@ func NewCommandHandler(service *services.CommandService) *CommandHandler {
 	return &CommandHandler{service: service}
 }
 
-// ExecuteCommand handles POST /api/command
 func (h *CommandHandler) ExecuteCommand(w http.ResponseWriter, r *http.Request) {
 	var req models.CommandRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -294,7 +282,6 @@ func (h *CommandHandler) ExecuteCommand(w http.ResponseWriter, r *http.Request) 
 	})
 }
 
-// GetCommandHistory handles GET /api/command/history?limit=...
 func (h *CommandHandler) GetCommandHistory(w http.ResponseWriter, r *http.Request) {
 	limit := 50
 	if l := r.URL.Query().Get("limit"); l != "" {
@@ -318,7 +305,6 @@ func (h *CommandHandler) GetCommandHistory(w http.ResponseWriter, r *http.Reques
 	})
 }
 
-// GetShellInfo handles GET /api/command/info
 func (h *CommandHandler) GetShellInfo(w http.ResponseWriter, r *http.Request) {
 	info := h.service.GetShellInfo()
 	writeJSON(w, http.StatusOK, models.APIResponse{
@@ -327,7 +313,6 @@ func (h *CommandHandler) GetShellInfo(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Helper: SystemHandler
 type SystemHandler struct {
 	service *services.SystemService
 }
@@ -336,7 +321,6 @@ func NewSystemHandler(service *services.SystemService) *SystemHandler {
 	return &SystemHandler{service: service}
 }
 
-// GetSystemInfo handles GET /api/system
 func (h *SystemHandler) GetSystemInfo(w http.ResponseWriter, r *http.Request) {
 	info, err := h.service.GetSystemInfo()
 	if err != nil {
@@ -353,7 +337,6 @@ func (h *SystemHandler) GetSystemInfo(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// GetProcesses handles GET /api/system/processes?sort=...&limit=...
 func (h *SystemHandler) GetProcesses(w http.ResponseWriter, r *http.Request) {
 	sortBy := r.URL.Query().Get("sort")
 	if sortBy == "" {
@@ -382,7 +365,6 @@ func (h *SystemHandler) GetProcesses(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// KillProcess handles POST /api/system/kill
 func (h *SystemHandler) KillProcess(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		PID int32 `json:"pid"`
@@ -409,7 +391,6 @@ func (h *SystemHandler) KillProcess(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// GetCPUUsage handles GET /api/system/cpu
 func (h *SystemHandler) GetCPUUsage(w http.ResponseWriter, r *http.Request) {
 	usage, err := h.service.GetCPUUsageRealtime()
 	if err != nil {
@@ -426,7 +407,6 @@ func (h *SystemHandler) GetCPUUsage(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// GetMemoryUsage handles GET /api/system/memory
 func (h *SystemHandler) GetMemoryUsage(w http.ResponseWriter, r *http.Request) {
 	mem, err := h.service.GetMemoryUsage()
 	if err != nil {
@@ -443,7 +423,6 @@ func (h *SystemHandler) GetMemoryUsage(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Helper: AgentHandler
 type AgentHandler struct {
 	service *services.AgentService
 }
@@ -452,7 +431,6 @@ func NewAgentHandler(service *services.AgentService) *AgentHandler {
 	return &AgentHandler{service: service}
 }
 
-// ProcessMessage handles POST /api/agent
 func (h *AgentHandler) ProcessMessage(w http.ResponseWriter, r *http.Request) {
 	var req models.AgentRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -478,7 +456,6 @@ func (h *AgentHandler) ProcessMessage(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// Helper function
 func writeJSON(w http.ResponseWriter, status int, data interface{}) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)

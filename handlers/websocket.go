@@ -17,7 +17,7 @@ var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		return true // Allow all origins in development
+		return true
 	},
 }
 
@@ -40,7 +40,6 @@ func NewWebSocketHandler(agentSvc *services.AgentService, cmdService *services.C
 	}
 }
 
-// HandleWebSocket handles WebSocket connections
 func (wsh *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -56,9 +55,6 @@ func (wsh *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Requ
 	clientID := r.RemoteAddr
 	wsh.clients.Store(clientID, client)
 
-	log.Printf("WebSocket client connected: %s", clientID)
-
-	// Send welcome message
 	wsh.sendToClient(client, models.WSMessage{
 		Type: "connected",
 		Payload: map[string]string{
@@ -67,10 +63,8 @@ func (wsh *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Requ
 		},
 	})
 
-	// Start write pump
 	go wsh.writePump(client, clientID)
 
-	// Read pump (blocking)
 	wsh.readPump(client, clientID)
 }
 
@@ -79,7 +73,6 @@ func (wsh *WebSocketHandler) readPump(client *WSClient, clientID string) {
 		wsh.clients.Delete(clientID)
 		client.conn.Close()
 		close(client.send)
-		log.Printf("WebSocket client disconnected: %s", clientID)
 	}()
 
 	for {
@@ -91,7 +84,6 @@ func (wsh *WebSocketHandler) readPump(client *WSClient, clientID string) {
 			break
 		}
 
-		// Parse incoming message
 		var wsMsg models.WSMessage
 		if err := json.Unmarshal(message, &wsMsg); err != nil {
 			wsh.sendToClient(client, models.WSMessage{
@@ -103,7 +95,6 @@ func (wsh *WebSocketHandler) readPump(client *WSClient, clientID string) {
 			continue
 		}
 
-		// Handle different message types
 		go wsh.handleMessage(client, wsMsg)
 	}
 }
@@ -170,19 +161,16 @@ func (wsh *WebSocketHandler) handleAgentMessage(client *WSClient, msg models.WSM
 	message, _ := payload["message"].(string)
 	convID, _ := payload["conversation_id"].(string)
 
-	// Send typing indicator
 	wsh.sendToClient(client, models.WSMessage{
 		Type:    "typing",
 		Payload: map[string]bool{"typing": true},
 	})
 
-	// Process the message
 	response, err := wsh.agentSvc.ProcessMessage(models.AgentRequest{
 		Message:        message,
 		ConversationID: convID,
 	})
 
-	// Remove typing indicator
 	wsh.sendToClient(client, models.WSMessage{
 		Type:    "typing",
 		Payload: map[string]bool{"typing": false},
@@ -243,7 +231,7 @@ func (wsh *WebSocketHandler) handleStreamingCommand(client *WSClient, msg models
 	}
 
 	wsh.sendToClient(client, models.WSMessage{
-		Type: "command_complete",
+		Type:    "command_complete",
 		Payload: result,
 	})
 }
@@ -306,7 +294,6 @@ func (wsh *WebSocketHandler) handleDeleteConversation(client *WSClient, msg mode
 		Payload: map[string]string{"id": id},
 	})
 
-	// Also send updated list
 	wsh.handleGetConversations(client)
 }
 
@@ -335,7 +322,6 @@ func (wsh *WebSocketHandler) handleRenameConversation(client *WSClient, msg mode
 		},
 	})
 
-	// Also send updated list
 	wsh.handleGetConversations(client)
 }
 
@@ -353,7 +339,6 @@ func (wsh *WebSocketHandler) sendToClient(client *WSClient, msg models.WSMessage
 	}
 }
 
-// Broadcast sends a message to all connected clients
 func (wsh *WebSocketHandler) Broadcast(msg models.WSMessage) {
 	data, err := json.Marshal(msg)
 	if err != nil {

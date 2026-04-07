@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"dardcor-agent/config"
 	"dardcor-agent/models"
 	"dardcor-agent/storage"
 
@@ -14,22 +15,26 @@ import (
 )
 
 type AgentService struct {
-	fsService  *FileSystemService
-	cmdService *CommandService
-	sysService *SystemService
+	fsService   *FileSystemService
+	cmdService  *CommandService
+	sysService  *SystemService
+	llmProvider *LLMProvider
 }
 
 func NewAgentService(fs *FileSystemService, cmd *CommandService, sys *SystemService) *AgentService {
+	var llm *LLMProvider
+	if config.AppConfig != nil {
+		llm = NewLLMProvider(config.AppConfig.AI)
+	}
 	return &AgentService{
-		fsService:  fs,
-		cmdService: cmd,
-		sysService: sys,
+		fsService:   fs,
+		cmdService:  cmd,
+		sysService:  sys,
+		llmProvider: llm,
 	}
 }
 
-// ProcessMessage processes a user message and returns an agent response
 func (as *AgentService) ProcessMessage(req models.AgentRequest) (*models.AgentResponse, error) {
-	// Create or load conversation
 	var convID string
 	if req.ConversationID != "" {
 		convID = req.ConversationID
@@ -41,17 +46,24 @@ func (as *AgentService) ProcessMessage(req models.AgentRequest) (*models.AgentRe
 		convID = conv.ID
 	}
 
-	// Save user message
 	userMsg := models.Message{
 		Role:    "user",
 		Content: req.Message,
 	}
 	storage.Store.AddMessage(convID, userMsg)
 
-	// Process the message and execute actions
-	actions, responseText := as.interpretAndExecute(req.Message)
+	var actions []models.Action
+	var responseText string
 
-	// Create response
+	if as.llmProvider != nil && config.AppConfig != nil && config.AppConfig.IsAIEnabled() {
+		responseText = as.processWithLLM(req.Message, convID)
+		if responseText == "" {
+			actions, responseText = as.interpretAndExecute(req.Message)
+		}
+	} else {
+		actions, responseText = as.interpretAndExecute(req.Message)
+	}
+
 	response := &models.AgentResponse{
 		ID:             uuid.New().String(),
 		ConversationID: convID,
@@ -62,7 +74,6 @@ func (as *AgentService) ProcessMessage(req models.AgentRequest) (*models.AgentRe
 		Status:         "completed",
 	}
 
-	// Save assistant message
 	assistantMsg := models.Message{
 		Role:    "assistant",
 		Content: responseText,
@@ -73,14 +84,82 @@ func (as *AgentService) ProcessMessage(req models.AgentRequest) (*models.AgentRe
 	return response, nil
 }
 
-// interpretAndExecute parses the user message and executes appropriate actions
+func (as *AgentService) processWithLLM(message string, convID string) string {
+	if as.llmProvider == nil {
+		return ""
+	}
+
+	var historyMessages []LLMMessage
+	if convID != "" {
+		if conv, err := storage.Store.LoadConversation(convID); err == nil {
+			start := 0
+			if len(conv.Messages) > 10 {
+				start = len(conv.Messages) - 10
+			}
+			for _, m := range conv.Messages[start:] {
+				historyMessages = append(historyMessages, LLMMessage{
+					Role:    m.Role,
+					Content: m.Content,
+				})
+			}
+		}
+	}
+
+	if len(historyMessages) == 0 || historyMessages[len(historyMessages)-1].Content != message {
+		historyMessages = append(historyMessages, LLMMessage{
+			Role:    "user",
+			Content: message,
+		})
+	}
+
+	systemPrompt := as.buildSystemPrompt(message)
+
+	resp, err := as.llmProvider.Complete(systemPrompt, historyMessages)
+	if err != nil {
+		return ""
+	}
+
+	return resp.Content
+}
+
+func (as *AgentService) buildSystemPrompt(message string) string {
+	hostname, _ := os.Hostname()
+	isUltrawork := strings.Contains(strings.ToLower(message), "ultrawork") ||
+		strings.Contains(strings.ToLower(message), "ulw")
+	isPlan := strings.Contains(strings.ToLower(message), "[read-only")
+
+	base := fmt.Sprintf(`You are Dardcor Agent, a powerful autonomous AI assistant with full system access.
+
+System: %s/%s | Host: %s | Runtime: %s
+
+Capabilities: filesystem (read/write/delete/search/mkdir), shell execution, system monitoring (CPU/RAM/disk/network), process management, conversation history.
+
+Commands: list <path>, read <path>, write <path> <content>, delete <path>, search <query>, mkdir <path>, run <command>, sysinfo, cpu, memory, processes, kill <pid>, drives, info <path>, help
+
+Rules: be concise, provide exact commands, use Markdown, explain briefly.
+`, runtime.GOOS, runtime.GOARCH, hostname, runtime.Version())
+
+	if isUltrawork {
+		base += `
+ULTRAWORK MODE: Analyze exhaustively, break into steps, execute autonomously, report progress, try alternatives if stuck, do not stop until complete.
+`
+	}
+
+	if isPlan {
+		base += `
+PLAN MODE (READ-ONLY): Do not execute commands or modify files. Only analyze, plan, and explain.
+`
+	}
+
+	return base
+}
+
 func (as *AgentService) interpretAndExecute(message string) ([]models.Action, string) {
 	msg := strings.ToLower(strings.TrimSpace(message))
 	var actions []models.Action
 	var responseText string
 
 	switch {
-	// File system operations
 	case strings.HasPrefix(msg, "list ") || strings.HasPrefix(msg, "ls ") || strings.HasPrefix(msg, "dir "):
 		actions, responseText = as.handleListDir(message)
 
@@ -102,14 +181,12 @@ func (as *AgentService) interpretAndExecute(message string) ([]models.Action, st
 	case strings.HasPrefix(msg, "drives") || strings.HasPrefix(msg, "disk"):
 		actions, responseText = as.handleDrives()
 
-	// Command execution
 	case strings.HasPrefix(msg, "run ") || strings.HasPrefix(msg, "exec ") || strings.HasPrefix(msg, "jalankan "):
 		actions, responseText = as.handleRunCommand(message)
 
 	case strings.HasPrefix(msg, "cmd ") || strings.HasPrefix(msg, "$"):
 		actions, responseText = as.handleDirectCommand(message)
 
-	// System information
 	case msg == "sysinfo" || msg == "system info" || msg == "info sistem" || msg == "system":
 		actions, responseText = as.handleSystemInfo()
 
@@ -125,36 +202,31 @@ func (as *AgentService) interpretAndExecute(message string) ([]models.Action, st
 	case msg == "memory" || msg == "ram" || msg == "mem":
 		actions, responseText = as.handleMemoryInfo()
 
-	// Help
 	case msg == "help" || msg == "bantuan" || msg == "?":
 		responseText = as.getHelpText()
 
-	// General info
 	case msg == "whoami" || msg == "siapa":
 		responseText = as.getAgentInfo()
 
-	// File info
 	case strings.HasPrefix(msg, "info "):
 		actions, responseText = as.handleFileInfo(message)
 
 	default:
-		// Try to interpret as a command
 		if strings.Contains(msg, "file") || strings.Contains(msg, "folder") || strings.Contains(msg, "directory") {
-			responseText = "🤖 Saya mengerti Anda ingin bekerja dengan file/folder. Gunakan perintah seperti:\n" +
-				"• `list <path>` - Melihat isi direktori\n" +
-				"• `read <path>` - Membaca file\n" +
-				"• `search <query>` - Mencari file\n" +
-				"• `info <path>` - Info file/folder\n\n" +
-				"Ketik `help` untuk daftar perintah lengkap."
+			responseText = "I understand you want to work with files/folders. Use commands like:\n" +
+				"- `list <path>` - List directory contents\n" +
+				"- `read <path>` - Read file\n" +
+				"- `search <query>` - Search files\n" +
+				"- `info <path>` - File/folder info\n\n" +
+				"Type `help` for all commands."
 		} else {
-			responseText = fmt.Sprintf("🤖 **Dardcor Agent v1.0**\n\nSaya menerima pesan Anda: \"%s\"\n\n"+
-				"Saya adalah AI Agent yang bisa mengakses seluruh komputer Anda. "+
-				"Berikut yang bisa saya lakukan:\n\n"+
-				"📁 **File System** - Browse, baca, tulis, hapus, cari file\n"+
-				"💻 **Terminal** - Jalankan perintah sistem\n"+
-				"📊 **System Monitor** - Info CPU, RAM, Disk, Network\n"+
-				"⚙️ **Process Manager** - Lihat dan kelola proses\n\n"+
-				"Ketik `help` untuk panduan lengkap.", message)
+			responseText = fmt.Sprintf("**Dardcor Agent**\n\nReceived: \"%s\"\n\n"+
+				"I am an AI Agent with full computer access.\n\n"+
+				"📁 **File System** - Browse, read, write, delete, search\n"+
+				"💻 **Terminal** - Execute system commands\n"+
+				"📊 **System Monitor** - CPU, RAM, Disk, Network\n"+
+				"⚙️ **Process Manager** - View and manage processes\n\n"+
+				"Type `help` for all commands.", message)
 		}
 	}
 
@@ -181,16 +253,15 @@ func (as *AgentService) handleListDir(message string) ([]models.Action, string) 
 	if err != nil {
 		action.Status = "error"
 		action.Error = err.Error()
-		return []models.Action{action}, fmt.Sprintf("❌ Gagal membaca direktori: %s", err.Error())
+		return []models.Action{action}, fmt.Sprintf("Failed to read directory: %s", err.Error())
 	}
 
 	action.Status = "completed"
 	action.Result = files
 
-	// Format response
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("📂 **Isi direktori:** `%s`\n\n", path))
-	sb.WriteString(fmt.Sprintf("Total: %d item\n\n", len(files)))
+	sb.WriteString(fmt.Sprintf("📂 **Directory:** `%s`\n\n", path))
+	sb.WriteString(fmt.Sprintf("Total: %d items\n\n", len(files)))
 
 	dirCount, fileCount := 0, 0
 	for _, f := range files {
@@ -204,7 +275,7 @@ func (as *AgentService) handleListDir(message string) ([]models.Action, string) 
 		}
 	}
 
-	sb.WriteString(fmt.Sprintf("\n📊 %d folder, %d file", dirCount, fileCount))
+	sb.WriteString(fmt.Sprintf("\n📊 %d folders, %d files", dirCount, fileCount))
 	return []models.Action{action}, sb.String()
 }
 
@@ -225,12 +296,11 @@ func (as *AgentService) handleReadFile(message string) ([]models.Action, string)
 	if err != nil {
 		action.Status = "error"
 		action.Error = err.Error()
-		return []models.Action{action}, fmt.Sprintf("❌ Gagal membaca file: %s", err.Error())
+		return []models.Action{action}, fmt.Sprintf("Failed to read file: %s", err.Error())
 	}
 
 	action.Status = "completed"
 
-	// Truncate long content for display
 	displayContent := content.Content
 	if len(displayContent) > 5000 {
 		displayContent = displayContent[:5000] + "\n\n... (truncated)"
@@ -243,10 +313,9 @@ func (as *AgentService) handleReadFile(message string) ([]models.Action, string)
 }
 
 func (as *AgentService) handleWriteFile(message string) ([]models.Action, string) {
-	// Parse "write <path> <content>" format
 	parts := strings.SplitN(message, " ", 3)
 	if len(parts) < 3 {
-		return nil, "❌ Format: `write <path> <content>`"
+		return nil, "Format: `write <path> <content>`"
 	}
 
 	path := parts[1]
@@ -266,11 +335,11 @@ func (as *AgentService) handleWriteFile(message string) ([]models.Action, string
 	if err != nil {
 		action.Status = "error"
 		action.Error = err.Error()
-		return []models.Action{action}, fmt.Sprintf("❌ Gagal menulis file: %s", err.Error())
+		return []models.Action{action}, fmt.Sprintf("Failed to write file: %s", err.Error())
 	}
 
 	action.Status = "completed"
-	return []models.Action{action}, fmt.Sprintf("✅ File berhasil ditulis: `%s` (%d bytes)", path, len(content))
+	return []models.Action{action}, fmt.Sprintf("File written: `%s` (%d bytes)", path, len(content))
 }
 
 func (as *AgentService) handleDeleteFile(message string) ([]models.Action, string) {
@@ -290,11 +359,11 @@ func (as *AgentService) handleDeleteFile(message string) ([]models.Action, strin
 	if err != nil {
 		action.Status = "error"
 		action.Error = err.Error()
-		return []models.Action{action}, fmt.Sprintf("❌ Gagal menghapus: %s", err.Error())
+		return []models.Action{action}, fmt.Sprintf("Failed to delete: %s", err.Error())
 	}
 
 	action.Status = "completed"
-	return []models.Action{action}, fmt.Sprintf("✅ Berhasil dihapus: `%s`", path)
+	return []models.Action{action}, fmt.Sprintf("Deleted: `%s`", path)
 }
 
 func (as *AgentService) handleSearch(message string) ([]models.Action, string) {
@@ -318,15 +387,15 @@ func (as *AgentService) handleSearch(message string) ([]models.Action, string) {
 	if err != nil {
 		action.Status = "error"
 		action.Error = err.Error()
-		return []models.Action{action}, fmt.Sprintf("❌ Error pencarian: %s", err.Error())
+		return []models.Action{action}, fmt.Sprintf("Search error: %s", err.Error())
 	}
 
 	action.Status = "completed"
 	action.Result = results
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("🔍 **Hasil pencarian:** \"%s\"\n\n", query))
-	sb.WriteString(fmt.Sprintf("Ditemukan %d hasil:\n\n", len(results)))
+	sb.WriteString(fmt.Sprintf("🔍 **Search results:** \"%s\"\n\n", query))
+	sb.WriteString(fmt.Sprintf("Found %d results:\n\n", len(results)))
 
 	for _, r := range results {
 		icon := "📄"
@@ -359,11 +428,11 @@ func (as *AgentService) handleMkdir(message string) ([]models.Action, string) {
 	if err != nil {
 		action.Status = "error"
 		action.Error = err.Error()
-		return []models.Action{action}, fmt.Sprintf("❌ Gagal membuat folder: %s", err.Error())
+		return []models.Action{action}, fmt.Sprintf("Failed to create directory: %s", err.Error())
 	}
 
 	action.Status = "completed"
-	return []models.Action{action}, fmt.Sprintf("✅ Folder berhasil dibuat: `%s`", path)
+	return []models.Action{action}, fmt.Sprintf("Directory created: `%s`", path)
 }
 
 func (as *AgentService) handleDrives() ([]models.Action, string) {
@@ -377,7 +446,7 @@ func (as *AgentService) handleDrives() ([]models.Action, string) {
 	}
 
 	var sb strings.Builder
-	sb.WriteString("💽 **Drive yang tersedia:**\n\n")
+	sb.WriteString("💽 **Available drives:**\n\n")
 	for _, d := range drives {
 		sb.WriteString(fmt.Sprintf("💿 `%s`\n", d))
 	}
@@ -405,7 +474,7 @@ func (as *AgentService) handleRunCommand(message string) ([]models.Action, strin
 	if err != nil {
 		action.Status = "error"
 		action.Error = err.Error()
-		return []models.Action{action}, fmt.Sprintf("❌ Gagal menjalankan perintah: %s", err.Error())
+		return []models.Action{action}, fmt.Sprintf("Failed to execute: %s", err.Error())
 	}
 
 	action.Status = "completed"
@@ -413,7 +482,7 @@ func (as *AgentService) handleRunCommand(message string) ([]models.Action, strin
 
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("💻 **Command:** `%s`\n", cmd))
-	sb.WriteString(fmt.Sprintf("⏱️ Duration: %dms | Exit Code: %d\n\n", result.Duration, result.ExitCode))
+	sb.WriteString(fmt.Sprintf("Duration: %dms | Exit Code: %d\n\n", result.Duration, result.ExitCode))
 
 	if result.Output != "" {
 		output := result.Output
@@ -424,7 +493,7 @@ func (as *AgentService) handleRunCommand(message string) ([]models.Action, strin
 	}
 
 	if result.Error != "" {
-		sb.WriteString(fmt.Sprintf("\n⚠️ **Error:**\n```\n%s\n```", result.Error))
+		sb.WriteString(fmt.Sprintf("\n**Error:**\n```\n%s\n```", result.Error))
 	}
 
 	return []models.Action{action}, sb.String()
@@ -456,7 +525,7 @@ func (as *AgentService) handleSystemInfo() ([]models.Action, string) {
 	if err != nil {
 		action.Status = "error"
 		action.Error = err.Error()
-		return []models.Action{action}, fmt.Sprintf("❌ Gagal mendapatkan info sistem: %s", err.Error())
+		return []models.Action{action}, fmt.Sprintf("Failed to get system info: %s", err.Error())
 	}
 
 	action.Status = "completed"
@@ -507,7 +576,7 @@ func (as *AgentService) handleProcesses(message string) ([]models.Action, string
 	if err != nil {
 		action.Status = "error"
 		action.Error = err.Error()
-		return []models.Action{action}, fmt.Sprintf("❌ Error: %s", err.Error())
+		return []models.Action{action}, fmt.Sprintf("Error: %s", err.Error())
 	}
 
 	action.Status = "completed"
@@ -532,7 +601,7 @@ func (as *AgentService) handleKillProcess(message string) ([]models.Action, stri
 	fmt.Sscanf(pidStr, "%d", &pid)
 
 	if pid == 0 {
-		return nil, "❌ PID tidak valid. Format: `kill <PID>`"
+		return nil, "Invalid PID. Format: `kill <PID>`"
 	}
 
 	action := models.Action{
@@ -549,17 +618,17 @@ func (as *AgentService) handleKillProcess(message string) ([]models.Action, stri
 	if err != nil {
 		action.Status = "error"
 		action.Error = err.Error()
-		return []models.Action{action}, fmt.Sprintf("❌ Gagal mematikan proses: %s", err.Error())
+		return []models.Action{action}, fmt.Sprintf("Failed to kill process: %s", err.Error())
 	}
 
 	action.Status = "completed"
-	return []models.Action{action}, fmt.Sprintf("✅ Proses %d berhasil dimatikan", pid)
+	return []models.Action{action}, fmt.Sprintf("Process %d killed", pid)
 }
 
 func (as *AgentService) handleCPUInfo() ([]models.Action, string) {
 	info, err := as.sysService.GetSystemInfo()
 	if err != nil {
-		return nil, fmt.Sprintf("❌ Error: %s", err.Error())
+		return nil, fmt.Sprintf("Error: %s", err.Error())
 	}
 
 	action := models.Action{
@@ -582,7 +651,7 @@ func (as *AgentService) handleCPUInfo() ([]models.Action, string) {
 func (as *AgentService) handleMemoryInfo() ([]models.Action, string) {
 	mem, err := as.sysService.GetMemoryUsage()
 	if err != nil {
-		return nil, fmt.Sprintf("❌ Error: %s", err.Error())
+		return nil, fmt.Sprintf("Error: %s", err.Error())
 	}
 
 	action := models.Action{
@@ -606,7 +675,7 @@ func (as *AgentService) handleFileInfo(message string) ([]models.Action, string)
 
 	info, err := as.fsService.GetFileInfo(path)
 	if err != nil {
-		return nil, fmt.Sprintf("❌ Error: %s", err.Error())
+		return nil, fmt.Sprintf("Error: %s", err.Error())
 	}
 
 	action := models.Action{
@@ -635,51 +704,51 @@ func (as *AgentService) handleFileInfo(message string) ([]models.Action, string)
 }
 
 func (as *AgentService) getHelpText() string {
-	return `🤖 **Dardcor Agent - Panduan Perintah**
+	return `🤖 **Dardcor Agent — Command Reference**
 
 📁 **File System:**
-• ` + "`list <path>`" + ` - Lihat isi direktori
-• ` + "`read <path>`" + ` - Baca isi file
-• ` + "`write <path> <content>`" + ` - Tulis ke file
-• ` + "`delete <path>`" + ` - Hapus file/folder
-• ` + "`search <query>`" + ` - Cari file
-• ` + "`mkdir <path>`" + ` - Buat folder
-• ` + "`info <path>`" + ` - Info detail file
-• ` + "`drives`" + ` - Lihat drive yang tersedia
+- ` + "`list <path>`" + ` - List directory contents
+- ` + "`read <path>`" + ` - Read file contents
+- ` + "`write <path> <content>`" + ` - Write to file
+- ` + "`delete <path>`" + ` - Delete file/folder
+- ` + "`search <query>`" + ` - Search files
+- ` + "`mkdir <path>`" + ` - Create directory
+- ` + "`info <path>`" + ` - File details
+- ` + "`drives`" + ` - List available drives
 
 💻 **Command Execution:**
-• ` + "`run <command>`" + ` - Jalankan perintah
-• ` + "`cmd <command>`" + ` - Jalankan cmd langsung
-• ` + "`$<command>`" + ` - Shortcut perintah
+- ` + "`run <command>`" + ` - Execute command
+- ` + "`cmd <command>`" + ` - Direct command
+- ` + "`$<command>`" + ` - Command shortcut
 
 📊 **System Monitor:**
-• ` + "`sysinfo`" + ` - Info sistem lengkap
-• ` + "`cpu`" + ` - Info CPU
-• ` + "`memory`" + ` - Info RAM
-• ` + "`processes`" + ` - Daftar proses
-• ` + "`kill <PID>`" + ` - Matikan proses
+- ` + "`sysinfo`" + ` - Full system info
+- ` + "`cpu`" + ` - CPU info
+- ` + "`memory`" + ` - RAM info
+- ` + "`processes`" + ` - Process list
+- ` + "`kill <PID>`" + ` - Kill process
 
-ℹ️ **Lainnya:**
-• ` + "`help`" + ` - Tampilkan bantuan ini
-• ` + "`whoami`" + ` - Info agent`
+ℹ️ **Other:**
+- ` + "`help`" + ` - Show this help
+- ` + "`whoami`" + ` - Agent info`
 }
 
 func (as *AgentService) getAgentInfo() string {
 	hostname, _ := os.Hostname()
-	return fmt.Sprintf(`🤖 **Dardcor Agent v1.0**
+	return fmt.Sprintf(`🤖 **Dardcor Agent**
 
 **Platform:** %s/%s
 **Hostname:** %s
-**Go Version:** %s
-**Agent Capabilities:**
-• 📁 Full File System Access
-• 💻 Command Execution
-• 📊 System Monitoring
-• ⚙️ Process Management
-• 🔍 File Search
-• 📝 Conversation History
+**Go Runtime:** %s
+**Capabilities:**
+- 📁 Full File System Access
+- 💻 Command Execution
+- 📊 System Monitoring
+- ⚙️ Process Management
+- 🔍 File Search
+- 📝 Conversation History
 
-Dibuat oleh **Dardcor** - AI Agent yang powerful untuk mengakses seluruh komputer Anda.`,
+Built by **Dardcor** — AI Agent for full computer access.`,
 		runtime.GOOS, runtime.GOARCH, hostname, runtime.Version())
 }
 
@@ -704,7 +773,6 @@ func (as *AgentService) extractPath(message string, prefixes []string) string {
 	return ""
 }
 
-// Utility functions
 func formatSize(bytes int64) string {
 	const (
 		KB = 1024

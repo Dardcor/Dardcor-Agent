@@ -1,152 +1,65 @@
 @echo off
-set DARDCOR_DIR=%~dp0
+setlocal
 
-if "%~1"=="run" goto run_agent
-if "%~1"=="dev" goto dev_mode
-if "%~1"=="build" goto build_agent
+set "DARDCOR_DIR=%~dp0"
+set "PORT=25000"
+if defined DARDCOR_PORT set "PORT=%DARDCOR_PORT%"
 
-echo.
-echo ==========================================
-echo    DARDCOR AGENT COMMAND LINE
-echo ==========================================
-echo.
-echo Perintah yang tersedia:
-echo   dardcor run     - Menjalankan Agent (Versi Produksi)
-echo   dardcor dev     - Menjalankan Mode Development (Real-time UI)
-echo   dardcor build   - Melakukan kompilasi sistem siap produksi
-echo.
+if "%~1"=="run"     goto run_mode
+if "%~1"=="cli"     goto cli_mode
+
+echo Dardcor Agent
+echo ------------------
+echo dardcor run      - Gateway + WebUI Dashboard
+echo dardcor cli      - CLI Agent (headless TUI)
 exit /b 1
 
-:run_agent
-echo.
-echo ==========================================
-echo    STARTING DARDCOR AGENT
-echo ==========================================
-echo.
-echo [*] Checking and safely closing old instances...
-taskkill /F /IM dardcor-agent.exe /T >nul 2>&1
-FOR /F "tokens=5" %%P IN ('netstat -ano ^| findstr :25000') DO TaskKill.exe /PID %%P /T /F >nul 2>&1
-
+:run_mode
+echo [*] Stopping old instances...
+call :kill_old
 cd /d "%DARDCOR_DIR%"
-
-if not exist dist\index.html (
-    echo [*] UI Build not found. Building React UI first...
+if not exist "dist\index.html" (
+    echo [*] UI build missing. Running build...
     call npm run build
 )
-
-echo [*] Starting Core Agent on port 25000...
-set PORT=25000
-if exist dardcor-agent.exe (
-    start /B "" cmd /c "dardcor-agent.exe > backend.log 2>&1"
-) else (
-    start /B "" cmd /c "go run main.go > backend.log 2>&1"
-)
-
-echo [*] Waiting for Agent to be ready...
-set /a count=0
-:wait_backend
-set /a count+=1
-if %count% geq 20 (
-    echo [!] Agent failed to start after 20 seconds.
-    echo [!] Cek "backend.log" untuk detail error.
-    exit /b 1
-)
-timeout /t 1 >nul
-netstat -ano | findstr :25000 >nul
-if errorlevel 1 goto wait_backend
-
-echo.
-echo [OK] DARDCOR AGENT SEDANG BERJALAN!
-echo [!] Portal Utama: http://127.0.0.1:25000
-echo [!] Tekan Ctrl+C di sini untuk mematikan sistem.
-echo.
-start http://127.0.0.1:25000
-echo [*] Meluncurkan Dashboard di browser default Anda...
-echo.
-
-:: Keep the batch script alive to prevent closing
+echo [*] Starting Gateway...
+call :start_backend "backend.log"
+timeout /t 3 /nobreak >nul
+echo [OK] Gateway running on http://127.0.0.1:%PORT%
+start "" "http://127.0.0.1:%PORT%"
 goto keepalive
 
-:dev_mode
-echo.
-echo ==========================================
-echo    STARTING DARDCOR AGENT (DEV MODE)
-echo ==========================================
-echo.
-echo [*] Checking and safely closing old instances...
-taskkill /F /IM dardcor-agent.exe /T >nul 2>&1
-FOR /F "tokens=5" %%P IN ('netstat -ano ^| findstr :25000') DO TaskKill.exe /PID %%P /T /F >nul 2>&1
-
+:cli_mode
+echo [*] Stopping old instances...
+call :kill_old
 cd /d "%DARDCOR_DIR%"
-
-echo [*] Checking node_modules...
-if not exist node_modules (
-    echo [*] Installing frontend dependencies...
-    call npm install
-)
-
-echo [*] Starting Frontend Dev Server (Vite - internal)...
-start /B "" cmd /c "npx vite --port 25099 --host 127.0.0.1 --strictPort > frontend_dev.log 2>&1"
-
-echo [*] Waiting for Frontend Dev Server...
-set /a count=0
-:wait_vite
-set /a count+=1
-if %count% geq 30 (
-    echo [!] Frontend dev server failed to start.
-    exit /b 1
-)
-timeout /t 1 >nul
-netstat -ano | findstr :25099 >nul
-if errorlevel 1 goto wait_vite
-
-echo [*] Starting Core Agent on port 25000 (with UI proxy)...
-set PORT=25000
-set DARDCOR_DEV_URL=http://127.0.0.1:25099
-if exist dardcor-agent.exe (
-    start /B "" cmd /c "dardcor-agent.exe > backend_dev.log 2>&1"
-) else (
-    start /B "" cmd /c "go run main.go > backend_dev.log 2>&1"
-)
-
-echo [*] Waiting for Backend to be ready...
-set /a count=0
-:wait_dev
-set /a count+=1
-if %count% geq 30 (
-    echo [!] Development mode failed to start.
-    exit /b 1
-)
-timeout /t 1 >nul
-netstat -ano | findstr :25000 >nul
-if errorlevel 1 goto wait_dev
-
-echo.
-echo [OK] MODE DEVELOPMENT BERJALAN! (Real-time Aktif)
-echo [!] Portal Utama: http://127.0.0.1:25000
-echo [!] Semua akses melalui satu port: 25000
-echo.
-start http://127.0.0.1:25000
-echo [*] Meluncurkan Dashboard di browser default Anda...
-echo.
-
+echo [*] Starting CLI Agent...
+call :start_backend "backend_cli.log"
+timeout /t 2 /nobreak >nul
+echo [OK] CLI Agent ready.
 goto keepalive
+
+:start_backend
+cd /d "%DARDCOR_DIR%"
+if exist "dardcor-agent.exe" (
+    start /B "" "dardcor-agent.exe" >"%~1" 2>&1
+) else (
+    start /B "Dardcor-Backend" go run main.go >"%~1" 2>&1
+)
+exit /b 0
+
+:kill_old
+taskkill /F /IM "dardcor-agent.exe" /T >nul 2>&1
+for /f "tokens=5" %%p in ('netstat -ano 2^>nul ^| findstr /C:":%PORT% " ^| findstr /C:"LISTENING"') do (
+    taskkill /PID %%p /T /F >nul 2>&1
+)
+exit /b 0
 
 :keepalive
-timeout /t 10 >nul
+timeout /t 10 /nobreak >nul
+netstat -ano 2>nul | findstr /C:":%PORT% " | findstr /C:"LISTENING" >nul 2>&1
+if errorlevel 1 (
+    echo [!] Server down. Restarting...
+    call :start_backend "backend.log"
+)
 goto keepalive
-
-:build_agent
-echo.
-echo ==========================================
-echo    BUILDING DARDCOR AGENT
-echo ==========================================
-echo.
-cd /d "%DARDCOR_DIR%"
-echo [*] Building React UI (TypeScript)...
-call npm run build
-echo [*] Building Go Core Agent Binary...
-go build -o dardcor-agent.exe .
-echo.
-echo [OK] BUILD SELESAI! Anda sekarang memiliki "dardcor-agent.exe" terkompilasi penuh.
-exit /b 0

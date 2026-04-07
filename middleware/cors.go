@@ -22,7 +22,6 @@ func CORS(next http.Handler) http.Handler {
 
 func Logger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Skip logging for static files
 		if len(r.URL.Path) > 4 {
 			ext := r.URL.Path[len(r.URL.Path)-4:]
 			if ext == ".css" || ext == ".ico" || ext == ".png" || ext == ".jpg" {

@@ -1,5 +1,0 @@
-2026/04/06 12:22:24 🤖 Dardcor Agent Server starting on http://127.0.0.1:25000
-2026/04/06 12:22:24 📁 Data directory: C:\Users\syahr\Documents\MyWebsite\Dardcor Agent\data
-2026/04/06 12:22:24 🔌 WebSocket endpoint: ws://127.0.0.1:25000/ws
-2026/04/06 12:22:24 📡 API endpoint: http://127.0.0.1:25000/api
-2026/04/06 12:22:24 Server failed: listen tcp 127.0.0.1:25000: bind: Only one usage of each socket address (protocol/network address/port) is normally permitted.

@@ -12,8 +12,6 @@ import type {
   AgentResponse,
 } from '../types'
 
-// ==================== WebSocket Hook ====================
-
 export function useWebSocket() {
   const [isConnected, setIsConnected] = useState(false)
 
@@ -23,9 +21,7 @@ export function useWebSocket() {
       setIsConnected(payload.status === 'connected')
     })
 
-    wsService.connect().catch(() => {
-      // Connection failed — will auto-retry via WebSocket service
-    })
+    wsService.connect().catch(() => {})
 
     return () => {
       unsubscribe()
@@ -34,8 +30,6 @@ export function useWebSocket() {
 
   return { isConnected, ws: wsService }
 }
-
-// ==================== Chat Hook ====================
 
 export function useChat() {
   const [messages, setMessages] = useState<Message[]>([])
@@ -63,7 +57,7 @@ export function useChat() {
 
       setMessages((prev) => [...prev, newMessage])
       setIsTyping(false)
-      wsService.getConversations() // Refresh list for real-time history
+      wsService.getConversations()
     })
 
     const unsubConvList = wsService.on('conversations_list', (msg: WSMessage) => {
@@ -82,7 +76,7 @@ export function useChat() {
       const errorMessage: Message = {
         id: Date.now().toString(),
         role: 'assistant',
-        content: `❌ Error: ${payload.error}`,
+        content: `Error: ${payload.error}`,
         timestamp: new Date().toISOString(),
       }
       setMessages((prev) => [...prev, errorMessage])
@@ -113,7 +107,6 @@ export function useChat() {
       if (wsService.isConnected) {
         wsService.sendAgentMessage(text, conversationId || undefined)
       } else {
-        // Fallback to REST API
         try {
           const response = await agentAPI.sendMessage(text, conversationId || undefined)
           setConversationId(response.conversation_id)
@@ -131,7 +124,7 @@ export function useChat() {
           const errorMessage: Message = {
             id: Date.now().toString(),
             role: 'assistant',
-            content: `❌ Error: ${err instanceof Error ? err.message : 'Koneksi gagal. Pastikan server berjalan.'}`,
+            content: `Error: ${err instanceof Error ? err.message : 'Connection failed. Make sure the server is running.'}`,
             timestamp: new Date().toISOString(),
           }
           setMessages((prev) => [...prev, errorMessage])
@@ -177,8 +170,6 @@ export function useChat() {
   }
 }
 
-// ==================== System Info Hook ====================
-
 export function useSystemInfo(pollingInterval = 5000) {
   const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null)
   const [loading, setLoading] = useState(true)
@@ -191,7 +182,7 @@ export function useSystemInfo(pollingInterval = 5000) {
       setSystemInfo(info)
       setError(null)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Gagal mengambil info sistem')
+      setError(err instanceof Error ? err.message : 'Failed to fetch system info')
     } finally {
       setLoading(false)
     }
@@ -211,8 +202,6 @@ export function useSystemInfo(pollingInterval = 5000) {
   return { systemInfo, loading, error, refresh: fetchInfo }
 }
 
-// ==================== File Explorer Hook ====================
-
 export function useFileExplorer(initialPath = 'C:\\') {
   const [currentPath, setCurrentPath] = useState(initialPath)
   const [files, setFiles] = useState<FileInfo[]>([])
@@ -228,7 +217,7 @@ export function useFileExplorer(initialPath = 'C:\\') {
       setFiles(result || [])
       setCurrentPath(path)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Gagal memuat direktori')
+      setError(err instanceof Error ? err.message : 'Failed to load directory')
       setFiles([])
     } finally {
       setLoading(false)
@@ -240,7 +229,6 @@ export function useFileExplorer(initialPath = 'C:\\') {
       const result = await filesAPI.getDrives()
       setDrives(result || [])
     } catch {
-      // Drives may not be available
     }
   }, [])
 
@@ -256,7 +244,6 @@ export function useFileExplorer(initialPath = 'C:\\') {
   useEffect(() => {
     loadDirectory(initialPath)
     loadDrives()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   return {
@@ -271,8 +258,6 @@ export function useFileExplorer(initialPath = 'C:\\') {
   }
 }
 
-// ==================== Process Manager Hook ====================
-
 export function useProcesses(pollingInterval = 5000) {
   const [processes, setProcesses] = useState<ProcessInfo[]>([])
   const [loading, setLoading] = useState(true)
@@ -284,7 +269,6 @@ export function useProcesses(pollingInterval = 5000) {
       const procs = await systemAPI.getProcesses(sortBy, 50)
       setProcesses(procs || [])
     } catch {
-      // Silently retry on next interval
     } finally {
       setLoading(false)
     }
@@ -316,8 +300,6 @@ export function useProcesses(pollingInterval = 5000) {
   return { processes, loading, sortBy, setSortBy, killProcess, refresh: fetchProcesses }
 }
 
-// ==================== Terminal Hook ====================
-
 export function useTerminal() {
   const [history, setHistory] = useState<CommandResponse[]>([])
   const [output, setOutput] = useState<string[]>([])
@@ -325,17 +307,13 @@ export function useTerminal() {
   const [workingDir, setWorkingDir] = useState('C:\\')
 
   useEffect(() => {
-    // Load command history
     commandAPI
       .getHistory(20)
       .then((h) => {
         setHistory(h || [])
       })
-      .catch(() => {
-        // History not available yet
-      })
+      .catch(() => {})
 
-    // Listen for streaming output
     const unsubOutput = wsService.on('command_output', (msg: WSMessage) => {
       const data = msg.payload as { output: string; is_error: boolean; done: boolean }
       setOutput((prev) => [...prev, data.output])

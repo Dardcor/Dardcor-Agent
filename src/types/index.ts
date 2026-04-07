@@ -1,5 +1,3 @@
-// ==================== Agent Types ====================
-
 export interface AgentRequest {
   message: string;
   conversation_id?: string;
@@ -41,8 +39,6 @@ export interface Message {
   timestamp: string;
 }
 
-// ==================== File System Types ====================
-
 export interface FileInfo {
   name: string;
   path: string;
@@ -60,8 +56,6 @@ export interface FileContent {
   size: number;
 }
 
-// ==================== Command Types ====================
-
 export interface CommandRequest {
   command: string;
   working_dir?: string;
@@ -78,8 +72,6 @@ export interface CommandResponse {
   started_at: string;
   finished_at: string;
 }
-
-// ==================== System Types ====================
 
 export interface SystemInfo {
   os: OSInfo;
@@ -144,8 +136,6 @@ export interface ProcessInfo {
   cmdline: string;
 }
 
-// ==================== WebSocket Types ====================
-
 export interface WSMessage {
   type: string;
   payload: unknown;
@@ -158,16 +148,12 @@ export interface WSCommandOutput {
   done: boolean;
 }
 
-// ==================== API Types ====================
-
 export interface APIResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
   message?: string;
 }
-
-// ==================== UI Types ====================
 
 export type TabType = 'chat' | 'files' | 'terminal' | 'system' | 'workspace';
 

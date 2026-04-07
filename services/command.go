@@ -33,7 +33,6 @@ func NewCommandService() *CommandService {
 	return &CommandService{}
 }
 
-// ExecuteCommand executes a system command and returns the result
 func (cs *CommandService) ExecuteCommand(req models.CommandRequest) (*models.CommandResponse, error) {
 	if req.Command == "" {
 		return nil, fmt.Errorf("command cannot be empty")
@@ -88,13 +87,11 @@ func (cs *CommandService) ExecuteCommand(req models.CommandRequest) (*models.Com
 		}
 	}
 
-	// Save to history
 	storage.Store.SaveCommandHistory(*response)
 
 	return response, nil
 }
 
-// ExecuteCommandStreaming executes a command with streaming output via callback
 func (cs *CommandService) ExecuteCommandStreaming(req models.CommandRequest, onOutput func(string, bool)) (*models.CommandResponse, error) {
 	if req.Command == "" {
 		return nil, fmt.Errorf("command cannot be empty")
@@ -121,7 +118,6 @@ func (cs *CommandService) ExecuteCommandStreaming(req models.CommandRequest, onO
 	cmdID := uuid.New().String()
 	var outputBuf, errBuf bytes.Buffer
 
-	// Set up pipes
 	stdoutPipe, err := cmd.StdoutPipe()
 	if err != nil {
 		cancel()
@@ -139,7 +135,6 @@ func (cs *CommandService) ExecuteCommandStreaming(req models.CommandRequest, onO
 		return nil, err
 	}
 
-	// Store active command
 	cs.activeCommands.Store(cmdID, &ActiveCommand{
 		ID:      cmdID,
 		Cmd:     cmd,
@@ -150,7 +145,6 @@ func (cs *CommandService) ExecuteCommandStreaming(req models.CommandRequest, onO
 	})
 	defer cs.activeCommands.Delete(cmdID)
 
-	// Read stdout in goroutine
 	var wg sync.WaitGroup
 	wg.Add(2)
 
@@ -220,7 +214,6 @@ func (cs *CommandService) ExecuteCommandStreaming(req models.CommandRequest, onO
 	return response, nil
 }
 
-// KillCommand kills an active command
 func (cs *CommandService) KillCommand(id string) error {
 	if val, ok := cs.activeCommands.Load(id); ok {
 		ac := val.(*ActiveCommand)
@@ -230,12 +223,10 @@ func (cs *CommandService) KillCommand(id string) error {
 	return fmt.Errorf("command not found: %s", id)
 }
 
-// GetCommandHistory returns recent command history
 func (cs *CommandService) GetCommandHistory(limit int) ([]models.CommandResponse, error) {
 	return storage.Store.GetCommandHistory(limit)
 }
 
-// GetShellInfo returns information about the default shell
 func (cs *CommandService) GetShellInfo() map[string]string {
 	info := map[string]string{
 		"os":   runtime.GOOS,
@@ -246,7 +237,6 @@ func (cs *CommandService) GetShellInfo() map[string]string {
 		info["shell"] = "cmd.exe"
 		info["shell_flag"] = "/C"
 
-		// Check if PowerShell is available
 		if _, err := exec.LookPath("powershell"); err == nil {
 			info["powershell"] = "available"
 		}
@@ -255,7 +245,6 @@ func (cs *CommandService) GetShellInfo() map[string]string {
 		info["shell_flag"] = "-c"
 	}
 
-	// Get PATH
 	if path, err := exec.Command("echo", "%PATH%").Output(); err == nil {
 		pathStr := strings.TrimSpace(string(path))
 		if len(pathStr) > 500 {

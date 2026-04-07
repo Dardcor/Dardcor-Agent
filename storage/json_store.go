@@ -24,8 +24,6 @@ func Init() {
 	Store = &JSONStore{}
 }
 
-// ==================== Conversation Storage ====================
-
 func (s *JSONStore) SaveConversation(conv *models.Conversation) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -84,7 +82,6 @@ func (s *JSONStore) ListConversations() ([]models.Conversation, error) {
 			continue
 		}
 
-		// Don't include full messages in list
 		msgCount := len(conv.Messages)
 		conv.Messages = nil
 		if msgCount > 0 {
@@ -144,8 +141,6 @@ func (s *JSONStore) AddMessage(convID string, msg models.Message) error {
 	return s.SaveConversation(conv)
 }
 
-// ==================== Command History Storage ====================
-
 func (s *JSONStore) SaveCommandHistory(cmd models.CommandResponse) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -157,7 +152,6 @@ func (s *JSONStore) SaveCommandHistory(cmd models.CommandResponse) error {
 		json.Unmarshal(data, &history)
 	}
 
-	// Keep last 500 commands
 	if len(history.Commands) >= 500 {
 		history.Commands = history.Commands[len(history.Commands)-499:]
 	}

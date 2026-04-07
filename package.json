@@ -2,26 +2,33 @@
   "name": "dardcor-agent",
   "preferGlobal": true,
   "private": false,
-  "version": "1.0.0",
+  "version": "",
   "type": "module",
   "bin": {
     "dardcor": "cli.js"
   },
   "scripts": {
-    "dev": "dardcor.bat dev",
-    "dev:vite": "vite --port 25099 --host 127.0.0.1 --strictPort",
-    "build": "tsc && vite build",
+    "dev":     "vite",
+    "build":   "tsc && vite build",
     "preview": "vite preview",
-    "agent": "dardcor.bat run"
+    "start":   "dardcor run"
   },
-  "description": "Autonomous AI Agent with Dashboard Control",
-  "keywords": ["ai", "agent", "autonomous", "dashboard", "control"],
+  "description": "Autonomous AI Agent — Gateway, CLI TUI, Multi-Provider LLM, Skills, Ultrawork",
+  "keywords": [
+    "ai", "agent", "autonomous", "dashboard", "cli", "tui",
+    "openai", "claude", "gemini", "deepseek", "ollama",
+    "dardcor", "coding-agent", "terminal"
+  ],
   "author": "Dardcor Team",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/syahr/Dardcor-Agent.git"
+    "url": "git+https://github.com/dardcor/dardcor-agent.git"
   },
+  "bugs": {
+    "url": "https://github.com/dardcor/dardcor-agent/issues"
+  },
+  "homepage": "https://github.com/dardcor/dardcor-agent#readme",
   "files": [
     "cli.js",
     "dardcor.bat",
@@ -31,14 +38,17 @@
     "LICENSE"
   ],
   "devDependencies": {
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
+    "@types/react":        "^19.2.14",
+    "@types/react-dom":    "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
-    "typescript": "~5.9.3",
-    "vite": "^8.0.1"
+    "typescript":          "~5.9.3",
+    "vite":                "^8.0.1"
   },
   "dependencies": {
-    "react": "^19.2.4",
+    "react":     "^19.2.4",
     "react-dom": "^19.2.4"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }

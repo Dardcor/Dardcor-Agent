@@ -36,7 +36,6 @@ class WebSocketService {
         this.ws = new WebSocket(this.url)
 
         this.ws.onopen = () => {
-          console.log('🔌 WebSocket connected to Dardcor Agent')
           this.reconnectAttempts = 0
           this.isConnecting = false
           this.emit('connection', { type: 'connection', payload: { status: 'connected' } })
@@ -49,13 +48,10 @@ class WebSocketService {
             const message: WSMessage = JSON.parse(event.data)
             this.emit(message.type, message)
             this.emit('*', message)
-          } catch {
-            console.error('Failed to parse WS message')
-          }
+          } catch { }
         }
 
         this.ws.onclose = (event) => {
-          console.log(`🔌 WebSocket disconnected: ${event.code}`)
           this.isConnecting = false
           this.stopPing()
           this.emit('connection', { type: 'connection', payload: { status: 'disconnected' } })
@@ -92,17 +88,14 @@ class WebSocketService {
 
   private attemptReconnect() {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.log('Max reconnect attempts reached')
       return
     }
 
     this.reconnectAttempts++
     const delay = Math.min(this.reconnectDelay * Math.pow(1.5, this.reconnectAttempts - 1), 30000)
-    console.log(`Reconnecting in ${Math.round(delay)}ms (attempt ${this.reconnectAttempts})`)
 
     setTimeout(() => {
       this.connect().catch(() => {
-        // Will retry again from onclose handler
       })
     }, delay)
   }
@@ -117,13 +110,11 @@ class WebSocketService {
 
   send(type: string, payload: unknown) {
     if (this.ws?.readyState !== WebSocket.OPEN) {
-      console.warn('WebSocket not connected, attempting to connect...')
       this.connect()
         .then(() => {
           this.doSend(type, payload)
         })
         .catch(() => {
-          console.error('Cannot send message: WebSocket not available')
         })
       return
     }
@@ -162,7 +153,6 @@ class WebSocketService {
         try {
           handler(message)
         } catch (err) {
-          console.error(`WS handler error for ${type}:`, err)
         }
       })
     }
@@ -172,7 +162,6 @@ class WebSocketService {
     return this.ws?.readyState === WebSocket.OPEN
   }
 
-  // Convenience methods
   sendAgentMessage(message: string, conversationId?: string) {
     this.send('agent_message', { message, conversation_id: conversationId })
   }

@@ -41,18 +41,16 @@ async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> 
     clearTimeout(timeoutId)
 
     if (err instanceof DOMException && err.name === 'AbortError') {
-      throw new Error('Request timeout — server tidak merespons')
+      throw new Error('Request timeout — server not responding')
     }
 
     if (err instanceof TypeError && err.message.includes('fetch')) {
-      throw new Error('Koneksi gagal — pastikan server Dardcor Agent berjalan di port 25000')
+      throw new Error('Connection failed — make sure Dardcor Agent is running on port 25000')
     }
 
     throw err
   }
 }
-
-// ==================== Agent API ====================
 
 export const agentAPI = {
   sendMessage: (message: string, conversationId?: string) =>
@@ -64,8 +62,6 @@ export const agentAPI = {
       }),
     }),
 }
-
-// ==================== File System API ====================
 
 export const filesAPI = {
   listDirectory: (path: string) =>
@@ -115,8 +111,6 @@ export const filesAPI = {
     }),
 }
 
-// ==================== Command API ====================
-
 export const commandAPI = {
   execute: (command: string, workingDir?: string, timeout?: number) =>
     fetchAPI<CommandResponse>('/command', {
@@ -133,8 +127,6 @@ export const commandAPI = {
 
   getShellInfo: () => fetchAPI<Record<string, string>>('/command/info'),
 }
-
-// ==================== System API ====================
 
 export const systemAPI = {
   getSystemInfo: () => fetchAPI<SystemInfo>('/system'),

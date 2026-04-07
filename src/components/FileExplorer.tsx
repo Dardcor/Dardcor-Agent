@@ -1,158 +1,104 @@
-import React from 'react'
-import { useFileExplorer } from '../hooks/useAgent'
+import React, { useState, useEffect } from 'react'
+import wsService from '../services/websocket'
+
+interface FileNode {
+  name: string
+  path: string
+  isDir: boolean
+  size: number
+  modTime: string
+}
 
 const FileExplorer: React.FC = () => {
-  const {
-    currentPath,
-    files,
-    loading,
-    error,
-    drives,
-    loadDirectory,
-    goUp,
-    refresh,
-  } = useFileExplorer()
+  const [currentPath, setCurrentPath] = useState('.')
+  const [files, setFiles] = useState<FileNode[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [selectedFile, setSelectedFile] = useState<FileNode | null>(null)
+  const [fileContent, setFileContent] = useState('')
 
-  const formatSize = (bytes: number): string => {
-    if (bytes === 0) return '—'
-    const k = 1024
-    const sizes = ['B', 'KB', 'MB', 'GB', 'TB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i]
-  }
+  useEffect(() => {
+    const unsub = wsService.on('list_directory_result', (msg: any) => {
+      setFiles(msg.payload.files)
+      setIsLoading(false)
+    })
 
-  const getFileIcon = (name: string, isDir: boolean): string => {
-    if (isDir) return '📁'
-    const ext = name.split('.').pop()?.toLowerCase() || ''
-    const iconMap: Record<string, string> = {
-      ts: '🔷', tsx: '🔷', js: '🟡', jsx: '🟡',
-      go: '🔵', py: '🐍', rs: '🦀', java: '☕',
-      html: '🌐', css: '🎨', scss: '🎨',
-      json: '📋', xml: '📋', yaml: '📋', yml: '📋', toml: '📋',
-      md: '📝', txt: '📄', doc: '📄', docx: '📄',
-      pdf: '📕', xls: '📊', xlsx: '📊',
-      png: '🖼️', jpg: '🖼️', jpeg: '🖼️', gif: '🖼️', svg: '🖼️', webp: '🖼️',
-      mp3: '🎵', wav: '🎵', flac: '🎵',
-      mp4: '🎬', avi: '🎬', mkv: '🎬',
-      zip: '📦', rar: '📦', '7z': '📦', tar: '📦', gz: '📦',
-      exe: '⚙️', msi: '⚙️', dll: '🔧',
-      bat: '📜', sh: '📜', ps1: '📜',
-      gitignore: '🔒', env: '🔐',
-      lock: '🔒', log: '📋',
+    const unsubRead = wsService.on('read_file_result', (msg: any) => {
+      setFileContent(msg.payload.content)
+      setIsLoading(false)
+    })
+
+    fetchFiles('.')
+
+    return () => {
+      unsub()
+      unsubRead()
     }
-    return iconMap[ext] || '📄'
+  }, [])
+
+  const fetchFiles = (path: string) => {
+    setIsLoading(true)
+    setCurrentPath(path)
+    wsService.send('list_directory', { path })
   }
 
-  const pathSegments = currentPath.split(/[/\\]/).filter(Boolean)
+  const handleOpen = (node: FileNode) => {
+    if (node.isDir) {
+      fetchFiles(node.path)
+    } else {
+      setIsLoading(true)
+      setSelectedFile(node)
+      wsService.send('read_file', { path: node.path })
+    }
+  }
+
+  const handleBack = () => {
+    const parts = currentPath.split(/[\/\\]/)
+    if (parts.length > 1) {
+      parts.pop()
+      fetchFiles(parts.join('/') || '.')
+    } else {
+      fetchFiles('.')
+    }
+  }
 
   return (
     <div className="file-explorer">
-      {/* Drive List */}
-      <div className="drive-list">
-        {drives.map((drive) => (
-          <button
-            key={drive}
-            className={`drive-btn ${currentPath.startsWith(drive) ? 'active' : ''}`}
-            onClick={() => loadDirectory(drive)}
-          >
-            💿 {drive}
-          </button>
-        ))}
+      <div className="explorer-header">
+        <div className="explorer-path">
+          <button className="back-btn" onClick={handleBack}>↑</button>
+          <span>{currentPath}</span>
+        </div>
+        <div className="explorer-actions">
+          <button onClick={() => fetchFiles(currentPath)}>↻</button>
+        </div>
       </div>
 
-      {/* Toolbar */}
-      <div className="file-toolbar">
-        <button className="toolbar-btn" onClick={goUp} title="Naik satu level" id="file-go-up">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-        </button>
-        <button className="toolbar-btn" onClick={refresh} title="Refresh" id="file-refresh">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
-            <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
-          </svg>
-        </button>
-        <div className="file-path-bar">
-          {pathSegments.map((segment, i) => (
-            <React.Fragment key={i}>
-              {i > 0 && <span className="file-path-separator">/</span>}
-              <span
-                className="file-path-segment"
-                onClick={() => {
-                  const path = pathSegments.slice(0, i + 1).join('\\')
-                  loadDirectory(path + (i === 0 ? '\\' : ''))
-                }}
-              >
-                {segment}
-              </span>
-            </React.Fragment>
+      <div className="explorer-main">
+        <div className="explorer-list">
+          {isLoading && <div className="loader">Loading...</div>}
+          {files.map((file, i) => (
+            <div 
+              key={i} 
+              className={`file-item ${file.isDir ? 'dir' : 'file'}`}
+              onClick={() => handleOpen(file)}
+            >
+              <span className="file-icon">{file.isDir ? '📁' : '📄'}</span>
+              <span className="file-name">{file.name}</span>
+              <span className="file-size">{file.isDir ? '--' : `${(file.size / 1024).toFixed(1)} KB`}</span>
+            </div>
           ))}
         </div>
-      </div>
 
-      {/* Error Banner */}
-      {error && (
-        <div className="error-banner">
-          ⚠️ {error}
-        </div>
-      )}
-
-      {/* File List */}
-      <div className="file-list">
-        {loading ? (
-          <div className="loading-spinner">
-            <div className="spinner" />
+        {selectedFile && (
+          <div className="file-viewer">
+            <div className="viewer-header">
+              <span className="viewer-title">{selectedFile.name}</span>
+              <button className="close-viewer" onClick={() => setSelectedFile(null)}>×</button>
+            </div>
+            <pre className="viewer-content">
+              {fileContent}
+            </pre>
           </div>
-        ) : files.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-state-icon">📂</div>
-            <h3>Folder Kosong</h3>
-            <p>Tidak ada file atau folder di direktori ini</p>
-          </div>
-        ) : (
-          files
-            .sort((a, b) => {
-              if (a.is_dir && !b.is_dir) return -1
-              if (!a.is_dir && b.is_dir) return 1
-              return a.name.localeCompare(b.name)
-            })
-            .map((file) => (
-              <div
-                key={file.path}
-                className="file-item"
-                onClick={() => {
-                  if (file.is_dir) {
-                    loadDirectory(file.path)
-                  }
-                }}
-                onDoubleClick={() => {
-                  if (!file.is_dir) {
-                    // Could open file content viewer
-                  }
-                }}
-              >
-                <div className="file-item-icon">
-                  {getFileIcon(file.name, file.is_dir)}
-                </div>
-                <div className="file-item-info">
-                  <div className="file-item-name">{file.name}</div>
-                  <div className="file-item-meta">
-                    <span>{file.is_dir ? 'Folder' : file.extension || 'File'}</span>
-                    <span>
-                      {new Date(file.modified_at).toLocaleDateString('id-ID', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                      })}
-                    </span>
-                  </div>
-                </div>
-                <div className="file-item-size">
-                  {file.is_dir ? '—' : formatSize(file.size)}
-                </div>
-              </div>
-            ))
         )}
       </div>
     </div>

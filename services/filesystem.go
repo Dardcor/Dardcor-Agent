@@ -17,7 +17,6 @@ func NewFileSystemService() *FileSystemService {
 	return &FileSystemService{}
 }
 
-// ListDirectory lists all files and folders in a directory
 func (fs *FileSystemService) ListDirectory(path string) ([]models.FileInfo, error) {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
@@ -55,7 +54,6 @@ func (fs *FileSystemService) ListDirectory(path string) ([]models.FileInfo, erro
 	return files, nil
 }
 
-// ReadFile reads a file's content
 func (fs *FileSystemService) ReadFile(path string) (*models.FileContent, error) {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
@@ -71,7 +69,6 @@ func (fs *FileSystemService) ReadFile(path string) (*models.FileContent, error) 
 		return nil, fmt.Errorf("path is a directory, not a file")
 	}
 
-	// Limit file size to 50MB
 	if info.Size() > 50*1024*1024 {
 		return nil, fmt.Errorf("file too large (max 50MB)")
 	}
@@ -89,14 +86,12 @@ func (fs *FileSystemService) ReadFile(path string) (*models.FileContent, error) 
 	}, nil
 }
 
-// WriteFile writes content to a file
 func (fs *FileSystemService) WriteFile(path string, content string) error {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return fmt.Errorf("invalid path: %w", err)
 	}
 
-	// Ensure parent directory exists
 	dir := filepath.Dir(absPath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("cannot create directory: %w", err)
@@ -105,7 +100,6 @@ func (fs *FileSystemService) WriteFile(path string, content string) error {
 	return os.WriteFile(absPath, []byte(content), 0644)
 }
 
-// DeleteFile deletes a file or empty directory
 func (fs *FileSystemService) DeleteFile(path string) error {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
@@ -115,7 +109,6 @@ func (fs *FileSystemService) DeleteFile(path string) error {
 	return os.RemoveAll(absPath)
 }
 
-// CreateDirectory creates a new directory
 func (fs *FileSystemService) CreateDirectory(path string) error {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
@@ -125,7 +118,6 @@ func (fs *FileSystemService) CreateDirectory(path string) error {
 	return os.MkdirAll(absPath, 0755)
 }
 
-// MoveFile moves/renames a file
 func (fs *FileSystemService) MoveFile(src, dst string) error {
 	absSrc, err := filepath.Abs(src)
 	if err != nil {
@@ -140,7 +132,6 @@ func (fs *FileSystemService) MoveFile(src, dst string) error {
 	return os.Rename(absSrc, absDst)
 }
 
-// CopyFile copies a file
 func (fs *FileSystemService) CopyFile(src, dst string) error {
 	absSrc, err := filepath.Abs(src)
 	if err != nil {
@@ -158,7 +149,6 @@ func (fs *FileSystemService) CopyFile(src, dst string) error {
 	}
 	defer sourceFile.Close()
 
-	// Ensure parent directory exists
 	os.MkdirAll(filepath.Dir(absDst), 0755)
 
 	destFile, err := os.Create(absDst)
@@ -171,7 +161,6 @@ func (fs *FileSystemService) CopyFile(src, dst string) error {
 	return err
 }
 
-// SearchFiles searches for files matching a query
 func (fs *FileSystemService) SearchFiles(req models.SearchRequest) ([]models.SearchResult, error) {
 	absPath, err := filepath.Abs(req.Path)
 	if err != nil {
@@ -184,14 +173,13 @@ func (fs *FileSystemService) SearchFiles(req models.SearchRequest) ([]models.Sea
 
 	err = filepath.Walk(absPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			return nil // Skip inaccessible files
+			return nil
 		}
 
 		if len(results) >= maxResults {
 			return filepath.SkipAll
 		}
 
-		// Check max depth
 		if req.MaxDepth > 0 {
 			rel, _ := filepath.Rel(absPath, path)
 			depth := strings.Count(rel, string(os.PathSeparator))
@@ -203,7 +191,6 @@ func (fs *FileSystemService) SearchFiles(req models.SearchRequest) ([]models.Sea
 			}
 		}
 
-		// Filter by file type
 		if req.FileType != "" && !info.IsDir() {
 			ext := filepath.Ext(info.Name())
 			if !strings.EqualFold(ext, "."+req.FileType) {
@@ -221,7 +208,6 @@ func (fs *FileSystemService) SearchFiles(req models.SearchRequest) ([]models.Sea
 			})
 		}
 
-		// Search content if requested
 		if req.SearchContent && !info.IsDir() && info.Size() < 1024*1024 {
 			if contentResults := fs.searchInFile(path, query); len(contentResults) > 0 {
 				for _, cr := range contentResults {
@@ -260,7 +246,7 @@ func (fs *FileSystemService) searchInFile(path, query string) []models.SearchRes
 				MatchLine: lineNum,
 				MatchText: strings.TrimSpace(line),
 			})
-			if len(results) >= 5 { // Max 5 matches per file
+			if len(results) >= 5 {
 				break
 			}
 		}
@@ -269,7 +255,6 @@ func (fs *FileSystemService) searchInFile(path, query string) []models.SearchRes
 	return results
 }
 
-// GetFileInfo returns detailed info about a file
 func (fs *FileSystemService) GetFileInfo(path string) (*models.FileInfo, error) {
 	absPath, err := filepath.Abs(path)
 	if err != nil {
@@ -297,7 +282,6 @@ func (fs *FileSystemService) GetFileInfo(path string) (*models.FileInfo, error) 
 	}, nil
 }
 
-// GetDrives returns available drives (Windows)
 func (fs *FileSystemService) GetDrives() []string {
 	var drives []string
 	for _, drive := range "ABCDEFGHIJKLMNOPQRSTUVWXYZ" {
