@@ -18,8 +18,9 @@ desktop.ini
 *.test
 
 # Data (local storage and logs)
-data/
+database/
 backend.log
+backend_cli.log
 *.exe
 *.bin
 

@@ -2,13 +2,9 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
-	"net/http/httputil"
-	"net/url"
 	"os"
-	"path/filepath"
 	"runtime"
 	"time"
 
@@ -121,27 +117,22 @@ func main() {
 
 	r.HandleFunc("/ws", wsHandler.HandleWebSocket)
 
-	frontendDevUrl := os.Getenv("DARDCOR_DEV_URL")
-	if frontendDevUrl != "" {
-		log.Printf("🚀 Dev Proxy Mode: ON")
-		log.Printf("🔗 Proxy Target: %s", frontendDevUrl)
-		target, _ := url.Parse(frontendDevUrl)
-		proxy := httputil.NewSingleHostReverseProxy(target)
-		r.PathPrefix("/").HandlerFunc(proxy.ServeHTTP)
-	} else {
-		log.Printf("📦 Production Mode: Serving static files from ./dist")
-		frontendDist := filepath.Join("dist")
-		if _, err := os.Stat(frontendDist); err == nil {
-			spa := spaHandler{staticPath: frontendDist, indexPath: "index.html"}
-			r.PathPrefix("/").Handler(spa)
-		} else {
-			r.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
-				w.Header().Set("Content-Type", "application/json")
-				fmt.Fprintf(w, `{"status":"running","name":"Dardcor Agent","port":"%s","provider":"%s","model":"%s"}`,
-					cfg.Port, cfg.AI.Provider, cfg.AI.Model)
-			})
+	r.PathPrefix("/assets/").Handler(http.StripPrefix("/assets/", http.FileServer(http.Dir("dist/assets"))))
+	r.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		path := req.URL.Path
+		
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
+		
+		if path != "/" && path != "/index.html" {
+			if _, err := os.Stat("dist" + path); err == nil {
+				http.ServeFile(w, req, "dist"+path)
+				return
+			}
 		}
-	}
+		http.ServeFile(w, req, "dist/index.html")
+	})
 
 	handler := middleware.CORS(middleware.Logger(r))
 
@@ -149,11 +140,11 @@ func main() {
 	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 	log.Printf("Dardcor Agent")
 	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-	log.Printf("Dashboard  → http://%s", addr)
-	log.Printf("WebSocket  → ws://%s/ws", addr)
-	log.Printf("API        → http://%s/api", addr)
-	log.Printf("Provider   → %s | %s", cfg.AI.Provider, cfg.AI.Model)
-	log.Printf("Data       → %s", cfg.DataDir)
+	log.Printf("Internal Dashboard → http://%s", addr)
+	log.Printf("WebSocket          → ws://%s/ws", addr)
+	log.Printf("API                → http://%s/api", addr)
+	log.Printf("Provider           → %s | %s", cfg.AI.Provider, cfg.AI.Model)
+	log.Printf("Data               → %s", cfg.DataDir)
 	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
 	if err := http.ListenAndServe(addr, handler); err != nil {
@@ -161,20 +152,4 @@ func main() {
 	}
 }
 
-type spaHandler struct {
-	staticPath string
-	indexPath  string
-}
 
-func (h spaHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	fpath := filepath.Join(h.staticPath, r.URL.Path)
-	_, err := os.Stat(fpath)
-	if os.IsNotExist(err) {
-		http.ServeFile(w, r, filepath.Join(h.staticPath, h.indexPath))
-		return
-	} else if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	http.FileServer(http.Dir(h.staticPath)).ServeHTTP(w, r)
-}

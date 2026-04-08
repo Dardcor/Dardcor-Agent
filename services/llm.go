@@ -13,8 +13,8 @@ import (
 )
 
 type LLMMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role    string `json:"role" xml:"role"`
+	Content string `json:"content" xml:"content"`
 }
 
 type LLMResponse struct {
@@ -239,8 +239,8 @@ func buildLocalResponse(message string) string {
 	msg := strings.ToLower(strings.TrimSpace(message))
 
 	if strings.Contains(msg, "ultrawork") || strings.Contains(msg, "ulw") {
-		return "**ULTRAWORK MODE** — AI provider not configured. Run the setup wizard to configure a provider (OpenAI, Claude, Gemini, DeepSeek, Ollama, etc). Use built-in commands meanwhile: `help`"
+		return "**ULTRAWORK MODE** — AI provider not configured. Configure a provider to continue."
 	}
 
-	return fmt.Sprintf("**Dardcor Agent** (Local Mode)\n\nCommand: \"%s\"\n\nAI provider not configured. To use LLM:\n\n```\ndardcor cli --init\n```\n\nBuilt-in commands available: `list`, `read`, `write`, `run`, `sysinfo`, `processes`, `help`", message)
+	return fmt.Sprintf("**Dardcor Agent** (Local Mode)\n\nCommand: \"%s\"\n\nAI provider not configured. Configure a provider via CLI or Dashboard.", message)
 }

@@ -21,12 +21,12 @@ type Config struct {
 }
 
 type AIConfig struct {
-	Provider   string `json:"provider"`
-	Model      string `json:"model"`
-	APIKey     string `json:"api_key"`
-	BaseURL    string `json:"base_url"`
-	MaxTokens  int    `json:"max_tokens"`
-	Streaming  bool   `json:"streaming"`
+	Provider   string  `json:"provider"`
+	Model      string  `json:"model"`
+	APIKey     string  `json:"api_key"`
+	BaseURL    string  `json:"base_url"`
+	MaxTokens  int     `json:"max_tokens"`
+	Streaming  bool    `json:"streaming"`
 	Temperature float64 `json:"temperature"`
 }
 
@@ -45,15 +45,15 @@ func Init() (*Config, error) {
 		execPath = "."
 	}
 	baseDir := filepath.Dir(execPath)
-	dataDir := filepath.Join(baseDir, "data")
+	dataDir := filepath.Join(baseDir, "database")
 	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
-		dataDir = filepath.Join(baseDir, "..", "data")
+		dataDir = filepath.Join(baseDir, "..", "database")
 	}
 	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
 		cwd, _ := os.Getwd()
-		dataDir = filepath.Join(cwd, "data")
+		dataDir = filepath.Join(cwd, "database")
 		if _, err := os.Stat(dataDir); os.IsNotExist(err) {
-			dataDir = filepath.Join(cwd, "..", "data")
+			dataDir = filepath.Join(cwd, "..", "database")
 		}
 	}
 
@@ -62,16 +62,9 @@ func Init() (*Config, error) {
 		defaultShell = "/bin/bash"
 	}
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "25000"
-	}
-
+	port := "25000"
+	
 	userCfg := loadUserConfig()
-
-	if userCfg.Port != "" && port == "25000" {
-		port = userCfg.Port
-	}
 
 	aiCfg := buildAIConfig(userCfg)
 
@@ -198,3 +191,4 @@ func (c *Config) GetCommandsDir() string {
 func (c *Config) IsAIEnabled() bool {
 	return c.AI.Provider != "local" && c.AI.Provider != ""
 }
+

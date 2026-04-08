@@ -1,7 +1,10 @@
 package middleware
 
 import (
+	"log"
 	"net/http"
+	"strings"
+	"time"
 )
 
 func CORS(next http.Handler) http.Handler {
@@ -22,14 +25,14 @@ func CORS(next http.Handler) http.Handler {
 
 func Logger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if len(r.URL.Path) > 4 {
-			ext := r.URL.Path[len(r.URL.Path)-4:]
-			if ext == ".css" || ext == ".ico" || ext == ".png" || ext == ".jpg" {
-				next.ServeHTTP(w, r)
-				return
-			}
+		start := time.Now()
+		next.ServeHTTP(w, r)
+
+		if strings.HasPrefix(r.URL.Path, "/api/system") {
+			return
 		}
 
-		next.ServeHTTP(w, r)
+		log.Printf("%s %s %s", r.Method, r.URL.Path, time.Since(start))
 	})
 }
+

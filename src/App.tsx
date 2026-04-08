@@ -4,6 +4,7 @@ import Terminal from './components/Terminal'
 import FileExplorer from './components/FileExplorer'
 import Workspace from './components/Workspace'
 import SystemDashboard from './components/SystemDashboard'
+import ModelSelector from './components/ModelSelector'
 import wsService from './services/websocket'
 
 const App: React.FC = () => {
@@ -24,39 +25,41 @@ const App: React.FC = () => {
       case 'explorer':  return <FileExplorer />
       case 'workspace': return <Workspace />
       case 'system':    return <SystemDashboard />
+      case 'model':     return <ModelSelector />
       default:          return <ChatPanel />
     }
   }
 
   return (
-    <div className={`app-container ${isSidebarOpen ? 'is-open' : ''}`}>
-      <aside className="sidebar">
+    <div className="app-container">
+      <aside className={`sidebar ${isSidebarOpen ? 'is-open' : ''}`}>
         <div className="sidebar-header">
           <div className="sidebar-top-row">
             <div className="sidebar-logo">
               <div className="sidebar-logo-img"></div>
               <div className="sidebar-logo-text">
-                <h1>Dardcor OK</h1>
+                <h1>Dardcor</h1>
               </div>
             </div>
             <button className="close-sidebar-btn" onClick={() => setIsSidebarOpen(false)}>×</button>
           </div>
-          
-          <div className="sidebar-separator"></div>
+        </div>
+        
+        <div className="sidebar-separator"></div>
 
-          <div className="sidebar-action-group">
-            <button className="action-btn history-btn">
-              <span>🕒</span> Riwayat
-            </button>
-            <button className="action-btn new-chat-btn" onClick={() => setActiveTab('chat')}>
-              <span>+</span> Baru
-            </button>
-          </div>
+        <div className="sidebar-action-group">
+          <button className="action-btn history-btn">
+            <span>🕒</span> Riwayat
+          </button>
+          <button className="action-btn new-chat-btn" onClick={() => setActiveTab('chat')}>
+            <span>+</span> Baru
+          </button>
         </div>
 
         <nav className="sidebar-nav">
           {[
             { id: 'chat',      label: 'Agent Chat',      icon: '💬' },
+            { id: 'model',     label: 'Model',           icon: '🤖' },
             { id: 'explorer',  label: 'File Explorer',  icon: '📂' },
             { id: 'terminal',  label: 'Terminal',       icon: '💻' },
             { id: 'system',    label: 'System Monitor', icon: '📊' },
@@ -89,6 +92,7 @@ const App: React.FC = () => {
             )}
             <h2 style={{ textTransform: 'capitalize' }}>{activeTab}</h2>
           </div>
+
           <div className="header-actions">
             <button 
               className={`header-btn ${activeTab === 'chat' ? 'active' : ''}`}
@@ -105,7 +109,7 @@ const App: React.FC = () => {
           </div>
         </header>
         
-        <div className="tab-content" style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+        <div className="tab-content">
           {renderContent()}
         </div>
       </main>
@@ -114,3 +118,5 @@ const App: React.FC = () => {
 }
 
 export default App
+
+

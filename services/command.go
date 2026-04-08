@@ -33,6 +33,36 @@ func NewCommandService() *CommandService {
 	return &CommandService{}
 }
 
+func (cs *CommandService) getCommandArgs(requestedShell, command string) (string, []string) {
+	if requestedShell == "" {
+		if runtime.GOOS == "windows" {
+			requestedShell = "cmd"
+		} else {
+			requestedShell = "sh"
+		}
+	}
+
+	shell := strings.ToLower(requestedShell)
+	switch shell {
+	case "powershell", "pwsh":
+		return "powershell", []string{"-NoProfile", "-NonInteractive", "-Command", command}
+	case "cmd":
+		return "cmd", []string{"/C", command}
+	case "bash":
+		return "bash", []string{"-c", command}
+	case "sh":
+		return "sh", []string{"-c", command}
+	case "zsh":
+		return "zsh", []string{"-c", command}
+	default:
+
+		if runtime.GOOS == "windows" {
+			return "cmd", []string{"/C", command}
+		}
+		return "sh", []string{"-c", command}
+	}
+}
+
 func (cs *CommandService) ExecuteCommand(req models.CommandRequest) (*models.CommandResponse, error) {
 	if req.Command == "" {
 		return nil, fmt.Errorf("command cannot be empty")
@@ -46,12 +76,8 @@ func (cs *CommandService) ExecuteCommand(req models.CommandRequest) (*models.Com
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
 	defer cancel()
 
-	var cmd *exec.Cmd
-	if runtime.GOOS == "windows" {
-		cmd = exec.CommandContext(ctx, "cmd", "/C", req.Command)
-	} else {
-		cmd = exec.CommandContext(ctx, "sh", "-c", req.Command)
-	}
+	cmdName, args := cs.getCommandArgs(req.Shell, req.Command)
+	cmd := exec.CommandContext(ctx, cmdName, args...)
 
 	if req.WorkingDir != "" {
 		cmd.Dir = req.WorkingDir
@@ -88,11 +114,10 @@ func (cs *CommandService) ExecuteCommand(req models.CommandRequest) (*models.Com
 	}
 
 	storage.Store.SaveCommandHistory(*response)
-
 	return response, nil
 }
 
-func (cs *CommandService) ExecuteCommandStreaming(req models.CommandRequest, onOutput func(string, bool)) (*models.CommandResponse, error) {
+func (cs *CommandService) ExecuteCommandStreaming(req models.CommandRequest, onOutput func(string, string, bool)) (*models.CommandResponse, error) {
 	if req.Command == "" {
 		return nil, fmt.Errorf("command cannot be empty")
 	}
@@ -104,12 +129,8 @@ func (cs *CommandService) ExecuteCommandStreaming(req models.CommandRequest, onO
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
 
-	var cmd *exec.Cmd
-	if runtime.GOOS == "windows" {
-		cmd = exec.CommandContext(ctx, "cmd", "/C", req.Command)
-	} else {
-		cmd = exec.CommandContext(ctx, "sh", "-c", req.Command)
-	}
+	cmdName, args := cs.getCommandArgs(req.Shell, req.Command)
+	cmd := exec.CommandContext(ctx, cmdName, args...)
 
 	if req.WorkingDir != "" {
 		cmd.Dir = req.WorkingDir
@@ -157,7 +178,7 @@ func (cs *CommandService) ExecuteCommandStreaming(req models.CommandRequest, onO
 				text := string(buf[:n])
 				outputBuf.WriteString(text)
 				if onOutput != nil {
-					onOutput(text, false)
+					onOutput(cmdID, text, false)
 				}
 			}
 			if err != nil {
@@ -175,7 +196,7 @@ func (cs *CommandService) ExecuteCommandStreaming(req models.CommandRequest, onO
 				text := string(buf[:n])
 				errBuf.WriteString(text)
 				if onOutput != nil {
-					onOutput(text, true)
+					onOutput(cmdID, text, true)
 				}
 			}
 			if err != nil {
@@ -243,14 +264,6 @@ func (cs *CommandService) GetShellInfo() map[string]string {
 	} else {
 		info["shell"] = "/bin/bash"
 		info["shell_flag"] = "-c"
-	}
-
-	if path, err := exec.Command("echo", "%PATH%").Output(); err == nil {
-		pathStr := strings.TrimSpace(string(path))
-		if len(pathStr) > 500 {
-			pathStr = pathStr[:500] + "..."
-		}
-		info["path"] = pathStr
 	}
 
 	return info

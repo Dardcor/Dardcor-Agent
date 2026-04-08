@@ -83,6 +83,7 @@ type SearchResult struct {
 
 type CommandRequest struct {
 	Command    string `json:"command"`
+	Shell      string `json:"shell,omitempty"`
 	WorkingDir string `json:"working_dir,omitempty"`
 	Timeout    int    `json:"timeout,omitempty"`
 }
@@ -108,9 +109,10 @@ type SystemInfo struct {
 	Memory      MemoryInfo `json:"memory"`
 	Disks       []DiskInfo `json:"disks"`
 	Network     []NetInfo  `json:"network"`
-	Uptime      uint64     `json:"uptime"`
-	HostName    string     `json:"hostname"`
-	CollectedAt time.Time  `json:"collected_at"`
+	Uptime      uint64            `json:"uptime"`
+	HostName    string            `json:"hostname"`
+	Bios        map[string]string `json:"bios,omitempty"`
+	CollectedAt time.Time         `json:"collected_at"`
 }
 
 type OSInfo struct {
@@ -193,3 +195,4 @@ type Settings struct {
 	AIProvider     string `json:"ai_provider"`
 	AIModel        string `json:"ai_model"`
 }
+

@@ -43,7 +43,7 @@ func NewWebSocketHandler(agentSvc *services.AgentService, cmdService *services.C
 func (wsh *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("WebSocket upgrade error: %v", err)
+		log.Printf("WS Error: %v", err)
 		return
 	}
 
@@ -64,7 +64,6 @@ func (wsh *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Requ
 	})
 
 	go wsh.writePump(client, clientID)
-
 	wsh.readPump(client, clientID)
 }
 
@@ -78,9 +77,6 @@ func (wsh *WebSocketHandler) readPump(client *WSClient, clientID string) {
 	for {
 		_, message, err := client.conn.ReadMessage()
 		if err != nil {
-			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseNormalClosure) {
-				log.Printf("WebSocket error: %v", err)
-			}
 			break
 		}
 
@@ -106,7 +102,6 @@ func (wsh *WebSocketHandler) writePump(client *WSClient, clientID string) {
 		client.mu.Unlock()
 
 		if err != nil {
-			log.Printf("WebSocket write error: %v", err)
 			return
 		}
 	}
@@ -116,28 +111,21 @@ func (wsh *WebSocketHandler) handleMessage(client *WSClient, msg models.WSMessag
 	switch msg.Type {
 	case "agent_message":
 		wsh.handleAgentMessage(client, msg)
-
 	case "execute_command":
 		wsh.handleStreamingCommand(client, msg)
-
 	case "get_conversations":
 		wsh.handleGetConversations(client)
-
 	case "get_conversation":
 		wsh.handleGetConversation(client, msg)
-
-	case "delete_conversation":
-		wsh.handleDeleteConversation(client, msg)
-
 	case "rename_conversation":
 		wsh.handleRenameConversation(client, msg)
-
+	case "kill_command":
+		wsh.handleKillCommand(client, msg)
 	case "ping":
 		wsh.sendToClient(client, models.WSMessage{
 			Type:    "pong",
 			Payload: map[string]string{"status": "alive"},
 		})
-
 	default:
 		wsh.sendToClient(client, models.WSMessage{
 			Type: "error",
@@ -201,19 +189,23 @@ func (wsh *WebSocketHandler) handleStreamingCommand(client *WSClient, msg models
 	command, _ := payload["command"].(string)
 	workingDir, _ := payload["working_dir"].(string)
 
+	shell, _ := payload["shell"].(string)
+
 	req := models.CommandRequest{
 		Command:    command,
+		Shell:      shell,
 		WorkingDir: workingDir,
 		Timeout:    60,
 	}
 
-	result, err := wsh.cmdService.ExecuteCommandStreaming(req, func(output string, isError bool) {
+	result, err := wsh.cmdService.ExecuteCommandStreaming(req, func(id, output string, isError bool) {
 		wsh.sendToClient(client, models.WSMessage{
 			Type: "command_output",
 			Payload: models.WSCommandOutput{
-				Output:  output,
-				IsError: isError,
-				Done:    false,
+				CommandID: id,
+				Output:    output,
+				IsError:   isError,
+				Done:      false,
 			},
 		})
 	})
@@ -234,6 +226,18 @@ func (wsh *WebSocketHandler) handleStreamingCommand(client *WSClient, msg models
 		Type:    "command_complete",
 		Payload: result,
 	})
+}
+
+func (wsh *WebSocketHandler) handleKillCommand(client *WSClient, msg models.WSMessage) {
+	payload, ok := msg.Payload.(map[string]interface{})
+	if !ok {
+		return
+	}
+
+	id, _ := payload["id"].(string)
+	if id != "" {
+		wsh.cmdService.KillCommand(id)
+	}
 }
 
 func (wsh *WebSocketHandler) handleGetConversations(client *WSClient) {
@@ -328,14 +332,12 @@ func (wsh *WebSocketHandler) handleRenameConversation(client *WSClient, msg mode
 func (wsh *WebSocketHandler) sendToClient(client *WSClient, msg models.WSMessage) {
 	data, err := json.Marshal(msg)
 	if err != nil {
-		log.Printf("Failed to marshal WS message: %v", err)
 		return
 	}
 
 	select {
 	case client.send <- data:
 	default:
-		log.Println("Client send buffer full, dropping message")
 	}
 }
 
@@ -354,3 +356,4 @@ func (wsh *WebSocketHandler) Broadcast(msg models.WSMessage) {
 		return true
 	})
 }
+

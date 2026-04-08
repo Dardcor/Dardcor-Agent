@@ -78,36 +78,11 @@ const ChatPanel: React.FC = () => {
   }
 
   return (
-    <div className="chat-panel">
-      <div className="chat-header">
-        <div className="chat-title-group">
-          <h2>Agent Chat</h2>
-          <div className="mode-switcher">
-            <button 
-              className={`mode-pill ${agentMode === 'build' ? 'active build' : ''}`}
-              onClick={() => setAgentMode('build')}
-              title="Full access (Tab)"
-            >
-              BUILD
-            </button>
-            <button 
-              className={`mode-pill ${agentMode === 'plan' ? 'active plan' : ''}`}
-              onClick={() => setAgentMode('plan')}
-              title="Read-only (Tab)"
-            >
-              PLAN
-            </button>
-          </div>
-        </div>
-        <div className={`status-indicator ${isConnected ? 'online' : 'offline'}`}>
-          {isConnected ? 'Online' : 'Offline'}
-        </div>
-      </div>
-
-      <div className="messages-container">
+    <div className="chat-container">
+      <div className="chat-messages">
         {messages.length === 0 && (
-          <div className="welcome-screen">
-            <h2 style={{ fontSize: '28px', color: 'var(--accent-primary)', marginBottom: '8px' }}>Dardcor Agent</h2>
+          <div className="chat-welcome">
+            <h2>Dardcor Agent</h2>
             <p>Ready to help in <strong>{agentMode.toUpperCase()}</strong> mode.</p>
             <div className="mode-explain">
               {agentMode === 'build' ? 
@@ -117,45 +92,49 @@ const ChatPanel: React.FC = () => {
           </div>
         )}
         {messages.map((msg, i) => (
-          <div key={i} className={`message ${msg.role} ${msg.mode || ''}`}>
-            <div className="message-header">
-              <span className="role-tag">
-                {msg.role === 'user' ? 'YOU' : 'DARDCOR'}
-                {msg.mode && <span className={`mode-tag ${msg.mode}`}>{msg.mode}</span>}
-              </span>
-              <span className="timestamp">{msg.timestamp}</span>
+          <div key={i} className={`message ${msg.role}`}>
+            <div className="message-avatar">
+              {msg.role === 'assistant' ? <div className="avatar-img"></div> : 'U'}
             </div>
-            <div className="message-content">
-              {msg.content.split('\n').map((line, j) => (
-                <p key={j}>{line}</p>
-              ))}
+            <div className="message-body">
+              <div className="message-meta">
+                <span className="message-sender">{msg.role === 'assistant' ? 'Dardcor Agent' : 'You'}</span>
+                <span className="message-time">{msg.timestamp}</span>
+              </div>
+              <div className="message-content">
+                {msg.content}
+              </div>
             </div>
           </div>
         ))}
         <div ref={messagesEndRef} />
       </div>
 
-      <form className={`input-container ${agentMode}`} onSubmit={handleSubmit}>
-        <textarea
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={agentMode === 'build' ? "Ask anything (BUILD mode)..." : "Ask for analysis (PLAN mode)..."}
-          rows={1}
-        />
-        <button type="submit" disabled={!input.trim() || !isConnected}>
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <line x1="22" y1="2" x2="11" y2="13" />
-            <polygon points="22 2 15 22 11 13 2 9 22 2" />
-          </svg>
-        </button>
-      </form>
-      <div className="input-hint">
-        <span>Tab to switch mode</span>
-        {input.toLowerCase().startsWith('ulw') && <span className="ultrawork-tag">⚡ ULTRAWORK ACTIVE</span>}
+      <div className="chat-input-container">
+        <form className="chat-input-wrapper" onSubmit={handleSubmit}>
+          <textarea
+            className="chat-input"
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={agentMode === 'build' ? "Ask anything (BUILD mode)..." : "Ask for analysis (PLAN mode)..."}
+            rows={1}
+          />
+          <button className="chat-send-btn" type="submit" disabled={!input.trim() || !isConnected}>
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <line x1="22" y1="2" x2="11" y2="13" />
+              <polygon points="22 2 15 22 11 13 2 9 22 2" />
+            </svg>
+          </button>
+        </form>
+        <div className="chat-input-hint">
+          Tab to switch mode • {agentMode.toUpperCase()} MODE
+          {input.toLowerCase().startsWith('ulw') && <span style={{color: 'var(--accent-primary)', marginLeft: '10px'}}>⚡ ULTRAWORK</span>}
+        </div>
       </div>
     </div>
   )
 }
 
 export default ChatPanel
+

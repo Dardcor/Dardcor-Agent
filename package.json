@@ -2,7 +2,6 @@
   "name": "dardcor-agent",
   "preferGlobal": true,
   "private": false,
-  "version": "",
   "type": "module",
   "bin": {
     "dardcor": "cli.js"
@@ -11,9 +10,10 @@
     "dev":     "vite",
     "build":   "tsc && vite build",
     "preview": "vite preview",
-    "start":   "dardcor run"
+    "start":   "dardcor run",
+    "postinstall": "node -e \"const fs = require('fs'); if (!fs.existsSync('database')) fs.mkdirSync('database');\""
   },
-  "description": "Autonomous AI Agent — Gateway, CLI TUI, Multi-Provider LLM, Skills, Ultrawork",
+  "description": "Autonomous AI Agent — Gateway, CLI TUI, Multi-Provider LLM, Skills",
   "keywords": [
     "ai", "agent", "autonomous", "dashboard", "cli", "tui",
     "openai", "claude", "gemini", "deepseek", "ollama",

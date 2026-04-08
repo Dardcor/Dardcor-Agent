@@ -274,24 +274,10 @@ const Workspace: React.FC = () => {
               </div>
             </div>
             <div className="about-item">
-              <div className="about-icon">🧙</div>
-              <div>
-                <h4>dardcor onboard</h4>
-                <p>Interactive setup wizard.</p>
-              </div>
-            </div>
-            <div className="about-item">
               <div className="about-icon">🩺</div>
               <div>
                 <h4>dardcor doctor</h4>
                 <p>Health check.</p>
-              </div>
-            </div>
-            <div className="about-item">
-              <div className="about-icon">⚡</div>
-              <div>
-                <h4>ultrawork</h4>
-                <p>Autonomous agent execution.</p>
               </div>
             </div>
             <div className="about-item">

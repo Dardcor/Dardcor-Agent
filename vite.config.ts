@@ -5,18 +5,12 @@ export default defineConfig({
   plugins: [react()],
   server: {
     host: '127.0.0.1',
-    port: 25099,
+    port: 25000,
     strictPort: true,
-    proxy: {
-      '/api': {
-        target: 'http://127.0.0.1:25000',
-        changeOrigin: true,
-      },
-      '/ws': {
-        target: 'ws://127.0.0.1:25000',
-        ws: true,
-      },
-    },
+    hmr: {
+      port: 25000,
+      clientPort: 25000,
+    }
   },
   build: {
     outDir: 'dist',

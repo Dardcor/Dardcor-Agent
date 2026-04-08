@@ -5,6 +5,8 @@ import (
 	"runtime"
 	"sort"
 	"time"
+	"os/exec"
+	"strings"
 
 	"dardcor-agent/models"
 
@@ -25,6 +27,7 @@ func NewSystemService() *SystemService {
 func (ss *SystemService) GetSystemInfo() (*models.SystemInfo, error) {
 	info := &models.SystemInfo{
 		CollectedAt: time.Now(),
+		Bios:        make(map[string]string),
 	}
 
 	hostInfo, err := host.Info()
@@ -37,6 +40,31 @@ func (ss *SystemService) GetSystemInfo() (*models.SystemInfo, error) {
 		}
 		info.Uptime = hostInfo.Uptime
 		info.HostName = hostInfo.Hostname
+		
+		info.Bios["kernel_version"] = hostInfo.KernelVersion
+		info.Bios["os_release"] = hostInfo.OS
+	}
+
+
+	if runtime.GOOS == "windows" {
+		out, err := exec.Command("wmic", "path", "win32_VideoController", "get", "name").Output()
+		if err == nil {
+			lines := strings.Split(string(out), "\n")
+			if len(lines) > 1 {
+				gpu := strings.TrimSpace(lines[1])
+				if gpu != "" {
+					info.Bios["gpu"] = gpu
+				}
+			}
+		}
+		
+		out, err = exec.Command("wmic", "baseboard", "get", "product,manufacturer").Output()
+		if err == nil {
+			lines := strings.Split(string(out), "\n")
+			if len(lines) > 1 {
+				info.Bios["motherboard"] = strings.TrimSpace(lines[1])
+			}
+		}
 	}
 
 	cpuInfo, err := cpu.Info()
