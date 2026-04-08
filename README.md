@@ -1,64 +1,186 @@
-# Dardcor Agent
+# 🚀 Dardcor Agent
 
-Dardcor Agent is a superior, autonomous AI programming assistant designed for token efficiency and high-level, completely autonomous system execution.
+Dardcor Agent adalah **AI programming assistant otonom tingkat tinggi** yang dirancang untuk efisiensi token maksimal dan eksekusi sistem secara mandiri.
 
-It operates seamlessly as a Gateway Server and an Interactive Terminal Command Line Interface.
+Agent ini dapat berjalan sebagai:
 
-## Features
-- **Highly Token Efficient:** Designed to utilize minimal tokens while producing maximal execution logic.
-- **Autonomous Execution:** Capable of resolving and running logical operations locally on your system.
-- **Unified Interface:** Works both as a beautiful Web UI and a headless CLI.
-- **Auto-Healing System:** Built-in system doctor to repair broken configurations automatically.
+* ⚡ **Gateway Server**
+* 💻 **Interactive CLI (Command Line Interface)**
+* 🌐 **Web UI modern (real-time)**
 
-## Installation
+---
 
-You can install Dardcor Agent via Manual Git Clone:
+## ✨ Highlights
+
+* 🔥 **Ultra Token Efficient**
+  Menghasilkan output logika maksimal dengan penggunaan token seminimal mungkin.
+
+* 🤖 **Fully Autonomous Execution**
+  Mampu menganalisis, memperbaiki, dan menjalankan operasi secara mandiri di sistem lokal.
+
+* 🧩 **Unified Interface**
+  Satu sistem, dua mode:
+
+  * Web UI (visual & interaktif)
+  * CLI (cepat & ringan)
+
+* 🛠️ **Self-Healing System**
+  Dilengkapi *system doctor* untuk mendeteksi dan memperbaiki error secara otomatis.
+
+---
+
+## 📦 Installation
+
+### 🔧 Manual Installation (Recommended)
 
 ```bash
 git clone https://github.com/dardcor/dardcor-agent.git
 cd dardcor-agent
+```
+
+📌 **Catatan:**
+
+* Instalasi global (`-g`) akan:
+
+  * Menambahkan command `dardcor` ke terminal
+  * Menginisialisasi database lokal berbasis JSON otomatis
+
+---
+
+### 🔧 Manual Installation (Global)
+
+```bash
 npm install -g dardcor-agent
 ```
 
-*Note: The `npm install -g dardcor-agent` command will automatically set up the system globally and initialize your internal local JSON database.*
+### 🧹 Uninstall
 
-To uninstall the agent at any point:
 ```bash
 npm uninstall -g dardcor-agent
 ```
 
-## Usage
+---
 
-Dardcor Agent has a streamlined set of commands to prevent collision and ensure perfect execution.
+## ⚡ Usage
 
-### View all commands:
+Dardcor Agent memiliki command minimalis untuk menghindari konflik dan menjaga efisiensi sistem.
+
+---
+
+### 📖 Menampilkan Semua Command
+
 ```bash
 dardcor help
 ```
 
-### Self-Repair System
-If the system ever has trouble starting, the automatic doctor will fix configurations and dependencies:
+---
+
+### 🛠️ Self-Repair System
+
+Jika terjadi error atau sistem tidak bisa berjalan:
+
 ```bash
 dardcor doctor
 ```
 
-### Launch Web Server (UI Mode)
-To launch the primary autonomous system with a realtime, cache-busting Web UI:
-```bash
-dardcor run
-```
-*Note: This command will display the Dardcor UI banner and start serving the dashboard on `http://127.0.0.1:25000` exclusively.*
+🧠 Agent akan:
 
-### Launch Terminal Agent (CLI Mode)
-To launch the interactive system directly in your terminal for highly efficient coding flows:
-```bash
-dardcor cli
-```
-*Note: This command will display the Dardcor CLI banner and drop you immediately into the interactive mode.*
+* Mendeteksi konfigurasi rusak
+* Memperbaiki dependency
+* Mengembalikan sistem ke kondisi optimal
 
 ---
 
-## Architecture
-- All configurations are securely stored inside `~/.dardcor/config.json`.
-- The database is completely local and stored within the `database` folder.
-- Network activity is rigorously restricted absolutely to `127.0.0.1:25000` to prevent any port collisions.
+### 🌐 Jalankan Web UI (Server Mode)
+
+```bash
+dardcor run
+```
+
+💡 Fitur:
+
+* Dashboard real-time
+* Cache-busting system
+* UI interaktif
+
+📍 Akses di:
+
+```
+http://127.0.0.1:25000
+```
+
+---
+
+### 💻 Jalankan CLI Mode
+
+```bash
+dardcor cli
+```
+
+⚡ Mode ini cocok untuk:
+
+* Coding cepat
+* Automasi terminal
+* Workflow ringan tanpa UI
+
+---
+
+## 🧠 System Architecture
+
+* ⚙️ **Config File**
+  Disimpan di:
+
+  ```
+  ~/.dardcor/config.json
+  ```
+
+* 🗄️ **Local Database**
+  Berbasis file, berada di folder:
+
+  ```
+  /database
+  ```
+
+* 🔒 **Secure Local Network Only**
+
+  * Semua aktivitas jaringan dibatasi ke:
+
+  ```
+  127.0.0.1:25000
+  ```
+
+  * Tidak ada akses eksternal → lebih aman & bebas konflik port
+
+---
+
+## 🎯 Design Philosophy
+
+> **"Minimal input, maximum execution."**
+
+Fokus utama:
+
+* Efisiensi
+* Otonomi
+* Stabilitas sistem lokal
+
+---
+
+## ⚠️ Notes
+
+* Pastikan Node.js sudah terinstall
+* Gunakan terminal dengan akses admin jika diperlukan
+* Direkomendasikan untuk developer yang ingin workflow otomatis & cepat
+
+---
+
+## 🧩 Future Vision (Optional)
+
+* Integrasi multi-agent system
+* Cloud sync (optional, tetap privacy-first)
+* Plugin ecosystem
+
+---
+
+## 🧑‍💻 Author
+
+Developed by **Dardcor** 🚀
