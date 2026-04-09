@@ -69,17 +69,24 @@ export async function run() {
   process.env.DARDCOR_AI_MODEL = cfg.model || 'dardcor-agent';
   process.env.DARDCOR_API_KEY = cfg.api_key || '';
 
-  if (fs.existsSync(path.join(rootDir, 'dist'))) {
-    fs.rmSync(path.join(rootDir, 'dist'), { recursive: true, force: true });
-  }
+  const distPath = path.join(rootDir, 'dist');
+  const srcPath = path.join(rootDir, 'src');
 
-  process.stdout.write(`${C.purple}[i]${C.reset} Compiling Hyper-Agent UI... `);
-  try {
-    execSync('npm run build', { cwd: rootDir, stdio: 'ignore' });
-    process.stdout.write(`${C.green}COMPLETE${C.reset}\n`);
-  } catch (e) {
-    process.stdout.write(`${C.red}FAILED${C.reset}\n`);
-    console.error(e);
+  if (!fs.existsSync(distPath)) {
+    if (fs.existsSync(srcPath)) {
+      process.stdout.write(`${C.purple}[i]${C.reset} Compiling Hyper-Agent UI... `);
+      try {
+        execSync('npm run build', { cwd: rootDir, stdio: 'ignore' });
+        process.stdout.write(`${C.green}COMPLETE${C.reset}\n`);
+      } catch (e) {
+        process.stdout.write(`${C.red}FAILED${C.reset}\n`);
+        wrn('Could not build UI. Ensure you have devDependencies installed.');
+      }
+    } else {
+      wrn('Distribution folder (dist) is missing and source (src) is not available.');
+    }
+  } else {
+    inf('Using pre-compiled Agent UI.');
   }
 
   console.log(`${C.purple}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${C.reset}`);
