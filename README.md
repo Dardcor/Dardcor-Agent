@@ -1,73 +1,123 @@
-# 🚀 Dardcor Agent
+<div align="center">
 
-Dardcor Agent adalah **AI programming assistant otonom tingkat tinggi** yang dirancang untuk efisiensi token maksimal dan eksekusi sistem secara mandiri.
+<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=6,11,20&height=200&section=header&text=DARDCOR%20AGENT&fontSize=60&fontColor=fff&animation=fadeIn&fontAlignY=38&desc=Autonomous%20AI%20Programming%20Assistant&descAlignY=60&descSize=18" width="100%"/>
 
-Agent ini dapat berjalan sebagai:
+<br/>
 
-* ⚡ **Gateway Server**
-* 💻 **Interactive CLI (Command Line Interface)**
-* 🌐 **Web UI modern (real-time)**
+[![NPM Version](https://img.shields.io/npm/v/dardcor-agent?color=%23FF6B6B&label=npm&style=for-the-badge)](https://www.npmjs.com/package/dardcor-agent)
+[![License: MIT](https://img.shields.io/badge/License-MIT-4ECDC4?style=for-the-badge)](LICENSE)
+[![Node.js](https://img.shields.io/badge/Node.js-Required-FFE66D?style=for-the-badge&logo=node.js)](https://nodejs.org)
+[![Go](https://img.shields.io/badge/Backend-Go-00ADD8?style=for-the-badge&logo=go)](https://golang.org)
+[![TypeScript](https://img.shields.io/badge/UI-TypeScript-3178C6?style=for-the-badge&logo=typescript)](https://typescriptlang.org)
 
----
+<br/>
 
-## ✨ Highlights
+> **"Minimal input. Maximum execution."**
 
-* 🔥 **Ultra Token Efficient**
-  Menghasilkan output logika maksimal dengan penggunaan token seminimal mungkin.
+**Dardcor Agent** is a fully autonomous AI programming assistant that combines the intelligence of the latest AI models with a fast, secure, and efficient local execution system — right from your terminal or browser.
 
-* 🤖 **Fully Autonomous Execution**
-  Mampu menganalisis, memperbaiki, dan menjalankan operasi secara mandiri di sistem lokal.
+<br/>
 
-* 🧩 **Unified Interface**
-  Satu sistem, dua mode:
+[🚀 Quick Start](#-quick-start) · [⚡ Features](#-features) · [📖 Usage](#-usage) · [🗺️ Roadmap](#️-roadmap)
 
-  * Web UI (visual & interaktif)
-  * CLI (cepat & ringan)
-
-* 🛠️ **Self-Healing System**
-  Dilengkapi *system doctor* untuk mendeteksi dan memperbaiki error secara otomatis.
+</div>
 
 ---
 
-## 📦 Installation
+## 🎯 Why Dardcor Agent?
 
-### 🔧 Manual Installation (Recommended)
+Most AI assistants can only *talk*. **Dardcor Agent takes action.**
 
-```bash
-git clone https://github.com/dardcor/dardcor-agent.git
-cd dardcor-agent
-```
-
-📌 **Catatan:**
-
-* Instalasi global (`-g`) akan:
-
-  * Menambahkan command `dardcor` ke terminal
-  * Menginisialisasi database lokal berbasis JSON otomatis
+| Capability | Regular AI Chat | Dardcor Agent |
+|-----------|:---:|:---:|
+| Answer questions | ✅ | ✅ |
+| Autonomous code execution | ❌ | ✅ |
+| Self-healing on errors | ❌ | ✅ |
+| Runs 100% locally & privately | ❌ | ✅ |
+| Web UI + CLI interface | ❌ | ✅ |
+| Token-efficient output | ❌ | ✅ |
 
 ---
 
-### 🔧 Manual Installation (Global)
+## ✨ Features
+
+<table>
+<tr>
+<td width="50%">
+
+### 🔥 Ultra Token Efficient
+Optimized prompt architecture delivers maximum logical output with minimal token usage — leaner, faster, sharper.
+
+</td>
+<td width="50%">
+
+### 🤖 Fully Autonomous Execution
+Not just suggestions — the agent **analyzes, decides, and executes** operations independently on your local system.
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+### 🛠️ Self-Healing System
+Run `dardcor doctor` and let the agent detect broken configs, repair dependencies, and restore the system to optimal condition automatically.
+
+</td>
+<td width="50%">
+
+### 🔒 100% Local & Private
+All activity is restricted to `127.0.0.1:25000`. No data leaves your machine — your code stays yours.
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+### 🌐 Modern Web UI
+Real-time dashboard with a built-in cache-busting system. Visual, interactive, and responsive — accessible from your browser anytime.
+
+</td>
+<td width="50%">
+
+### ⚡ Lightweight CLI
+A fast and lean terminal mode. Perfect for automation, scripting, and developer workflows that don't need a UI.
+
+</td>
+</tr>
+</table>
+
+---
+
+## 🚀 Quick Start
+
+### Install via NPM (Global)
 
 ```bash
 npm install -g dardcor-agent
 ```
 
-### 🧹 Uninstall
+Once installed, the `dardcor` command is immediately available in your terminal — a local JSON-based database is initialized automatically.
+
+### Or Clone Manually
+
+```bash
+git clone https://github.com/Dardcor/Dardcor-Agent.git
+cd Dardcor-Agent
+```
+
+### Uninstall
 
 ```bash
 npm uninstall -g dardcor-agent
 ```
 
----
-
-## ⚡ Usage
-
-Dardcor Agent memiliki command minimalis untuk menghindari konflik dan menjaga efisiensi sistem.
+> **Prerequisites:** Make sure [Node.js](https://nodejs.org) is installed. Use a terminal with admin access if required.
 
 ---
 
-### 📖 Menampilkan Semua Command
+## 📖 Usage
+
+### Show All Commands
 
 ```bash
 dardcor help
@@ -75,112 +125,95 @@ dardcor help
 
 ---
 
-### 🛠️ Self-Repair System
-
-Jika terjadi error atau sistem tidak bisa berjalan:
-
-```bash
-dardcor doctor
-```
-
-🧠 Agent akan:
-
-* Mendeteksi konfigurasi rusak
-* Memperbaiki dependency
-* Mengembalikan sistem ke kondisi optimal
-
----
-
-### 🌐 Jalankan Web UI (Server Mode)
+### 🌐 Web UI Mode
 
 ```bash
 dardcor run
 ```
 
-💡 Fitur:
-
-* Dashboard real-time
-* Cache-busting system
-* UI interaktif
-
-📍 Akses di:
+Open your browser and go to:
 
 ```
 http://127.0.0.1:25000
 ```
 
+Available features in Web UI:
+- Real-time dashboard
+- Interactive session history
+- Cache-busting system
+
 ---
 
-### 💻 Jalankan CLI Mode
+### 💻 CLI Mode
 
 ```bash
 dardcor cli
 ```
 
-⚡ Mode ini cocok untuk:
+Best suited for:
+- Fast coding directly from the terminal
+- Automation & scripting
+- Lightweight workflows without UI overhead
 
-* Coding cepat
-* Automasi terminal
-* Workflow ringan tanpa UI
+---
+
+### 🛠️ Self-Repair (System Doctor)
+
+```bash
+dardcor doctor
+```
+
+Run this when something goes wrong. The agent will:
+1. Detect broken configuration
+2. Repair problematic dependencies
+3. Restore the system to optimal condition
 
 ---
 
 ## 🧠 System Architecture
 
-* ⚙️ **Config File**
-  Disimpan di:
+```
+Dardcor Agent
+├── 🌐 Web Server (Go backend)     → Port 127.0.0.1:25000
+├── 💻 CLI Interface (Node.js)     → Direct terminal access
+├── 🗄️ Local Database              → /database (JSON-based)
+├── ⚙️  Config                     → ~/.dardcor/config.json
+└── 🔒 Network Scope               → Localhost only (zero external exposure)
+```
 
-  ```
-  ~/.dardcor/config.json
-  ```
-
-* 🗄️ **Local Database**
-  Berbasis file, berada di folder:
-
-  ```
-  /database
-  ```
-
-* 🔒 **Secure Local Network Only**
-
-  * Semua aktivitas jaringan dibatasi ke:
-
-  ```
-  127.0.0.1:25000
-  ```
-
-  * Tidak ada akses eksternal → lebih aman & bebas konflik port
+**Tech stack:**
+- **Backend:** Go — high performance, native concurrency
+- **Frontend:** TypeScript + Vite — modern and type-safe UI
+- **CLI:** Node.js — cross-platform and lightweight
+- **Database:** File-based JSON — no external database setup required
 
 ---
 
-## 🎯 Design Philosophy
+## 🗺️ Roadmap
 
-> **"Minimal input, maximum execution."**
-
-Fokus utama:
-
-* Efisiensi
-* Otonomi
-* Stabilitas sistem lokal
-
----
-
-## ⚠️ Notes
-
-* Pastikan Node.js sudah terinstall
-* Gunakan terminal dengan akses admin jika diperlukan
-* Direkomendasikan untuk developer yang ingin workflow otomatis & cepat
+- [x] Web UI (real-time dashboard)
+- [x] CLI mode
+- [x] Self-healing system (doctor)
+- [x] Local-only network (privacy-first)
+- [ ] Multi-agent collaboration system
+- [ ] Plugin ecosystem
+- [ ] Cloud sync (optional, privacy-first)
+- [ ] Config GUI (no manual JSON editing)
 
 ---
 
-## 🧩 Future Vision (Optional)
+## 📄 License
 
-* Integrasi multi-agent system
-* Cloud sync (optional, tetap privacy-first)
-* Plugin ecosystem
+This project is licensed under the [MIT License](LICENSE) — free to use, modify, and distribute.
 
 ---
 
-## 🧑‍💻 Author
+<div align="center">
 
-Developed by **Dardcor** 🚀
+**Built with ❤️ by [Dardcor](https://github.com/Dardcor)**
+
+If this project helps you, drop a ⭐ — it means a lot!
+
+<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=6,11,20&height=100&section=footer" width="100%"/>
+
+</div>
