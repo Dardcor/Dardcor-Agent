@@ -1,5 +1,6 @@
 {
   "name": "dardcor-agent",
+  "version": "1.0.1",
   "preferGlobal": true,
   "private": false,
   "type": "module",
@@ -11,6 +12,7 @@
     "build":   "tsc && vite build",
     "preview": "vite preview",
     "start":   "dardcor run",
+    "prepack": "npm run build",
     "postinstall": "node -e \"const fs = require('fs'); if (!fs.existsSync('database')) fs.mkdirSync('database');\""
   },
   "description": "Autonomous AI Agent — Gateway, CLI TUI, Multi-Provider LLM, Skills",
@@ -31,9 +33,17 @@
   "homepage": "https://github.com/dardcor/dardcor-agent#readme",
   "files": [
     "cli.js",
-    "dardcor.bat",
-    "dardcor-agent.exe",
+    "bin/",
     "dist/",
+    "config/",
+    "handlers/",
+    "middleware/",
+    "models/",
+    "services/",
+    "storage/",
+    "go.mod",
+    "go.sum",
+    "main.go",
     "README.md",
     "LICENSE"
   ],

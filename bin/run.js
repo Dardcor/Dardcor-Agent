@@ -103,6 +103,26 @@ export async function run() {
     env: process.env,
   });
 
+  const cleanup = () => {
+    try {
+      if (process.platform === 'win32') {
+        execSync(`taskkill /F /T /PID ${backend.pid} >nul 2>&1`, { shell: true });
+      } else {
+        backend.kill();
+      }
+    } catch (e) {}
+  };
+
+  process.on('SIGINT', () => {
+    cleanup();
+    process.exit();
+  });
+
+  process.on('SIGTERM', () => {
+    cleanup();
+    process.exit();
+  });
+
   backend.on('exit', (code) => {
     if (code !== 0 && code !== null) {
       wrn(`Agent Workspace Engine stopped (Code: ${code})`);
