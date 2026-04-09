@@ -5,6 +5,8 @@ import FileExplorer from './components/FileExplorer'
 import Workspace from './components/Workspace'
 import SystemDashboard from './components/SystemDashboard'
 import ModelSelector from './components/ModelSelector'
+import ToolsPanel from './components/ToolsPanel'
+import SkillsPanel from './components/SkillsPanel'
 import wsService from './services/websocket'
 
 const App: React.FC = () => {
@@ -26,6 +28,8 @@ const App: React.FC = () => {
       case 'workspace': return <Workspace />
       case 'system':    return <SystemDashboard />
       case 'model':     return <ModelSelector />
+      case 'tools':     return <ToolsPanel />
+      case 'skills':    return <SkillsPanel />
       default:          return <ChatPanel />
     }
   }
@@ -66,10 +70,12 @@ const App: React.FC = () => {
           {[
             { id: 'chat',      label: 'Agent Chat',      icon: '💬' },
             { id: 'model',     label: 'Model',           icon: '🤖' },
+            { id: 'tools',     label: 'Tools',           icon: '🛠️' },
+            { id: 'skills',    label: 'Skills',          icon: '🧠' },
             { id: 'explorer',  label: 'File Explorer',  icon: '📂' },
             { id: 'terminal',  label: 'Terminal',       icon: '💻' },
             { id: 'system',    label: 'System Monitor', icon: '📊' },
-            { id: 'workspace', label: 'Workspace',      icon: '🛠️' },
+            { id: 'workspace', label: 'Workspace',      icon: '🏗️' },
           ].map(tab => (
             <button
               key={tab.id}

@@ -116,7 +116,7 @@ func (h *AntigravityHandler) ToggleActiveAccount(w http.ResponseWriter, r *http.
 
 func (h *AntigravityHandler) OAuthStart(w http.ResponseWriter, r *http.Request) {
 	authURL := fmt.Sprintf("https://accounts.google.com/o/oauth2/v2/auth?client_id=%s&redirect_uri=%s&response_type=code&scope=%s&access_type=offline&prompt=consent&include_granted_scopes=true", 
-		services.AntigravityClientID, 
+		services.AntigravityClientID(), 
 		"http%3A%2F%2F127.0.0.1%3A25000%2Fapi%2Fantigravity%2Foauth%2Fcallback", 
 		"https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcloud-platform+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcclog+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fexperimentsandconfigs",
 	)

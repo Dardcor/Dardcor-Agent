@@ -19,10 +19,11 @@ const C = {
   blue:    '\x1b[34m',
   magenta: '\x1b[35m',
   cyan:    '\x1b[36m',
+  purple:  '\x1b[38;5;93m',
 };
 
-const ok  = (msg) => console.log(`${C.green}[✓]${C.reset} ${msg}`);
-const inf = (msg) => console.log(`${C.cyan}[i]${C.reset} ${msg}`);
+const ok  = (msg) => console.log(`${C.purple}[✓]${C.reset} ${msg}`);
+const inf = (msg) => console.log(`${C.purple}[i]${C.reset} ${msg}`);
 const wrn = (msg) => console.log(`${C.yellow}[!]${C.reset} ${msg}`);
 
 const CONFIG_DIR = path.join(os.homedir(), '.dardcor');
@@ -42,19 +43,20 @@ function loadConfig() {
 function killOldInstance() {
   try {
     if (process.platform === 'win32') {
-      execSync('taskkill /F /IM dardcor-agent.exe /T >nul 2>&1', { timeout: 2000 });
-      execSync(`for /f "tokens=5" %p in ('netstat -ano ^| findstr :25000 ^| findstr LISTENING') do taskkill /F /PID %p /T >nul 2>&1`, { timeout: 2000 });
+      execSync(`for /f "tokens=5" %p in ('netstat -ano ^| findstr :25000 ^| findstr LISTENING') do taskkill /F /PID %p /T >nul 2>&1`, { timeout: 2000, shell: true });
     }
   } catch {}
 }
 
 export async function run() {
   const cfg = loadConfig();
-  printBanner('Dardcor Agent Runtime (Port 25000)');
+  
+  console.clear();
+  printBanner();
 
   if (!fs.existsSync(path.join(rootDir, 'node_modules'))) {
-    inf('Installing dependencies...');
-    execSync('npm install', { cwd: rootDir, stdio: 'inherit' });
+    inf('Optimizing Dependencies...');
+    execSync('npm install', { cwd: rootDir, stdio: 'ignore' });
   }
 
   killOldInstance();
@@ -67,54 +69,48 @@ export async function run() {
   process.env.DARDCOR_AI_MODEL = cfg.model || 'dardcor-agent';
   process.env.DARDCOR_API_KEY = cfg.api_key || '';
 
-  console.clear();
-  inf('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  inf('           DARDCOR UNIFIED RUNTIME           ');
-  inf('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  inf(`Dashboard  → ${C.bold}${devUrl}${C.reset}`);
-  inf(`Status     → ${C.green}OPTIMIZED AGENT ACTIVE${C.reset}`);
-  inf('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-
   if (fs.existsSync(path.join(rootDir, 'dist'))) {
     fs.rmSync(path.join(rootDir, 'dist'), { recursive: true, force: true });
   }
-  inf('Building UI...');
-  execSync('npm run build', { cwd: rootDir, stdio: 'inherit' });
 
-  const exePath = path.join(rootDir, 'dardcor-agent.exe');
-  let cmd, args;
-
-  if (fs.existsSync(exePath)) {
-    cmd = exePath;
-    args = ['run'];
-  } else {
-    if (fs.existsSync(path.join(rootDir, 'src'))) {
-      inf('Real-Time UI Builder Active...');
-      spawn(process.platform === 'win32' ? 'npx.cmd' : 'npx', ['vite', 'build', '--watch', '--emptyOutDir', 'false'], {
-        cwd: rootDir,
-        stdio: 'ignore',
-        shell: false
-      });
-    }
-    cmd = 'go';
-    args = ['run', 'main.go', 'run'];
+  process.stdout.write(`${C.purple}[i]${C.reset} Compiling Hyper-Agent UI... `);
+  try {
+    execSync('npm run build', { cwd: rootDir, stdio: 'ignore' });
+    process.stdout.write(`${C.green}COMPLETE${C.reset}\n`);
+  } catch (e) {
+    process.stdout.write(`${C.red}FAILED${C.reset}\n`);
+    console.error(e);
   }
 
-  const backend = spawn(cmd, args, {
+  console.log(`${C.purple}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${C.reset}`);
+  console.log(`${C.purple}  Status     →${C.reset} ${C.green}${C.bold}OPTIMIZED AGENT ACTIVE${C.reset}`);
+  console.log(`${C.purple}  Dashboard  →${C.reset} ${C.bold}${devUrl}${C.reset}`);
+  console.log(`${C.purple}  Provider   →${C.reset} ${C.dim}${process.env.DARDCOR_AI_PROVIDER} | ${process.env.DARDCOR_AI_MODEL}${C.reset}`);
+  console.log(`${C.purple}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${C.reset}`);
+
+  if (fs.existsSync(path.join(rootDir, 'src'))) {
+    spawn(process.platform === 'win32' ? 'npx.cmd' : 'npx', ['vite', 'build', '--watch', '--emptyOutDir', 'false'], {
+      cwd: rootDir,
+      stdio: 'ignore',
+      shell: true
+    });
+  }
+
+  const backend = spawn('go', ['run', 'main.go', 'run'], {
     cwd: rootDir,
-    stdio: 'inherit',
-    shell: false,
+    stdio: 'ignore',
+    shell: true,
     env: process.env,
   });
 
   backend.on('exit', (code) => {
     if (code !== 0 && code !== null) {
-      wrn(`Backend exited with code ${code}.`);
+      wrn(`Agent Workspace Engine stopped (Code: ${code})`);
     }
   });
 
   setTimeout(() => {
     const openCmd = process.platform === 'win32' ? `start "" "${devUrl}"` : `open "${devUrl}"`;
     exec(openCmd);
-  }, 3000);
+  }, 2000);
 }

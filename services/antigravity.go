@@ -21,18 +21,12 @@ const (
 	AntigravityFullUA    = "Antigravity/4.1.31 (Windows NT 10.0; Win64; x64) Chrome/132.0.6834.160 Electron/39.2.3"
 )
 
-func getClientID() string {
-	if v := os.Getenv("ANTIGRAVITY_CLIENT_ID"); v != "" {
-		return v
-	}
-	return ""
+func AntigravityClientID() string {
+	return os.Getenv("ANTIGRAVITY_CLIENT_ID")
 }
 
-func getClientSecret() string {
-	if v := os.Getenv("ANTIGRAVITY_CLIENT_SECRET"); v != "" {
-		return v
-	}
-	return ""
+func AntigravityClientSecret() string {
+	return os.Getenv("ANTIGRAVITY_CLIENT_SECRET")
 }
 
 type GoogleUserInfo struct {
@@ -221,8 +215,8 @@ func (s *AntigravityService) RefreshToken(email string) (*models.AntigravityAcco
 
 	// 1. Get Access Token from Google
 	data := url.Values{}
-	data.Set("client_id", getClientID())
-	data.Set("client_secret", getClientSecret())
+	data.Set("client_id", AntigravityClientID())
+	data.Set("client_secret", AntigravityClientSecret())
 	data.Set("refresh_token", account.RefreshToken)
 	data.Set("grant_type", "refresh_token")
 
@@ -579,8 +573,8 @@ func (s *AntigravityService) FetchProjectAndQuotas(acc *models.AntigravityAccoun
 
 func (s *AntigravityService) ExchangeCode(code string, redirectURI string) error {
 	data := url.Values{}
-	data.Set("client_id", getClientID())
-	data.Set("client_secret", getClientSecret())
+	data.Set("client_id", AntigravityClientID())
+	data.Set("client_secret", AntigravityClientSecret())
 	data.Set("code", code)
 	data.Set("redirect_uri", redirectURI)
 	data.Set("grant_type", "authorization_code")

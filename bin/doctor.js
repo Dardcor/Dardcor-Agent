@@ -102,17 +102,12 @@ export async function runDoctor() {
     ok('Port: 25000');
   }
 
-  const exePath = path.join(rootDir, 'dardcor-agent.exe');
-  if (fs.existsSync(exePath)) {
-    ok(`Backend binary: ${exePath}`);
-  } else {
-    try {
-      execSync('go version', { stdio: 'pipe' });
-      ok('Go runtime: available');
-    } catch {
-      issues++;
-      err('Go runtime: not found');
-    }
+  try {
+    execSync('go version', { stdio: 'pipe' });
+    ok('Go runtime: available');
+  } catch {
+    issues++;
+    err('Go runtime: not found');
   }
 
   const nodeVerStr = process.version;

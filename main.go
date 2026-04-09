@@ -40,6 +40,7 @@ func main() {
 	wsHandler := handlers.NewWebSocketHandler(agentSvc, cmdSvc)
 
 	antigravityHandler := handlers.NewAntigravityHandler(antigravitySvc)
+	modelHandler := handlers.NewModelHandler()
 
 	r := mux.NewRouter()
 
@@ -128,6 +129,15 @@ func main() {
 	api.HandleFunc("/antigravity/active", antigravityHandler.ToggleActiveAccount).Methods("POST", "OPTIONS")
 	api.HandleFunc("/antigravity/config", antigravityHandler.GetConfig).Methods("GET")
 	api.HandleFunc("/antigravity/config", antigravityHandler.SaveConfig).Methods("POST", "OPTIONS")
+
+	api.HandleFunc("/model/active", modelHandler.GetModelConfig).Methods("GET")
+	api.HandleFunc("/model/active", modelHandler.SaveModelConfig).Methods("POST", "OPTIONS")
+
+	api.HandleFunc("/tools/config", modelHandler.GetToolsConfig).Methods("GET")
+	api.HandleFunc("/tools/config", modelHandler.SaveToolsConfig).Methods("POST", "OPTIONS")
+
+	api.HandleFunc("/skills/config", modelHandler.GetSkillsConfig).Methods("GET")
+	api.HandleFunc("/skills/config", modelHandler.SaveSkillsConfig).Methods("POST", "OPTIONS")
 
 	r.HandleFunc("/ws", wsHandler.HandleWebSocket)
 

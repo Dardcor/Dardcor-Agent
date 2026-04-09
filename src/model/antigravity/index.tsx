@@ -59,10 +59,31 @@ const AntigravityView: React.FC = () => {
     } catch { }
   }
 
+  const fetchActiveModels = async () => {
+    try {
+      const resp = await fetch('/api/model/active')
+      await resp.json()
+    } catch {}
+  }
+
   useEffect(() => {
     fetchAccounts()
     fetchConfig()
+    fetchActiveModels()
   }, [])
+
+  const updateModelActive = async (isActive: boolean) => {
+    try {
+      const resp = await fetch('/api/model/active')
+      const data = await resp.json()
+      const current = data.success ? data.data : {}
+      await fetch('/api/model/active', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...current, antigravity: isActive })
+      })
+    } catch {}
+  }
 
   const saveConfig = async (cfg: Partial<AntigravityConfig>) => {
     setSavingConfig(true)
@@ -101,9 +122,15 @@ const AntigravityView: React.FC = () => {
 
   const toggleActive = async (email: string) => {
     try {
+      const acc = accounts.find(a => a.email === email)
+      const currentlyActive = !!acc?.is_active
+
       const resp = await fetch(`/api/antigravity/active?email=${encodeURIComponent(email)}`, { method: 'POST' })
       const data = await resp.json()
-      if (data.success) fetchAccounts()
+      if (data.success) {
+        fetchAccounts()
+        updateModelActive(!currentlyActive)
+      }
     } catch (err) {
       console.error('Toggle active failed:', err)
     }
@@ -215,25 +242,83 @@ const AntigravityView: React.FC = () => {
   return (
     <div className="antigravity-dashboard animate-fade">
 
-      {/* Active Agent Banner */}
-      {activeAccount && (
-        <div style={{
-          background: 'linear-gradient(135deg, rgba(16,185,129,0.1) 0%, rgba(124,58,237,0.08) 100%)',
-          border: '1px solid rgba(16,185,129,0.25)',
-          borderRadius: '10px',
-          padding: '10px 18px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          marginBottom: '4px',
-          fontSize: '13px',
-          color: '#6ee7b7',
-        }}>
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 8px #10b981', flexShrink: 0, display: 'inline-block' }}></span>
-          <strong>Agent Active:</strong>&nbsp;{activeAccount.email}
-          <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'rgba(110,231,183,0.6)' }}>All chats routed through this account</span>
+      {/* Model Activation Bar */}
+      <div style={{
+        background: activeAccount ? 'linear-gradient(135deg, rgba(16,185,129,0.1) 0%, rgba(124,58,237,0.08) 100%)' : 'rgba(255,255,255,0.03)',
+        border: activeAccount ? '1px solid rgba(16,185,129,0.25)' : '1px solid rgba(255,255,255,0.08)',
+        borderRadius: '12px',
+        padding: '14px 22px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '15px',
+        marginBottom: '16px',
+        boxShadow: activeAccount ? '0 0 25px rgba(16,185,129,0.05)' : 'none',
+        transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        {activeAccount && (
+          <div style={{
+             position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: '#10b981'
+          }}></div>
+        )}
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
+           <div style={{ 
+             width: '10px', height: '10px', borderRadius: '50%', 
+             background: activeAccount ? '#10b981' : '#4b5563', 
+             boxShadow: activeAccount ? '0 0 12px #10b981, 0 0 20px rgba(16,185,129,0.4)' : 'none', 
+             flexShrink: 0,
+             transition: 'all 0.3s ease'
+           }}></div>
+           <div style={{ display: 'flex', flexDirection: 'column' }}>
+             <strong style={{ 
+               fontSize: '15px',
+               letterSpacing: '0.2px', 
+               color: activeAccount ? '#fff' : 'rgba(255,255,255,0.6)',
+               transition: 'all 0.3s ease'
+             }}>Aktifkan model ini</strong>
+             {activeAccount && (
+               <span style={{ fontSize: '11px', color: 'rgba(110,231,183,0.7)', marginTop: '2px' }}>
+                 Agent active via {activeAccount.email}
+               </span>
+             )}
+           </div>
         </div>
-      )}
+
+        <div 
+          onClick={() => {
+            if (activeAccount) {
+              toggleActive(activeAccount.email)
+            } else if (accounts.length > 0) {
+              toggleActive(accounts[0].email)
+            }
+          }}
+          style={{
+            width: '48px',
+            height: '26px',
+            borderRadius: '13px',
+            background: activeAccount ? '#10b981' : 'rgba(255,255,255,0.1)',
+            border: activeAccount ? '1px solid rgba(16,185,129,0.5)' : '1px solid rgba(255,255,255,0.1)',
+            position: 'relative',
+            cursor: 'pointer',
+            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+            boxShadow: activeAccount ? '0 0 15px rgba(16,185,129,0.3)' : 'none'
+          }}
+        >
+          <div style={{
+            width: '18px',
+            height: '18px',
+            borderRadius: '50%',
+            background: '#fff',
+            position: 'absolute',
+            top: '3px',
+            left: activeAccount ? '25px' : '4px',
+            transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+            boxShadow: '0 2px 5px rgba(0,0,0,0.4)'
+          }}></div>
+        </div>
+      </div>
 
       {/* Top Bar */}
       <div className="dashboard-top-bar">
