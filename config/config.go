@@ -89,9 +89,10 @@ func Init() (*Config, error) {
 
 	dirs := []string{
 		dataDir,
-		filepath.Join(dataDir, "conversations"),
+		filepath.Join(dataDir, "conversations-web"),
 		filepath.Join(dataDir, "commands"),
 		filepath.Join(dataDir, "settings"),
+		filepath.Join(dataDir, "model", "antigravity"),
 	}
 	for _, dir := range dirs {
 		os.MkdirAll(dir, 0755)
@@ -181,7 +182,7 @@ func (c *Config) SaveSettings() error {
 }
 
 func (c *Config) GetConversationsDir() string {
-	return filepath.Join(c.DataDir, "conversations")
+	return filepath.Join(c.DataDir, "conversations-web")
 }
 
 func (c *Config) GetCommandsDir() string {

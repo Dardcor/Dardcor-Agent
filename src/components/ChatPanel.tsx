@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import wsService from '../services/websocket'
 
 interface Message {
@@ -8,48 +8,125 @@ interface Message {
   mode?: 'build' | 'plan'
 }
 
+interface ConversationSummary {
+  id: string
+  title: string
+  created_at: string
+  updated_at: string
+}
+
 const ChatPanel: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isConnected, setIsConnected] = useState(false)
+  const [isTyping, setIsTyping] = useState(false)
   const [agentMode, setAgentMode] = useState<'build' | 'plan'>('build')
+  const [conversationId, setConversationId] = useState<string | undefined>(undefined)
+  const [showHistory, setShowHistory] = useState(false)
+  const [conversations, setConversations] = useState<ConversationSummary[]>([])
+  const [loadingHistory, setLoadingHistory] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
+  const startNewChat = useCallback(() => {
+    setMessages([])
+    setConversationId(undefined)
+    setShowHistory(false)
+  }, [])
+
+  // --- WebSocket Setup ---
   useEffect(() => {
-    const unsub = wsService.on('connection', (msg: any) => {
+    wsService.connect().catch(() => {})
+
+    const unsubConn = wsService.on('connection', (msg: any) => {
       setIsConnected(msg.payload.status === 'connected')
     })
 
-    const unsubMsg = wsService.on('agent_response', (msg: any) => {
+    const unsubResp = wsService.on('agent_response', (msg: any) => {
+      setIsTyping(false)
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: msg.payload.content,
-        timestamp: new Date().toLocaleTimeString()
+        content: msg.payload?.content || '',
+        timestamp: new Date().toLocaleTimeString(),
+      }])
+      // Remember the conversation ID from the response
+      if (msg.payload?.conversation_id) {
+        setConversationId(msg.payload.conversation_id)
+      }
+    })
+
+    const unsubTyping = wsService.on('typing', (msg: any) => {
+      setIsTyping(msg.payload?.typing === true)
+    })
+
+    const unsubError = wsService.on('error', (msg: any) => {
+      setIsTyping(false)
+      const errText = msg.payload?.error || 'Unknown error'
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: `⚠️ ${errText}`,
+        timestamp: new Date().toLocaleTimeString(),
       }])
     })
+
+    const unsubConvList = wsService.on('conversations_list', (msg: any) => {
+      setLoadingHistory(false)
+      const list: ConversationSummary[] = Array.isArray(msg.payload) ? msg.payload : []
+      setConversations(list.sort((a, b) =>
+        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+      ))
+    })
+
+    const unsubConvDetail = wsService.on('conversation_detail', (msg: any) => {
+      const conv = msg.payload
+      if (!conv) return
+      setConversationId(conv.id)
+      setShowHistory(false)
+      const loaded: Message[] = (conv.messages || []).map((m: any) => ({
+        role: m.role,
+        content: m.content,
+        timestamp: m.timestamp ? new Date(m.timestamp).toLocaleTimeString() : '',
+      }))
+      setMessages(loaded)
+    })
+
+    // Toggle history from Riwayat button in sidebar
+    const handleExternalToggle = () => setShowHistory(prev => !prev)
+    const handleNewChat = () => startNewChat()
+    
+    document.addEventListener('toggle-history', handleExternalToggle)
+    document.addEventListener('new-chat', handleNewChat)
 
     setIsConnected(wsService.isConnected)
 
     return () => {
-      unsub()
-      unsubMsg()
+      unsubConn(); unsubResp(); unsubTyping()
+      unsubError(); unsubConvList(); unsubConvDetail()
+      document.removeEventListener('toggle-history', handleExternalToggle)
+      document.removeEventListener('new-chat', handleNewChat)
     }
-  }, [])
+  }, [startNewChat])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+  }, [messages, isTyping])
+
+  // Load history list when panel opens
+  useEffect(() => {
+    if (showHistory) {
+      setLoadingHistory(true)
+      wsService.getConversations()
+    }
+  }, [showHistory])
 
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault()
-    if (!input.trim() || !isConnected) return
+    if (!input.trim() || !isConnected || isTyping) return
 
     let processedInput = input
     if (input.toLowerCase().startsWith('ultrawork ') || input.toLowerCase().startsWith('ulw ')) {
       const task = input.replace(/^(ultrawork|ulw)\s+/i, '')
       processedInput = `[ULTRAWORK MODE] ${task}`
     }
-
     if (agentMode === 'plan') {
       processedInput = `[READ-ONLY ANALYSIS MODE] ${processedInput}`
     }
@@ -58,78 +135,193 @@ const ChatPanel: React.FC = () => {
       role: 'user',
       content: input,
       timestamp: new Date().toLocaleTimeString(),
-      mode: agentMode
+      mode: agentMode,
     }
-
     setMessages(prev => [...prev, newMessage])
-    wsService.send('agent_message', { message: processedInput })
+    wsService.send('agent_message', {
+      message: processedInput,
+      conversation_id: conversationId,
+    })
     setInput('')
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSubmit()
-    }
-    if (e.key === 'Tab') {
-      e.preventDefault()
-      setAgentMode(m => m === 'build' ? 'plan' : 'build')
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit() }
+    if (e.key === 'Tab') { e.preventDefault(); setAgentMode(m => m === 'build' ? 'plan' : 'build') }
+  }
+
+  const loadConversation = (id: string) => {
+    wsService.getConversation(id)
+  }
+
+  const formatDate = (iso: string) => {
+    try {
+      const d = new Date(iso)
+      const today = new Date()
+      if (d.toDateString() === today.toDateString()) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      return d.toLocaleDateString([], { day: '2-digit', month: 'short' })
+    } catch { return '' }
+  }
+
+  const renderContent = (content: string) => {
+    // Simple markdown-like rendering for code blocks
+    const parts = content.split(/(```[\s\S]*?```)/g)
+    return parts.map((part, i) => {
+      if (part.startsWith('```')) {
+        const code = part.replace(/^```[^\n]*\n?/, '').replace(/```$/, '')
+        return (
+          <pre key={i} style={{
+            background: 'rgba(0,0,0,0.4)', padding: '12px', borderRadius: '8px',
+            overflowX: 'auto', fontSize: '12px', margin: '8px 0',
+            border: '1px solid rgba(124,58,237,0.2)', fontFamily: 'monospace',
+          }}><code>{code}</code></pre>
+        )
+      }
+      return <span key={i} style={{ whiteSpace: 'pre-wrap' }}>{part}</span>
+    })
   }
 
   return (
-    <div className="chat-container">
-      <div className="chat-messages">
-        {messages.length === 0 && (
-          <div className="chat-welcome">
-            <h2>Dardcor Agent</h2>
-            <p>Ready to help in <strong>{agentMode.toUpperCase()}</strong> mode.</p>
-            <div className="mode-explain">
-              {agentMode === 'build' ? 
-                '🛠️ BUILD: I can execute commands and modify files.' : 
-                '📄 PLAN: I only analyze and give suggestions.'}
-            </div>
-          </div>
-        )}
-        {messages.map((msg, i) => (
-          <div key={i} className={`message ${msg.role}`}>
-            <div className="message-avatar">
-              {msg.role === 'assistant' ? <div className="avatar-img"></div> : 'U'}
-            </div>
-            <div className="message-body">
-              <div className="message-meta">
-                <span className="message-sender">{msg.role === 'assistant' ? 'Dardcor Agent' : 'You'}</span>
-                <span className="message-time">{msg.timestamp}</span>
-              </div>
-              <div className="message-content">
-                {msg.content}
-              </div>
-            </div>
-          </div>
-        ))}
-        <div ref={messagesEndRef} />
-      </div>
+    <div className="chat-container" style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
 
-      <div className="chat-input-container">
-        <form className="chat-input-wrapper" onSubmit={handleSubmit}>
-          <textarea
-            className="chat-input"
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={agentMode === 'build' ? "Ask anything (BUILD mode)..." : "Ask for analysis (PLAN mode)..."}
-            rows={1}
-          />
-          <button className="chat-send-btn" type="submit" disabled={!input.trim() || !isConnected}>
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="22" y1="2" x2="11" y2="13" />
-              <polygon points="22 2 15 22 11 13 2 9 22 2" />
-            </svg>
-          </button>
-        </form>
-        <div className="chat-input-hint">
-          Tab to switch mode • {agentMode.toUpperCase()} MODE
-          {input.toLowerCase().startsWith('ulw') && <span style={{color: 'var(--accent-primary)', marginLeft: '10px'}}>⚡ ULTRAWORK</span>}
+      {/* History Modal */}
+      {showHistory && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 9999,
+          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}>
+          <div style={{
+            width: '600px', height: '70vh', background: 'var(--bg-secondary)',
+            border: '1px solid var(--border-subtle)', borderRadius: '12px',
+            display: 'flex', flexDirection: 'column',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+          }}>
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ fontSize: '16px', fontWeight: 700, color: '#a78bfa' }}>🕒 Riwayat (database/conversations-web)</span>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button onClick={startNewChat} title="Chat Baru" style={{
+                  background: 'var(--accent-primary)', border: 'none', color: '#fff',
+                  borderRadius: '6px', padding: '6px 12px', fontSize: '13px', cursor: 'pointer',
+                  fontWeight: 600
+                }}>+ Baru</button>
+                <button onClick={() => setShowHistory(false)} style={{
+                  background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '24px', lineHeight: 1
+                }}>×</button>
+              </div>
+            </div>
+
+            <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {loadingHistory ? (
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
+                  <div className="typing-dots"><span /><span /><span /></div>
+                </div>
+              ) : conversations.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: '#64748b', fontSize: '14px' }}>
+                  Belum ada riwayat percakapan.
+                </div>
+              ) : (
+                conversations.map(conv => (
+                  <div
+                    key={conv.id}
+                    onClick={() => loadConversation(conv.id)}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      background: conversationId === conv.id ? 'rgba(124,58,237,0.15)' : 'var(--bg-tertiary)',
+                      border: conversationId === conv.id ? '1px solid var(--accent-primary)' : '1px solid var(--border-subtle)',
+                      borderRadius: '8px', padding: '12px 16px', cursor: 'pointer',
+                      transition: 'all 0.2s',
+                    }}
+                  >
+                    <div style={{ flex: 1, overflow: 'hidden' }}>
+                      <div style={{ fontSize: '14px', color: conversationId === conv.id ? '#c4b5fd' : '#f8fafc', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {conv.title || 'Percakapan'}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
+                        {formatDate(conv.updated_at)}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Main Chat Area */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
+        <div className="chat-messages" style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+          {messages.length === 0 && (
+            <div className="chat-welcome">
+              <h2>Dardcor Agent</h2>
+              <p>Ready in <strong>{agentMode.toUpperCase()}</strong> mode.</p>
+              <div className="mode-explain">
+                {agentMode === 'build' ?
+                  '🛠️ BUILD: I can execute commands and modify files.' :
+                  '📄 PLAN: I only analyze and give suggestions.'}
+              </div>
+            </div>
+          )}
+
+          {messages.map((msg, i) => (
+            <div key={i} className={`message ${msg.role}`}>
+              <div className="message-avatar">
+                {msg.role === 'assistant' ? <div className="avatar-img" /> : 'U'}
+              </div>
+              <div className="message-body">
+                <div className="message-meta">
+                  <span className="message-sender">{msg.role === 'assistant' ? 'Dardcor Agent' : 'You'}</span>
+                  <span className="message-time">{msg.timestamp}</span>
+                </div>
+                <div className="message-content">
+                  {renderContent(msg.content)}
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {/* Typing Indicator */}
+          {isTyping && (
+            <div className="message assistant">
+              <div className="message-avatar"><div className="avatar-img" /></div>
+              <div className="message-body">
+                <div className="message-meta">
+                  <span className="message-sender">Dardcor Agent</span>
+                </div>
+                <div className="message-content">
+                  <div className="typing-dots"><span /><span /><span /></div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
+        </div>
+
+        <div className="chat-input-container">
+          <form className="chat-input-wrapper" onSubmit={handleSubmit}>
+            <textarea
+              className="chat-input"
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder={agentMode === 'build' ? 'Ask anything (BUILD mode)...' : 'Ask for analysis (PLAN mode)...'}
+              rows={1}
+              disabled={isTyping}
+            />
+            <button className="chat-send-btn" type="submit" disabled={!input.trim() || !isConnected || isTyping}>
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="22" y1="2" x2="11" y2="13" />
+                <polygon points="22 2 15 22 11 13 2 9 22 2" />
+              </svg>
+            </button>
+          </form>
+          <div className="chat-input-hint">
+            Tab to switch mode • {agentMode.toUpperCase()} MODE
+            {!isConnected && <span style={{ color: '#ef4444', marginLeft: '10px' }}>⚠ Disconnected</span>}
+            {input.toLowerCase().startsWith('ulw') && <span style={{ color: 'var(--accent-primary)', marginLeft: '10px' }}>⚡ ULTRAWORK</span>}
+          </div>
         </div>
       </div>
     </div>
@@ -137,4 +329,3 @@ const ChatPanel: React.FC = () => {
 }
 
 export default ChatPanel
-

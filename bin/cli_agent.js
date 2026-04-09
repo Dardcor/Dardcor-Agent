@@ -83,7 +83,7 @@ export async function runCLI() {
   if (!serverUp) {
     inf('Starting backend for CLI mode...');
     const env = { ...process.env, PORT: '25000', DARDCOR_AI_PROVIDER: cfg.provider || 'local' };
-    spawn('go', ['run', 'main.go', 'run'], { cwd: rootDir, stdio: 'ignore', shell: true, env, detached: true }).unref();
+    spawn('go', ['run', 'main.go', 'run'], { cwd: rootDir, stdio: 'ignore', shell: false, env, detached: true }).unref();
     
     let connected = false;
     for (let i = 0; i < 10; i++) {

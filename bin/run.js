@@ -90,10 +90,10 @@ export async function run() {
   } else {
     if (fs.existsSync(path.join(rootDir, 'src'))) {
       inf('Real-Time UI Builder Active...');
-      spawn('npx', ['vite', 'build', '--watch', '--emptyOutDir', 'false'], {
+      spawn(process.platform === 'win32' ? 'npx.cmd' : 'npx', ['vite', 'build', '--watch', '--emptyOutDir', 'false'], {
         cwd: rootDir,
         stdio: 'ignore',
-        shell: true
+        shell: false
       });
     }
     cmd = 'go';
@@ -103,7 +103,7 @@ export async function run() {
   const backend = spawn(cmd, args, {
     cwd: rootDir,
     stdio: 'inherit',
-    shell: true,
+    shell: false,
     env: process.env,
   });
 

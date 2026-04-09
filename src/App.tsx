@@ -48,10 +48,16 @@ const App: React.FC = () => {
         <div className="sidebar-separator"></div>
 
         <div className="sidebar-action-group">
-          <button className="action-btn history-btn">
+          <button className="action-btn history-btn" onClick={() => {
+            setActiveTab('chat')
+            setTimeout(() => document.dispatchEvent(new CustomEvent('toggle-history')), 50)
+          }}>
             <span>🕒</span> Riwayat
           </button>
-          <button className="action-btn new-chat-btn" onClick={() => setActiveTab('chat')}>
+          <button className="action-btn new-chat-btn" onClick={() => {
+            setActiveTab('chat')
+            setTimeout(() => document.dispatchEvent(new CustomEvent('new-chat')), 50)
+          }}>
             <span>+</span> Baru
           </button>
         </div>

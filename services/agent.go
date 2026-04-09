@@ -18,18 +18,23 @@ type AgentService struct {
 	fsService   *FileSystemService
 	cmdService  *CommandService
 	sysService  *SystemService
+	agService   *AntigravityService
 	llmProvider *LLMProvider
 }
 
-func NewAgentService(fs *FileSystemService, cmd *CommandService, sys *SystemService) *AgentService {
+func NewAgentService(fs *FileSystemService, cmd *CommandService, sys *SystemService, ag *AntigravityService) *AgentService {
 	var llm *LLMProvider
 	if config.AppConfig != nil {
-		llm = NewLLMProvider(config.AppConfig.AI)
+		llm = NewLLMProvider(config.AppConfig.AI, ag)
+	} else {
+		// Create LLM provider even without full config, so antigravity can work
+		llm = NewLLMProvider(config.AIConfig{Provider: "local"}, ag)
 	}
 	return &AgentService{
 		fsService:   fs,
 		cmdService:  cmd,
 		sysService:  sys,
+		agService:   ag,
 		llmProvider: llm,
 	}
 }
@@ -55,7 +60,25 @@ func (as *AgentService) ProcessMessage(req models.AgentRequest) (*models.AgentRe
 	var actions []models.Action
 	var responseText string
 
-	if as.llmProvider != nil && config.AppConfig != nil && config.AppConfig.IsAIEnabled() {
+	// Determine if we should use LLM
+	// Priority 1: Active Antigravity account exists -> always route through it
+	// Priority 2: Config says AI is enabled (e.g. OpenAI, Anthropic, etc)
+	useAI := false
+	if as.agService != nil {
+		if activeAcc, err := as.agService.GetActiveAccount(); err == nil && activeAcc != nil {
+			// Account is active - callAntigravity will handle token refresh automatically
+			useAI = true
+			if as.llmProvider != nil {
+				as.llmProvider.cfg.Provider = "antigravity"
+			}
+			_ = activeAcc // used implicitly via agService in callAntigravity
+		}
+	}
+	if !useAI && config.AppConfig != nil && config.AppConfig.IsAIEnabled() {
+		useAI = true
+	}
+
+	if useAI && as.llmProvider != nil {
 		responseText = as.processWithLLM(req.Message, convID)
 		if responseText == "" {
 			actions, responseText = as.interpretAndExecute(req.Message)
@@ -116,7 +139,8 @@ func (as *AgentService) processWithLLM(message string, convID string) string {
 
 	resp, err := as.llmProvider.Complete(systemPrompt, historyMessages)
 	if err != nil {
-		return ""
+		// Return a meaningful error message instead of empty string
+		return fmt.Sprintf("⚠️ AI Error: %v\n\nPastikan akun Antigravity sudah diaktifkan di halaman Model.", err)
 	}
 
 	return resp.Content

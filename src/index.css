@@ -2615,47 +2615,57 @@ a { color: inherit; text-decoration: none; }
 /* Table Styling */
 .dashboard-table-header {
   display: grid;
-  grid-template-columns: 50px 250px 1fr 150px 150px;
-  padding: 15px 20px;
+  grid-template-columns: 50px 200px 1fr 120px 80px 90px;
+  padding: 12px 20px;
   color: var(--text-dim);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.5px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  background: rgba(13, 9, 32, 0.8);
+  border: 1px solid rgba(124,58,237,0.12);
+  border-radius: 10px 10px 0 0;
+  border-bottom: 1px solid rgba(124,58,237,0.2);
 }
 
 .account-row {
   display: grid;
-  grid-template-columns: 50px 250px 1fr 150px 150px;
+  grid-template-columns: 50px 200px 1fr 120px 80px 90px;
   background: #0d0b1a;
-  border: 1px solid rgba(124,58,237,0.1);
-  margin-top: 2px;
-  padding: 16px 20px;
+  border: 1px solid rgba(124,58,237,0.08);
+  border-top: none;
+  padding: 14px 20px;
   border-radius: 0;
-  align-items: center;
+  align-items: start;
   transition: var(--transition-fast);
 }
 
-.account-row:hover { background: #130a2a; border-color: rgba(124,58,237,0.3); }
+.account-row:last-child { border-radius: 0 0 10px 10px; }
+.account-row:hover { background: #130a2a; border-color: rgba(124,58,237,0.25); }
+.account-row.loading { opacity: 0.5; }
+.account-row.selected { background: rgba(124,58,237,0.06); }
 
-.col-check { display: flex; align-items: center; justify-content: center; gap: 12px; }
-.drag-handle { color: #334155; cursor: grab; font-size: 16px; }
+.col-check { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.drag-handle { color: #334155; cursor: grab; font-size: 16px; user-select: none; }
 
-.col-email .email-text { font-weight: 700; color: #60a5fa; margin-bottom: 6px; font-family: var(--font-mono); font-size: 13px; }
-.badges { display: flex; gap: 8px; }
-.badge { background: #1e3a8a; border: 1px solid #3b82f6; color: rgba(255,255,255,0.9); font-size: 9px; padding: 1px 6px; border-radius: 4px; font-weight: 800; }
+.col-email { overflow: hidden; }
+.col-email .email-text { font-weight: 700; color: #60a5fa; margin-bottom: 5px; font-family: var(--font-mono); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.col-email .email-text.highlight { color: #a78bfa; }
+.badges { display: flex; gap: 6px; flex-wrap: wrap; }
+.badge { background: rgba(124,58,237,0.2); border: 1px solid rgba(124,58,237,0.4); color: #c4b5fd; font-size: 9px; padding: 1px 6px; border-radius: 4px; font-weight: 800; }
 .badge-outline { border: 1px solid #334155; color: var(--text-dim); font-size: 9px; padding: 1px 6px; border-radius: 4px; font-weight: 800; }
 
 .quota-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 8px 30px;
+  gap: 6px;
 }
 
 .quota-item { display: flex; flex-direction: column; gap: 2px; }
-.quota-info { display: flex; justify-content: space-between; font-size: 10px; font-weight: 700; }
-.model-name { display: flex; align-items: center; gap: 6px; color: #94a3b8; }
-.dot { width: 7px; height: 7px; border-radius: 50%; }
-.duration { color: #64748b; }
+.quota-info { display: flex; justify-content: space-between; align-items: center; font-size: 10px; font-weight: 700; }
+.model-name { display: flex; align-items: center; gap: 5px; color: #94a3b8; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 90px; }
+.dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.duration { color: #64748b; font-size: 9px; }
 
 .quota-bar { height: 16px; background: rgba(0,0,0,0.4); border-radius: 3px; position: relative; overflow: hidden; border: 1px solid rgba(255,255,255,0.03); }
 .quota-bar .fill { height: 100%; opacity: 0.35; }

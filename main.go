@@ -30,13 +30,16 @@ func main() {
 	fsSvc := services.NewFileSystemService()
 	cmdSvc := services.NewCommandService()
 	sysSvc := services.NewSystemService()
-	agentSvc := services.NewAgentService(fsSvc, cmdSvc, sysSvc)
+	antigravitySvc := services.NewAntigravityService()
+	agentSvc := services.NewAgentService(fsSvc, cmdSvc, sysSvc, antigravitySvc)
 
 	fsHandler := handlers.NewFileSystemHandler(fsSvc)
 	cmdHandler := handlers.NewCommandHandler(cmdSvc)
 	sysHandler := handlers.NewSystemHandler(sysSvc)
 	agentHandler := handlers.NewAgentHandler(agentSvc)
 	wsHandler := handlers.NewWebSocketHandler(agentSvc, cmdSvc)
+
+	antigravityHandler := handlers.NewAntigravityHandler(antigravitySvc)
 
 	r := mux.NewRouter()
 
@@ -114,6 +117,17 @@ func main() {
 	api.HandleFunc("/system/kill", sysHandler.KillProcess).Methods("POST", "OPTIONS")
 	api.HandleFunc("/system/cpu", sysHandler.GetCPUUsage).Methods("GET")
 	api.HandleFunc("/system/memory", sysHandler.GetMemoryUsage).Methods("GET")
+
+	// Antigravity Routes
+	api.HandleFunc("/antigravity/accounts", antigravityHandler.GetAccounts).Methods("GET")
+	api.HandleFunc("/antigravity/accounts", antigravityHandler.AddAccount).Methods("POST", "OPTIONS")
+	api.HandleFunc("/antigravity/accounts", antigravityHandler.RemoveAccount).Methods("DELETE")
+	api.HandleFunc("/antigravity/refresh", antigravityHandler.RefreshAccount).Methods("GET")
+	api.HandleFunc("/antigravity/oauth/start", antigravityHandler.OAuthStart).Methods("GET")
+	api.HandleFunc("/antigravity/oauth/callback", antigravityHandler.OAuthCallback).Methods("GET")
+	api.HandleFunc("/antigravity/active", antigravityHandler.ToggleActiveAccount).Methods("POST", "OPTIONS")
+	api.HandleFunc("/antigravity/config", antigravityHandler.GetConfig).Methods("GET")
+	api.HandleFunc("/antigravity/config", antigravityHandler.SaveConfig).Methods("POST", "OPTIONS")
 
 	r.HandleFunc("/ws", wsHandler.HandleWebSocket)
 

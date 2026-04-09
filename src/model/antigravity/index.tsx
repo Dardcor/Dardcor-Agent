@@ -1,114 +1,523 @@
-import React from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
+
+interface ModelQuota {
+  name: string
+  percentage: number
+  available: boolean
+  duration?: string
+  color?: string
+}
+
+interface AntigravityConfig {
+  selected_model: string
+  temperature: number
+  max_tokens: number
+}
+
+interface AntigravityAccount {
+  email: string
+  type: string
+  status: string
+  is_active?: boolean
+  quotas: ModelQuota[]
+  last_used: string
+}
 
 const AntigravityView: React.FC = () => {
-  const accounts = [
-    { email: 'afdanikomalik@gmail.com', type: 'FREE', status: '', models: [
-      { name: 'GPT-05S 120B (Medium)', duration: '6d 23h', pct: 100, color: '#10b981' },
-      { name: 'Gemini 3 Pro (High)', duration: '6d 10h', pct: 100, color: '#3b82f6' },
-      { name: 'Gemini 3.1 Pro (High)', duration: '6d 10h', pct: 100, color: '#f59e0b' },
-      { name: 'Gemini 3 Flash', duration: '6d 11h', pct: 100, color: '#8b5cf6' }
-    ]},
-    { email: 'dardcorxyz@gmail.com', type: 'FREE', status: 'CURRENT', models: [
-      { name: 'GPT-05S 120B (Medium)', duration: '4d 5h', pct: 80, color: '#10b981' },
-      { name: 'Gemini 3.1 Pro (High)', duration: '4d 8h', pct: 60, color: '#f59e0b' },
-      { name: 'Gemini 3 Pro (Low)', duration: '4d 8h', pct: 60, color: '#3b82f6' },
-      { name: 'Gemini 3 Flash', duration: '4d 11h', pct: 80, color: '#8b5cf6' }
-    ]}
-  ]
+  const [accounts, setAccounts] = useState<AntigravityAccount[]>([])
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState<Record<string, boolean>>({})
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filterType, setFilterType] = useState('ALL')
+  const [showAllQuotas, setShowAllQuotas] = useState(true)
+  const [selectedEmails, setSelectedEmails] = useState<Set<string>>(new Set())
+  const [itemsPerPage, setItemsPerPage] = useState(10)
+  const [currentPage, setCurrentPage] = useState(1)
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const [agConfig, setAgConfig] = useState<AntigravityConfig>({ selected_model: '', temperature: 0.7, max_tokens: 8192 })
+  const [savingConfig, setSavingConfig] = useState(false)
+
+  const fetchAccounts = async () => {
+    try {
+      const resp = await fetch('/api/antigravity/accounts')
+      const data = await resp.json()
+      if (data.success) setAccounts(data.data || [])
+    } catch (err) {
+      console.error('Failed to fetch accounts:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchConfig = async () => {
+    try {
+      const resp = await fetch('/api/antigravity/config')
+      const data = await resp.json()
+      if (data.success && data.data) setAgConfig(data.data)
+    } catch { }
+  }
+
+  useEffect(() => {
+    fetchAccounts()
+    fetchConfig()
+  }, [])
+
+  const saveConfig = async (cfg: Partial<AntigravityConfig>) => {
+    setSavingConfig(true)
+    const newCfg = { ...agConfig, ...cfg }
+    try {
+      await fetch('/api/antigravity/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newCfg)
+      })
+      setAgConfig(newCfg)
+    } catch {
+    } finally {
+      setSavingConfig(false)
+    }
+  }
+
+  const handleRefresh = async (email: string) => {
+    setRefreshing(prev => ({ ...prev, [email]: true }))
+    try {
+      const resp = await fetch(`/api/antigravity/refresh?email=${encodeURIComponent(email)}`)
+      const data = await resp.json()
+      if (data.success) setAccounts(prev => prev.map(acc => acc.email === email ? data.data : acc))
+    } catch (err) {
+      console.error('Refresh failed:', err)
+    } finally {
+      setRefreshing(prev => ({ ...prev, [email]: false }))
+    }
+  }
+
+  const handleRefreshAll = async () => {
+    for (const acc of filteredAccounts) {
+      if (!refreshing[acc.email]) await handleRefresh(acc.email)
+    }
+  }
+
+  const toggleActive = async (email: string) => {
+    try {
+      const resp = await fetch(`/api/antigravity/active?email=${encodeURIComponent(email)}`, { method: 'POST' })
+      const data = await resp.json()
+      if (data.success) fetchAccounts()
+    } catch (err) {
+      console.error('Toggle active failed:', err)
+    }
+  }
+
+  const handleDelete = async (email: string) => {
+    if (!window.confirm(`Delete ${email}?`)) return
+    try {
+      const resp = await fetch(`/api/antigravity/accounts?email=${encodeURIComponent(email)}`, { method: 'DELETE' })
+      const data = await resp.json()
+      if (data.success) {
+        setAccounts(prev => prev.filter(a => a.email !== email))
+        setSelectedEmails(prev => { const n = new Set(prev); n.delete(email); return n })
+      }
+    } catch (err) { console.error('Delete failed:', err) }
+  }
+
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = async (evt) => {
+      try {
+        const parsed = JSON.parse(evt.target?.result as string)
+        if (Array.isArray(parsed)) {
+          let count = 0
+          for (const item of parsed) {
+            if (item.email && item.refresh_token) {
+              await fetch('/api/antigravity/accounts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(item) })
+              count++
+            }
+          }
+          alert(`Imported ${count} accounts.`)
+          await fetchAccounts()
+        }
+      } catch { alert('Invalid JSON file.') }
+    }
+    reader.readAsText(file)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const handleExport = () => {
+    const data = accounts.map(a => ({ email: a.email, refresh_token: (a as any).refresh_token || '', type: a.type }))
+    const url = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(data, null, 2))
+    const a = document.createElement('a')
+    a.href = url; a.download = 'antigravity_accounts.json'
+    document.body.appendChild(a); a.click(); a.remove()
+  }
+
+  const filteredAccounts = useMemo(() =>
+    accounts.filter(acc => {
+      if (filterType !== 'ALL' && acc.type !== filterType) return false
+      if (searchQuery && !acc.email.toLowerCase().includes(searchQuery.toLowerCase())) return false
+      return true
+    }), [accounts, filterType, searchQuery])
+
+  const totalPages = Math.ceil(filteredAccounts.length / itemsPerPage) || 1
+  const paginatedAccounts = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage
+    return filteredAccounts.slice(start, start + itemsPerPage)
+  }, [filteredAccounts, currentPage, itemsPerPage])
+
+  const counts = useMemo(() =>
+    accounts.reduce((acc, curr) => {
+      acc.ALL = (acc.ALL || 0) + 1
+      acc[curr.type] = (acc[curr.type] || 0) + 1
+      return acc
+    }, { ALL: 0 } as Record<string, number>), [accounts])
+
+  const isRefreshingAny = Object.values(refreshing).some(Boolean)
+  const activeAccount = accounts.find(a => a.is_active)
+
+  const formatResetTime = (isoStr?: string) => {
+    if (!isoStr) return ''
+    try {
+      const d = new Date(isoStr)
+      const now = new Date()
+      const diffMs = d.getTime() - now.getTime()
+      if (diffMs < 0) return 'Expired'
+      const diffH = Math.floor(diffMs / 3600000)
+      const diffD = Math.floor(diffH / 24)
+      if (diffD > 0) return `${diffD}d ${diffH % 24}h`
+      if (diffH > 0) return `${diffH}h`
+      const diffM = Math.floor(diffMs / 60000)
+      return `${diffM}m`
+    } catch { return '' }
+  }
+
+  // Deduplicate quotas by name, keeping the one with highest percentage
+  const deduplicateQuotas = (quotas: ModelQuota[]) => {
+    const map = new Map<string, ModelQuota>()
+    for (const q of (quotas || [])) {
+      const existing = map.get(q.name)
+      if (!existing || q.percentage > existing.percentage) {
+        map.set(q.name, q)
+      }
+    }
+    return Array.from(map.values())
+  }
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '80px' }}>
+        <div className="typing-dots"><span></span><span></span><span></span></div>
+      </div>
+    )
+  }
 
   return (
     <div className="antigravity-dashboard animate-fade">
-      <div className="dashboard-top-bar">
-        <div className="search-box">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-          <input type="text" placeholder="Search email..." />
+
+      {/* Active Agent Banner */}
+      {activeAccount && (
+        <div style={{
+          background: 'linear-gradient(135deg, rgba(16,185,129,0.1) 0%, rgba(124,58,237,0.08) 100%)',
+          border: '1px solid rgba(16,185,129,0.25)',
+          borderRadius: '10px',
+          padding: '10px 18px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          marginBottom: '4px',
+          fontSize: '13px',
+          color: '#6ee7b7',
+        }}>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 8px #10b981', flexShrink: 0, display: 'inline-block' }}></span>
+          <strong>Agent Active:</strong>&nbsp;{activeAccount.email}
+          <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'rgba(110,231,183,0.6)' }}>All chats routed through this account</span>
         </div>
-        
-        <div className="filter-group">
-          <button className="active">All <span>15</span></button>
-          <button>PRO <span>0</span></button>
-          <button>ULTRA <span>0</span></button>
-          <button>FREE <span>15</span></button>
+      )}
+
+      {/* Top Bar */}
+      <div className="dashboard-top-bar">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1 }}>
+          <div className="search-box">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input
+              type="text"
+              placeholder="Search email..."
+              value={searchQuery}
+              onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1) }}
+            />
+          </div>
+
+          <div className="filter-group">
+            {(['ALL', 'PRO', 'ULTRA', 'FREE'] as const).map(t => (
+              <button key={t} className={filterType === t ? 'active' : ''} onClick={() => { setFilterType(t); setCurrentPage(1) }}>
+                {t} <span>{counts[t] || 0}</span>
+              </button>
+            ))}
+          </div>
+
+          <div style={{ padding: '0 10px', height: '32px', display: 'flex', alignItems: 'center', background: 'rgba(124,58,237,0.05)', borderRadius: '8px', border: '1px solid rgba(124,58,237,0.15)' }}>
+            <span style={{ fontSize: '11px', color: '#a78bfa', fontWeight: 600, marginRight: '8px' }}>Chat Model:</span>
+            <select
+              value={agConfig.selected_model}
+              onChange={(e) => saveConfig({ selected_model: e.target.value })}
+              style={{
+                background: 'none', border: 'none', color: '#fff', fontSize: '11px', fontWeight: 700, outline: 'none', cursor: 'pointer', maxWidth: '140px'
+              }}
+            >
+              <option value="" style={{ background: '#0d0920' }}>Auto-resolve</option>
+              {Array.from(new Set(accounts.flatMap(a => a.quotas || []).map(q => q.name))).sort().map(name => {
+                const q = accounts.flatMap(a => a.quotas || []).find(curr => curr.name === name)
+                return <option key={name} value={(q as any).key || ''} style={{ background: '#0d0920' }}>{name}</option>
+              })}
+            </select>
+            {savingConfig && <div style={{ marginLeft: '6px' }} className="typing-dots small"><span /></div>}
+          </div>
         </div>
 
         <div className="action-row">
-          <button className="btn-refresh">🔄 Refresh All</button>
-          <button className="btn-warmup">🔥 One-click Warmup</button>
-          <div className="toggle-group">
-             <span>Show All Quotas</span>
-             <div className="toggle-switch"></div>
+          <button
+            className="btn-add"
+            onClick={() => { window.location.href = `http://${window.location.host}/api/antigravity/oauth/start` }}
+            style={{ background: 'linear-gradient(135deg, #5b21b6, #7c3aed)', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 0 14px rgba(124,58,237,0.3)' }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 5v14M5 12h14"/></svg>
+            Add Account
+          </button>
+
+          <button
+            className="btn-refresh"
+            onClick={handleRefreshAll}
+            disabled={isRefreshingAny || filteredAccounts.length === 0}
+            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: isRefreshingAny ? 'spin 1s linear infinite' : 'none' }}>
+              <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            {isRefreshingAny ? 'Refreshing...' : 'Refresh All'}
+          </button>
+
+          <button className="btn-warmup" onClick={handleRefreshAll} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span>🔥</span> Warmup
+          </button>
+
+          <div className="toggle-group" onClick={() => setShowAllQuotas(!showAllQuotas)} style={{ cursor: 'pointer' }}>
+            <span>Quotas</span>
+            <div style={{
+              width: '36px', height: '20px', borderRadius: '10px',
+              background: showAllQuotas ? '#7c3aed' : '#374151',
+              position: 'relative', transition: 'all 0.2s', flexShrink: 0
+            }}>
+              <div style={{
+                width: '16px', height: '16px', borderRadius: '50%', background: 'white',
+                position: 'absolute', top: '2px',
+                left: showAllQuotas ? '18px' : '2px',
+                transition: 'all 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
+              }}></div>
+            </div>
           </div>
-          <button className="btn-icon">📤 Import</button>
-          <button className="btn-icon">📥 Export</button>
+
+          <input type="file" ref={fileInputRef} onChange={handleImport} accept=".json" style={{ display: 'none' }} />
+          <button className="btn-icon" onClick={() => fileInputRef.current?.click()} title="Import">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+          </button>
+          <button className="btn-icon" onClick={handleExport} title="Export">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          </button>
         </div>
       </div>
 
-      <div className="dashboard-table-header">
-        <div className="col-check"><input type="checkbox" /></div>
-        <div className="col-email">EMAIL</div>
-        <div className="col-quota">MODEL QUOTA</div>
-        <div className="col-last">LAST USED</div>
-        <div className="col-actions">ACTIONS</div>
+      {/* Table Header */}
+      <div className="dashboard-table-header" style={{ gridTemplateColumns: '50px 1fr 1.8fr 130px 80px 90px' }}>
+        <div className="col-check">
+          <input
+            type="checkbox"
+            checked={selectedEmails.size === filteredAccounts.length && filteredAccounts.length > 0}
+            onChange={() => {
+              if (selectedEmails.size === filteredAccounts.length && filteredAccounts.length > 0) setSelectedEmails(new Set())
+              else setSelectedEmails(new Set(filteredAccounts.map(a => a.email)))
+            }}
+          />
+        </div>
+        <div>ACCOUNT</div>
+        <div>MODEL QUOTA</div>
+        <div>LAST USED</div>
+        <div style={{ textAlign: 'center' }}>ACTIVE</div>
+        <div style={{ textAlign: 'center' }}>ACTIONS</div>
       </div>
 
-      <div className="dashboard-table-body">
-        {accounts.map((acc, i) => (
-          <div key={i} className="account-row shadow-premium">
-            <div className="col-check">
-               <div className="drag-handle">⠿</div>
-               <input type="checkbox" />
-            </div>
-            <div className="col-email">
-              <div className="email-text">{acc.email}</div>
-              <div className="badges">
-                {acc.status === 'CURRENT' && <span className="badge current">CURRENT</span>}
-                <span className="badge-outline">{acc.type}</span>
-              </div>
-            </div>
-            <div className="col-quota">
-              <div className="quota-grid">
-                {acc.models.map((m, j) => (
-                  <div key={j} className="quota-item">
-                    <div className="quota-info">
-                      <span className="model-name"><span className="dot" style={{ background: m.color }}></span> {m.name}</span>
-                      <span className="duration">🕒 {m.duration}</span>
-                    </div>
-                    <div className="quota-bar">
-                      <div className="fill" style={{ width: `${m.pct}%`, background: m.color }}></div>
-                      <span className="pct">{m.pct}%</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div className="col-last">
-              <div className="last-date">08/04/2026</div>
-              <div className="last-time">13.31</div>
-            </div>
-            <div className="col-actions">
-              <button title="Info">ⓘ</button>
-              <button title="Settings">⚙</button>
-              <button title="Refresh">🔄</button>
-              <button title="Delete">🗑</button>
-            </div>
+      {/* Table Body */}
+      <div style={{ minHeight: '300px' }}>
+        {paginatedAccounts.length === 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px', color: 'var(--text-dim)', textAlign: 'center', gap: '12px' }}>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" style={{ opacity: 0.3 }}>
+              <path d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+            </svg>
+            <p>{searchQuery || filterType !== 'ALL' ? 'No accounts match your filters.' : 'No accounts found. Click "+ Add Account" to get started.'}</p>
           </div>
-        ))}
+        ) : (
+          paginatedAccounts.map((acc, i) => {
+            return (
+              <div
+                key={i}
+                className="account-row"
+                style={{
+                  gridTemplateColumns: '50px 1fr 1.8fr 130px 80px 90px',
+                  opacity: refreshing[acc.email] ? 0.5 : 1,
+                  background: selectedEmails.has(acc.email) ? 'rgba(124,58,237,0.07)' : undefined,
+                  borderLeft: acc.is_active ? '2px solid #10b981' : '2px solid transparent',
+                }}
+              >
+                {/* Checkbox */}
+                <div className="col-check">
+                  <div className="drag-handle">⠿</div>
+                  <input type="checkbox" checked={selectedEmails.has(acc.email)} onChange={() => {
+                    setSelectedEmails(prev => { const n = new Set(prev); n.has(acc.email) ? n.delete(acc.email) : n.add(acc.email); return n })
+                  }} />
+                </div>
+
+                {/* Email */}
+                <div className="col-email">
+                  <div className="email-text" title={acc.email} style={{ color: acc.is_active ? '#a78bfa' : '#60a5fa' }}>
+                    {acc.email}
+                  </div>
+                  <div className="badges">
+                    <span className="badge-outline">{acc.type || 'FREE'}</span>
+                    {acc.status === 'CURRENT' && <span className="badge">CURRENT</span>}
+                    {acc.is_active && (
+                      <span style={{ background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.4)', color: '#6ee7b7', fontSize: '9px', padding: '1px 6px', borderRadius: '4px', fontWeight: 800 }}>
+                        AGENT
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Quota - Show ALL models */}
+                <div className="col-quota">
+                  {(() => {
+                    const allQuotas = deduplicateQuotas(showAllQuotas ? acc.quotas : acc.quotas?.filter(q => q.available !== false))
+                    if (!allQuotas || allQuotas.length === 0) {
+                      return <div style={{ color: 'var(--text-dim)', fontSize: '12px', fontStyle: 'italic' }}>No quota data. Click refresh.</div>
+                    }
+                    return (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '5px' }}>
+                        {allQuotas.map((m, j) => (
+                          <div key={j} style={{ background: '#0d0920', padding: '5px 7px', borderRadius: '6px', border: '1px solid rgba(124,58,237,0.12)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '3px' }}>
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden' }}>
+                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: m.color || '#8B5CF6', boxShadow: `0 0 5px ${m.color || '#8B5CF6'}`, flexShrink: 0 }}></span>
+                                <span style={{ fontSize: '10px', color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '120px' }} title={m.name}>
+                                  {m.name}
+                                </span>
+                              </span>
+                              <span style={{ fontSize: '10px', color: m.color || '#7c3aed', fontWeight: 800, flexShrink: 0 }}>{m.percentage}%</span>
+                            </div>
+                            <div style={{ height: '4px', background: 'rgba(0,0,0,0.5)', borderRadius: '2px', overflow: 'hidden' }}>
+                              <div style={{
+                                width: `${Math.max(2, m.percentage)}%`,
+                                height: '100%',
+                                borderRadius: '2px',
+                                background: `linear-gradient(90deg, ${m.color || '#6D28D9'}, ${m.color || '#8B5CF6'})`,
+                                boxShadow: `0 0 6px ${m.color || '#8B5CF6'}88`,
+                                transition: 'width 1s ease',
+                              }}></div>
+                            </div>
+                            {m.duration && (
+                              <div style={{ fontSize: '8px', color: '#475569', marginTop: '2px', textAlign: 'right' }}>
+                                ↺ {formatResetTime(m.duration)}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  })()}
+                </div>
+
+                {/* Last Used */}
+                <div className="col-last">
+                  <div className="last-date">
+                    {acc.last_used && acc.last_used !== '0001-01-01T00:00:00Z'
+                      ? new Date(acc.last_used).toLocaleDateString()
+                      : 'Never used'}
+                  </div>
+                  <div className="last-time">
+                    {acc.last_used && acc.last_used !== '0001-01-01T00:00:00Z'
+                      ? new Date(acc.last_used).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                      : '--:--'}
+                  </div>
+                </div>
+
+                {/* Active Toggle */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <button
+                    onClick={() => toggleActive(acc.email)}
+                    title={acc.is_active ? 'Deactivate agent' : 'Activate agent'}
+                    style={{
+                      width: '40px', height: '22px', borderRadius: '11px', border: 'none', cursor: 'pointer',
+                      background: acc.is_active ? '#10b981' : '#2d1b44',
+                      position: 'relative', transition: 'all 0.2s',
+                      boxShadow: acc.is_active ? '0 0 10px rgba(16,185,129,0.4)' : 'none',
+                      flexShrink: 0,
+                    }}
+                  >
+                    <div style={{
+                      width: '16px', height: '16px', borderRadius: '50%', background: '#fff',
+                      position: 'absolute', top: '3px',
+                      left: acc.is_active ? '21px' : '3px',
+                      transition: 'all 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.4)'
+                    }}></div>
+                  </button>
+                </div>
+
+                {/* Actions */}
+                <div className="col-actions">
+                  <button
+                    onClick={() => handleRefresh(acc.email)}
+                    disabled={refreshing[acc.email]}
+                    title="Refresh quotas"
+                    style={{ color: refreshing[acc.email] ? '#4b5563' : '#9ca3af' }}
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: refreshing[acc.email] ? 'spin 1s linear infinite' : 'none' }}>
+                      <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                  </button>
+                  <button onClick={() => handleDelete(acc.email)} style={{ color: '#ef4444' }} title="Delete">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )
+          })
+        )}
       </div>
-      
+
+      {/* Footer */}
       <div className="dashboard-footer">
         <div className="footer-left">
-           Showing 1 to 10 of 15 entries
-           <span className="spacer"></span>
-           Per page 
-           <select defaultValue="10 items"><option>10 items</option></select>
+          Showing <strong style={{ color: '#a78bfa', margin: '0 3px' }}>{paginatedAccounts.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}</strong>
+          –<strong style={{ color: '#a78bfa', margin: '0 3px' }}>{Math.min(currentPage * itemsPerPage, filteredAccounts.length)}</strong>
+          of <strong style={{ color: '#a78bfa', margin: '0 3px' }}>{filteredAccounts.length}</strong>
+          <div style={{ width: '1px', height: '14px', background: 'var(--border-subtle)', margin: '0 8px' }}></div>
+          Rows:
+          <select value={itemsPerPage} onChange={e => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1) }}>
+            <option value="5">5</option>
+            <option value="10">10</option>
+            <option value="20">20</option>
+            <option value="50">50</option>
+          </select>
         </div>
         <div className="pagination">
-           <button>&lt;</button>
-           <button className="active">1</button>
-           <button>2</button>
-           <button>&gt;</button>
+          <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}>&lt;</button>
+          {[...Array(Math.min(totalPages, 7))].map((_, idx) => (
+            <button key={idx} onClick={() => setCurrentPage(idx + 1)} className={currentPage === idx + 1 ? 'active' : ''}>{idx + 1}</button>
+          ))}
+          <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}>&gt;</button>
         </div>
       </div>
+
     </div>
   )
 }
