@@ -1,5 +1,6 @@
 {
   "name": "dardcor-agent",
+  "version": "1.0.3",
   "edition": "1.0.3",
   "preferGlobal": true,
   "private": false,

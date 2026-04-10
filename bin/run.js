@@ -69,10 +69,6 @@ export async function run() {
   
   process.stdout.write(`${C.purple}[i]${C.reset} Synchronizing System UI... `);
   try {
-    // Hard reset dist to ensure no stale files
-    if (fs.existsSync(distPath)) {
-      fs.rmSync(distPath, { recursive: true, force: true });
-    }
     
     execSync('npm run build', { cwd: rootDir, stdio: 'ignore' });
     process.stdout.write(`${C.green}READY${C.reset}\n`);
