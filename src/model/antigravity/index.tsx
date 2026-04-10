@@ -12,6 +12,9 @@ interface AntigravityConfig {
   selected_model: string
   temperature: number
   max_tokens: number
+  thinking_budget?: number
+  google_client_id: string
+  google_client_secret: string
 }
 
 interface AntigravityAccount {
@@ -36,7 +39,13 @@ const AntigravityView: React.FC = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const [agConfig, setAgConfig] = useState<AntigravityConfig>({ selected_model: '', temperature: 0.7, max_tokens: 8192 })
+  const [agConfig, setAgConfig] = useState<AntigravityConfig>({ 
+    selected_model: '', 
+    temperature: 0.7, 
+    max_tokens: 8192,
+    google_client_id: '',
+    google_client_secret: ''
+  })
   const [savingConfig, setSavingConfig] = useState(false)
 
   const fetchAccounts = async () => {
@@ -219,7 +228,6 @@ const AntigravityView: React.FC = () => {
     } catch { return '' }
   }
 
-  // Deduplicate quotas by name, keeping the one with highest percentage
   const deduplicateQuotas = (quotas: ModelQuota[]) => {
     const map = new Map<string, ModelQuota>()
     for (const q of (quotas || [])) {
@@ -242,7 +250,7 @@ const AntigravityView: React.FC = () => {
   return (
     <div className="antigravity-dashboard animate-fade">
 
-      {/* Model Activation Bar */}
+      {}
       <div style={{
         background: activeAccount ? 'linear-gradient(135deg, rgba(16,185,129,0.1) 0%, rgba(124,58,237,0.08) 100%)' : 'rgba(255,255,255,0.03)',
         border: activeAccount ? '1px solid rgba(16,185,129,0.25)' : '1px solid rgba(255,255,255,0.08)',
@@ -277,10 +285,14 @@ const AntigravityView: React.FC = () => {
                letterSpacing: '0.2px', 
                color: activeAccount ? '#fff' : 'rgba(255,255,255,0.6)',
                transition: 'all 0.3s ease'
-             }}>Aktifkan model ini</strong>
-             {activeAccount && (
-               <span style={{ fontSize: '11px', color: 'rgba(110,231,183,0.7)', marginTop: '2px' }}>
-                 Agent active via {activeAccount.email}
+             }}>{activeAccount ? 'AGENT ENGINE ACTIVE' : 'AGENT ENGINE STANDBY'}</strong>
+             {activeAccount ? (
+               <span style={{ fontSize: '11px', color: '#10b981', fontWeight: 600, marginTop: '2px' }}>
+                 Connected via {activeAccount.email}
+               </span>
+             ) : (
+               <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>
+                 No active instance detected
                </span>
              )}
            </div>
@@ -320,7 +332,7 @@ const AntigravityView: React.FC = () => {
         </div>
       </div>
 
-      {/* Top Bar */}
+      {}
       <div className="dashboard-top-bar">
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1 }}>
           <div className="search-box">
@@ -356,8 +368,31 @@ const AntigravityView: React.FC = () => {
                 return <option key={name} value={(q as any).key || ''} style={{ background: '#0d0920' }}>{name}</option>
               })}
             </select>
-            {savingConfig && <div style={{ marginLeft: '6px' }} className="typing-dots small"><span /></div>}
           </div>
+
+          <div style={{ padding: '0 10px', height: '32px', display: 'flex', alignItems: 'center', background: 'rgba(16,185,129,0.05)', borderRadius: '8px', border: '1px solid rgba(16,185,129,0.15)' }}>
+            <span style={{ fontSize: '11px', color: '#10b981', fontWeight: 600, marginRight: '8px' }}>Thinking:</span>
+            <input 
+              type="range" min="0" max="32000" step="1000" 
+              value={agConfig.thinking_budget || 0} 
+              onChange={(e) => saveConfig({ thinking_budget: parseInt(e.target.value) })}
+              style={{ width: '60px', height: '4px', cursor: 'pointer', accentColor: '#10b981' }}
+            />
+            <span style={{ fontSize: '10px', color: '#fff', marginLeft: '6px', width: '25px' }}>{Math.floor((agConfig.thinking_budget || 0)/1000)}k</span>
+          </div>
+
+          <div style={{ padding: '0 10px', height: '32px', display: 'flex', alignItems: 'center', background: 'rgba(59,130,246,0.05)', borderRadius: '8px', border: '1px solid rgba(59,130,246,0.15)' }}>
+            <span style={{ fontSize: '11px', color: '#60a5fa', fontWeight: 600, marginRight: '8px' }}>Temp:</span>
+            <input 
+              type="range" min="0" max="1" step="0.1" 
+              value={agConfig.temperature || 0.7} 
+              onChange={(e) => saveConfig({ temperature: parseFloat(e.target.value) })}
+              style={{ width: '40px', height: '4px', cursor: 'pointer', accentColor: '#60a5fa' }}
+            />
+            <span style={{ fontSize: '10px', color: '#fff', marginLeft: '6px' }}>{agConfig.temperature || 0.7}</span>
+          </div>
+
+          {savingConfig && <div style={{ marginLeft: '6px' }} className="typing-dots small"><span /></div>}
         </div>
 
         <div className="action-row">
@@ -366,7 +401,7 @@ const AntigravityView: React.FC = () => {
             onClick={() => { window.location.href = `http://${window.location.host}/api/antigravity/oauth/start` }}
             style={{ background: 'linear-gradient(135deg, #5b21b6, #7c3aed)', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 0 14px rgba(124,58,237,0.3)' }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 5v14M5 12h14"/></svg>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 5M5 12h14"/></svg>
             Add Account
           </button>
 
@@ -377,7 +412,7 @@ const AntigravityView: React.FC = () => {
             style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: isRefreshingAny ? 'spin 1s linear infinite' : 'none' }}>
-              <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+              <path d="M4 4h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
             </svg>
             {isRefreshingAny ? 'Refreshing...' : 'Refresh All'}
           </button>
@@ -404,15 +439,30 @@ const AntigravityView: React.FC = () => {
 
           <input type="file" ref={fileInputRef} onChange={handleImport} accept=".json" style={{ display: 'none' }} />
           <button className="btn-icon" onClick={() => fileInputRef.current?.click()} title="Import">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4"/></svg>
           </button>
           <button className="btn-icon" onClick={handleExport} title="Export">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4"/></svg>
+          </button>
+
+          <button
+            className="btn-icon"
+            onClick={() => {
+              const clientID = prompt('Enter Google OAuth Client ID:', agConfig.google_client_id);
+              if (clientID === null) return;
+              const clientSecret = prompt('Enter Google OAuth Client Secret:', agConfig.google_client_secret);
+              if (clientSecret === null) return;
+              saveConfig({ ...agConfig, google_client_id: clientID, google_client_secret: clientSecret });
+            }}
+            title="Google OAuth Identity"
+            style={{ color: '#a78bfa' }}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
           </button>
         </div>
       </div>
 
-      {/* Table Header */}
+      {}
       <div className="dashboard-table-header" style={{ gridTemplateColumns: '50px 1fr 1.8fr 130px 80px 90px' }}>
         <div className="col-check">
           <input
@@ -431,12 +481,12 @@ const AntigravityView: React.FC = () => {
         <div style={{ textAlign: 'center' }}>ACTIONS</div>
       </div>
 
-      {/* Table Body */}
+      {}
       <div style={{ minHeight: '300px' }}>
         {paginatedAccounts.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px', color: 'var(--text-dim)', textAlign: 'center', gap: '12px' }}>
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" style={{ opacity: 0.3 }}>
-              <path d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
+              <path d="M20 13a2 2 0 00-2-2H6a2 2 0 00-2 2m16 0a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"/>
             </svg>
             <p>{searchQuery || filterType !== 'ALL' ? 'No accounts match your filters.' : 'No accounts found. Click "+ Add Account" to get started.'}</p>
           </div>
@@ -453,7 +503,7 @@ const AntigravityView: React.FC = () => {
                   borderLeft: acc.is_active ? '2px solid #10b981' : '2px solid transparent',
                 }}
               >
-                {/* Checkbox */}
+                {}
                 <div className="col-check">
                   <div className="drag-handle">⠿</div>
                   <input type="checkbox" checked={selectedEmails.has(acc.email)} onChange={() => {
@@ -461,7 +511,7 @@ const AntigravityView: React.FC = () => {
                   }} />
                 </div>
 
-                {/* Email */}
+                {}
                 <div className="col-email">
                   <div className="email-text" title={acc.email} style={{ color: acc.is_active ? '#a78bfa' : '#60a5fa' }}>
                     {acc.email}
@@ -477,7 +527,7 @@ const AntigravityView: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Quota - Show ALL models */}
+                {}
                 <div className="col-quota">
                   {(() => {
                     const allQuotas = deduplicateQuotas(showAllQuotas ? acc.quotas : acc.quotas?.filter(q => q.available !== false))
@@ -519,7 +569,7 @@ const AntigravityView: React.FC = () => {
                   })()}
                 </div>
 
-                {/* Last Used */}
+                {}
                 <div className="col-last">
                   <div className="last-date">
                     {acc.last_used && acc.last_used !== '0001-01-01T00:00:00Z'
@@ -533,7 +583,7 @@ const AntigravityView: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Active Toggle */}
+                {}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <button
                     onClick={() => toggleActive(acc.email)}
@@ -555,7 +605,7 @@ const AntigravityView: React.FC = () => {
                   </button>
                 </div>
 
-                {/* Actions */}
+                {}
                 <div className="col-actions">
                   <button
                     onClick={() => handleRefresh(acc.email)}
@@ -564,12 +614,12 @@ const AntigravityView: React.FC = () => {
                     style={{ color: refreshing[acc.email] ? '#4b5563' : '#9ca3af' }}
                   >
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: refreshing[acc.email] ? 'spin 1s linear infinite' : 'none' }}>
-                      <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                      <path d="M4 4h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                     </svg>
                   </button>
                   <button onClick={() => handleDelete(acc.email)} style={{ color: '#ef4444' }} title="Delete">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4m4-6m1-10a1 1 0 00-1-1h-4a1 1 0 00-1 1M4 7h16"/>
                     </svg>
                   </button>
                 </div>
@@ -579,7 +629,7 @@ const AntigravityView: React.FC = () => {
         )}
       </div>
 
-      {/* Footer */}
+      {}
       <div className="dashboard-footer">
         <div className="footer-left">
           Showing <strong style={{ color: '#a78bfa', margin: '0 3px' }}>{paginatedAccounts.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}</strong>
@@ -608,3 +658,7 @@ const AntigravityView: React.FC = () => {
 }
 
 export default AntigravityView
+
+
+
+

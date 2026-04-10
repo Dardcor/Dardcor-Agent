@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react'
 
 interface SystemInfo {
-  os: { platform: string; arch: string; version: string; family: string }
+  os: { platform: string; arch: string; edition: string; family: string }
   cpu: { model_name: string; cores: number; threads: number; usage_percent: number; frequency_mhz: number }
   memory: { total: number; used: number; free: number; used_percent: number }
   disks: Array<{ device: string; mount_point: string; total: number; used: number; used_percent: number }>
   network: Array<{ name: string; addresses: string[]; bytes_sent: number; bytes_recv: number }>
-  bios: { gpu?: string; motherboard?: string; kernel_version?: string }
+  bios: { gpu?: string; motherboard?: string; kernel_edition?: string }
   uptime: number
   hostname: string
 }
@@ -63,8 +63,8 @@ const SystemDashboard: React.FC = () => {
 
   const formatOS = () => {
     if (!sysInfo) return '---'
-    if (sysInfo.os.family && sysInfo.os.version) {
-       return `${sysInfo.os.family} ${sysInfo.os.version} (${sysInfo.os.arch})`
+    if (sysInfo.os.family && sysInfo.os.edition) {
+       return `${sysInfo.os.family} ${sysInfo.os.edition} (${sysInfo.os.arch})`
     }
     return `${sysInfo.os.platform} (${sysInfo.os.arch})`
   }
@@ -84,7 +84,7 @@ const SystemDashboard: React.FC = () => {
              <div className="data-row"><span>OS</span><b>{formatOS()}</b></div>
              <div className="data-row"><span>GPU</span><b style={{ color: '#a78bfa' }}>{sysInfo?.bios?.gpu || 'Integrated'}</b></div>
              <div className="data-row"><span>Board</span><b>{sysInfo?.bios?.motherboard || 'Generic'}</b></div>
-             <div className="data-row"><span>Kernel</span><b>{sysInfo?.bios?.kernel_version || '---'}</b></div>
+             <div className="data-row"><span>Kernel</span><b>{sysInfo?.bios?.kernel_edition || '---'}</b></div>
              <div className="data-row"><span>Uptime</span><b style={{ color: '#4ade80' }}>{sysInfo ? formatUptime(sysInfo.uptime) : '---'}</b></div>
           </div>
         </div>
@@ -190,3 +190,7 @@ const SystemDashboard: React.FC = () => {
 }
 
 export default SystemDashboard
+
+
+
+

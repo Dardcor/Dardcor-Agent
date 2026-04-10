@@ -183,4 +183,3 @@ func (s *JSONStore) GetCommandHistory(limit int) ([]models.CommandResponse, erro
 
 	return history.Commands, nil
 }
-

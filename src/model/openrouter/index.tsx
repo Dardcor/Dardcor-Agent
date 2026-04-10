@@ -31,7 +31,7 @@ const OpenRouterView: React.FC = () => {
 
   return (
     <div className="model-config-view card-premium animate-fade" style={{ maxWidth: '800px' }}>
-      {/* Model Activation Bar */}
+      {}
       <div style={{
         background: isActive ? 'linear-gradient(135deg, rgba(255,107,0,0.1) 0%, rgba(124,58,237,0.08) 100%)' : 'rgba(255,255,255,0.03)',
         border: isActive ? '1px solid rgba(255,107,0,0.25)' : '1px solid rgba(255,255,255,0.08)',
@@ -131,3 +131,7 @@ const OpenRouterView: React.FC = () => {
 }
 
 export default OpenRouterView
+
+
+
+

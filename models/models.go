@@ -53,6 +53,15 @@ type FileInfo struct {
 	Permission string    `json:"permission"`
 }
 
+type AntigravityConfig struct {
+	Temperature        float64 `json:"temperature"`
+	MaxTokens          int     `json:"max_tokens"`
+	SelectedModel      string  `json:"selected_model"`
+	ThinkingBudget     int     `json:"thinking_budget"`
+	GoogleClientID     string  `json:"google_client_id"`
+	GoogleClientSecret string  `json:"google_client_secret"`
+}
+
 type FileContent struct {
 	Path     string `json:"path"`
 	Content  string `json:"content"`
@@ -104,11 +113,11 @@ type CommandHistory struct {
 }
 
 type SystemInfo struct {
-	OS          OSInfo     `json:"os"`
-	CPU         CPUInfo    `json:"cpu"`
-	Memory      MemoryInfo `json:"memory"`
-	Disks       []DiskInfo `json:"disks"`
-	Network     []NetInfo  `json:"network"`
+	OS          OSInfo            `json:"os"`
+	CPU         CPUInfo           `json:"cpu"`
+	Memory      MemoryInfo        `json:"memory"`
+	Disks       []DiskInfo        `json:"disks"`
+	Network     []NetInfo         `json:"network"`
 	Uptime      uint64            `json:"uptime"`
 	HostName    string            `json:"hostname"`
 	Bios        map[string]string `json:"bios,omitempty"`
@@ -118,7 +127,7 @@ type SystemInfo struct {
 type OSInfo struct {
 	Platform string `json:"platform"`
 	Family   string `json:"family"`
-	Version  string `json:"version"`
+	Version  string `json:"Version"`
 	Arch     string `json:"arch"`
 }
 
@@ -195,4 +204,3 @@ type Settings struct {
 	AIProvider     string `json:"ai_provider"`
 	AIModel        string `json:"ai_model"`
 }
-

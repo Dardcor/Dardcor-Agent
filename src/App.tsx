@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { Routes, Route, useNavigate, useLocation, Link, Navigate } from 'react-router-dom'
 import ChatPanel from './components/ChatPanel'
 import Terminal from './components/Terminal'
 import FileExplorer from './components/FileExplorer'
@@ -10,8 +11,24 @@ import SkillsPanel from './components/SkillsPanel'
 import wsService from './services/websocket'
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState('chat')
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  const getActiveTab = () => {
+    const path = location.pathname
+    if (path.startsWith('/chat')) return 'chat'
+    if (path.startsWith('/model')) return 'model'
+    if (path === '/tools') return 'tools'
+    if (path === '/skills') return 'skills'
+    if (path === '/file-explorer') return 'explorer'
+    if (path === '/terminal') return 'terminal'
+    if (path === '/monitor') return 'system'
+    if (path === '/workspace') return 'workspace'
+    return 'chat'
+  }
+
+  const activeTab = getActiveTab()
 
   useEffect(() => {
     wsService.connect().catch(() => { })
@@ -20,31 +37,17 @@ const App: React.FC = () => {
     }
   }, [])
 
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'chat':      return <ChatPanel />
-      case 'terminal':  return <Terminal />
-      case 'explorer':  return <FileExplorer />
-      case 'workspace': return <Workspace />
-      case 'system':    return <SystemDashboard />
-      case 'model':     return <ModelSelector />
-      case 'tools':     return <ToolsPanel />
-      case 'skills':    return <SkillsPanel />
-      default:          return <ChatPanel />
-    }
-  }
-
   return (
     <div className="app-container">
       <aside className={`sidebar ${isSidebarOpen ? 'is-open' : ''}`}>
         <div className="sidebar-header">
           <div className="sidebar-top-row">
-            <div className="sidebar-logo">
+            <Link to="/chat" className="sidebar-logo" style={{ textDecoration: 'none' }}>
               <div className="sidebar-logo-img"></div>
               <div className="sidebar-logo-text">
                 <h1>Dardcor</h1>
               </div>
-            </div>
+            </Link>
             <button className="close-sidebar-btn" onClick={() => setIsSidebarOpen(false)}>×</button>
           </div>
         </div>
@@ -53,13 +56,13 @@ const App: React.FC = () => {
 
         <div className="sidebar-action-group">
           <button className="action-btn history-btn" onClick={() => {
-            setActiveTab('chat')
+            if (location.pathname !== '/chat') navigate('/chat')
             setTimeout(() => document.dispatchEvent(new CustomEvent('toggle-history')), 50)
           }}>
             <span>🕒</span> Riwayat
           </button>
           <button className="action-btn new-chat-btn" onClick={() => {
-            setActiveTab('chat')
+            if (location.pathname !== '/chat') navigate('/chat')
             setTimeout(() => document.dispatchEvent(new CustomEvent('new-chat')), 50)
           }}>
             <span>+</span> Baru
@@ -68,23 +71,24 @@ const App: React.FC = () => {
 
         <nav className="sidebar-nav">
           {[
-            { id: 'chat',      label: 'Agent Chat',      icon: '💬' },
-            { id: 'model',     label: 'Model',           icon: '🤖' },
-            { id: 'tools',     label: 'Tools',           icon: '🛠️' },
-            { id: 'skills',    label: 'Skills',          icon: '🧠' },
-            { id: 'explorer',  label: 'File Explorer',  icon: '📂' },
-            { id: 'terminal',  label: 'Terminal',       icon: '💻' },
-            { id: 'system',    label: 'System Monitor', icon: '📊' },
-            { id: 'workspace', label: 'Workspace',      icon: '🏗️' },
-          ].map(tab => (
-            <button
-              key={tab.id}
-              className={`sidebar-nav-item ${activeTab === tab.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
+            { id: 'chat',      path: '/chat',          label: 'Agent Chat',      icon: '💬' },
+            { id: 'model',     path: '/model',         label: 'Model',           icon: '🤖' },
+            { id: 'tools',     path: '/tools',         label: 'Tools',           icon: '🛠️' },
+            { id: 'skills',    path: '/skills',        label: 'Skills',          icon: '🧠' },
+            { id: 'explorer',  path: '/file-explorer', label: 'File Explorer',  icon: '📂' },
+            { id: 'terminal',  path: '/terminal',      label: 'Terminal',       icon: '💻' },
+            { id: 'system',    path: '/monitor',       label: 'System Monitor', icon: '📊' },
+            { id: 'workspace', path: '/workspace',     label: 'Workspace',      icon: '🏗️' },
+          ].map(item => (
+            <Link
+              key={item.id}
+              to={item.path}
+              className={`sidebar-nav-item ${activeTab === item.id ? 'active' : ''}`}
+              style={{ textDecoration: 'none' }}
             >
-              <span className="nav-tab-icon">{tab.icon}</span>
-              {tab.label}
-            </button>
+              <span className="nav-tab-icon">{item.icon}</span>
+              {item.label}
+            </Link>
           ))}
         </nav>
 
@@ -102,27 +106,41 @@ const App: React.FC = () => {
             {!isSidebarOpen && (
               <button className="hamburger-btn" onClick={() => setIsSidebarOpen(true)}>☰</button>
             )}
-            <h2 style={{ textTransform: 'capitalize' }}>{activeTab}</h2>
+            <h2 style={{ textTransform: 'capitalize' }}>{activeTab === 'system' ? 'System Monitor' : activeTab}</h2>
           </div>
 
           <div className="header-actions">
-            <button 
+            <Link 
+              to="/chat"
               className={`header-btn ${activeTab === 'chat' ? 'active' : ''}`}
-              onClick={() => setActiveTab('chat')}
             >
               Chat
-            </button>
-            <button 
+            </Link>
+            <Link 
+              to="/terminal"
               className={`header-btn ${activeTab === 'terminal' ? 'active' : ''}`}
-              onClick={() => setActiveTab('terminal')}
             >
               Terminal
-            </button>
+            </Link>
           </div>
         </header>
         
         <div className="tab-content">
-          {renderContent()}
+          <Routes>
+            <Route path="/" element={<Navigate to="/chat" replace />} />
+            <Route path="/chat" element={<ChatPanel />} />
+            <Route path="/chat/:id" element={<ChatPanel />} />
+            <Route path="/model" element={<ModelSelector />} />
+            <Route path="/model/:provider" element={<ModelSelector />} />
+            <Route path="/tools" element={<ToolsPanel />} />
+            <Route path="/skills" element={<SkillsPanel />} />
+            <Route path="/file-explorer" element={<FileExplorer />} />
+            <Route path="/terminal" element={<Terminal />} />
+            <Route path="/monitor" element={<SystemDashboard />} />
+            <Route path="/workspace" element={<Workspace />} />
+            {}
+            <Route path="*" element={<Navigate to="/chat" replace />} />
+          </Routes>
         </div>
       </main>
     </div>
@@ -130,5 +148,7 @@ const App: React.FC = () => {
 }
 
 export default App
+
+
 
 

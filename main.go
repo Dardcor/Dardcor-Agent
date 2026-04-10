@@ -24,14 +24,15 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize config: %v", err)
 	}
-
 	storage.Init()
 
+	memSvc := services.NewMemoryService(cfg.DataDir)
 	fsSvc := services.NewFileSystemService()
 	cmdSvc := services.NewCommandService()
 	sysSvc := services.NewSystemService()
 	antigravitySvc := services.NewAntigravityService()
-	agentSvc := services.NewAgentService(fsSvc, cmdSvc, sysSvc, antigravitySvc)
+	skillSvc := services.NewSkillService()
+	agentSvc := services.NewAgentService(fsSvc, cmdSvc, sysSvc, antigravitySvc, memSvc, skillSvc)
 
 	fsHandler := handlers.NewFileSystemHandler(fsSvc)
 	cmdHandler := handlers.NewCommandHandler(cmdSvc)
@@ -76,22 +77,7 @@ func main() {
 
 	api.HandleFunc("/skills", func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		skills := []map[string]string{
-			{"name": "list_directory", "desc": "List files in a directory", "cmd": "list <path>"},
-			{"name": "read_file", "desc": "Read file contents", "cmd": "read <path>"},
-			{"name": "write_file", "desc": "Write to a file", "cmd": "write <path> <content>"},
-			{"name": "delete_file", "desc": "Delete a file or folder", "cmd": "delete <path>"},
-			{"name": "search_files", "desc": "Search for files", "cmd": "search <query>"},
-			{"name": "create_directory", "desc": "Create a directory", "cmd": "mkdir <path>"},
-			{"name": "execute_command", "desc": "Execute a shell command", "cmd": "run <command>"},
-			{"name": "system_info", "desc": "Get system information", "cmd": "sysinfo"},
-			{"name": "list_processes", "desc": "List running processes", "cmd": "processes"},
-			{"name": "kill_process", "desc": "Kill a process by PID", "cmd": "kill <pid>"},
-			{"name": "cpu_info", "desc": "Get CPU information", "cmd": "cpu"},
-			{"name": "memory_info", "desc": "Get memory information", "cmd": "memory"},
-			{"name": "list_drives", "desc": "List available drives", "cmd": "drives"},
-			{"name": "file_info", "desc": "Get file/directory info", "cmd": "info <path>"},
-		}
+		skills := skillSvc.GetSkills()
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": true,
 			"data":    skills,
@@ -107,6 +93,7 @@ func main() {
 	api.HandleFunc("/files/info", fsHandler.GetFileInfo).Methods("GET")
 	api.HandleFunc("/files/mkdir", fsHandler.CreateDirectory).Methods("POST", "OPTIONS")
 	api.HandleFunc("/files/drives", fsHandler.GetDrives).Methods("GET")
+	api.HandleFunc("/files/workspace/default", fsHandler.GetDefaultWorkspace).Methods("GET")
 	api.HandleFunc("/files/move", fsHandler.MoveFile).Methods("POST", "OPTIONS")
 	api.HandleFunc("/files/copy", fsHandler.CopyFile).Methods("POST", "OPTIONS")
 
@@ -119,7 +106,6 @@ func main() {
 	api.HandleFunc("/system/cpu", sysHandler.GetCPUUsage).Methods("GET")
 	api.HandleFunc("/system/memory", sysHandler.GetMemoryUsage).Methods("GET")
 
-	// Antigravity Routes
 	api.HandleFunc("/antigravity/accounts", antigravityHandler.GetAccounts).Methods("GET")
 	api.HandleFunc("/antigravity/accounts", antigravityHandler.AddAccount).Methods("POST", "OPTIONS")
 	api.HandleFunc("/antigravity/accounts", antigravityHandler.RemoveAccount).Methods("DELETE")
@@ -139,16 +125,22 @@ func main() {
 	api.HandleFunc("/skills/config", modelHandler.GetSkillsConfig).Methods("GET")
 	api.HandleFunc("/skills/config", modelHandler.SaveSkillsConfig).Methods("POST", "OPTIONS")
 
+	api.HandleFunc("/workspace/config", modelHandler.GetWorkspaceConfig).Methods("GET")
+	api.HandleFunc("/workspace/config", modelHandler.SaveWorkspaceConfig).Methods("POST", "OPTIONS")
+
 	r.HandleFunc("/ws", wsHandler.HandleWebSocket)
 
 	r.PathPrefix("/assets/").Handler(http.StripPrefix("/assets/", http.FileServer(http.Dir("dist/assets"))))
+	// Root and Fallback handler
 	r.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		path := req.URL.Path
-		
-		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+
+		// Very strict cache control for everything
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate, proxy-revalidate")
 		w.Header().Set("Pragma", "no-cache")
 		w.Header().Set("Expires", "0")
-		
+		w.Header().Set("Surrogate-Control", "no-store")
+
 		if path != "/" && path != "/index.html" {
 			if _, err := os.Stat("dist" + path); err == nil {
 				http.ServeFile(w, req, "dist"+path)
@@ -175,5 +167,3 @@ func main() {
 		log.Fatalf("Server failed: %v", err)
 	}
 }
-
-

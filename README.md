@@ -1,83 +1,100 @@
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=0:1a0033,50:3d0066,100:6600cc&height=220&section=header&text=DARDCOR%20AGENT&fontSize=64&fontColor=e8d5ff&animation=fadeIn&fontAlignY=40&desc=Autonomous%20AI%20Programming%20Assistant&descAlignY=62&descSize=20" width="100%"/>
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:0d0017,40:1a0033,80:2d0055,100:3d006e&height=240&section=header&text=DARDCOR%20AGENT&fontSize=72&fontColor=d4b8ff&animation=fadeIn&fontAlignY=42&desc=The%20AI%20That%20Doesn%27t%20Just%20Talk%20%E2%80%94%20It%20Acts.&descAlignY=64&descSize=22&fontStyle=bold" width="100%"/>
 
 <br/>
 
-[![NPM Version](https://img.shields.io/npm/v/dardcor-agent?color=%236600cc&label=npm&style=for-the-badge&logo=npm&logoColor=white)](https://www.npmjs.com/package/dardcor-agent)
-[![License: MIT](https://img.shields.io/badge/License-MIT-4b0082?style=for-the-badge)](LICENSE)
-[![Node.js](https://img.shields.io/badge/Node.js-Required-7b2fff?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org)
-[![Go](https://img.shields.io/badge/Backend-Go-5c00b8?style=for-the-badge&logo=go&logoColor=white)](https://golang.org)
-[![TypeScript](https://img.shields.io/badge/UI-TypeScript-8a2be2?style=for-the-badge&logo=typescript&logoColor=white)](https://typescriptlang.org)
+[![NPM edition](https://img.shields.io/npm/v/dardcor-agent?color=%232d0055&label=npm&style=for-the-badge&logo=npm&logoColor=d4b8ff&labelColor=1a0033)](https://www.npmjs.com/package/dardcor-agent)
+[![License: MIT](https://img.shields.io/badge/License-MIT-1a0033?style=for-the-badge&labelColor=0d0017&color=2d0055)](LICENSE)
+[![Node.js](https://img.shields.io/badge/Node.js-Required-2d0055?style=for-the-badge&logo=node.js&logoColor=d4b8ff&labelColor=1a0033)](https://nodejs.org)
+[![Go Backend](https://img.shields.io/badge/Backend-Go-3d006e?style=for-the-badge&logo=go&logoColor=d4b8ff&labelColor=1a0033)](https://golang.org)
+[![TypeScript UI](https://img.shields.io/badge/UI-TypeScript-2d0055?style=for-the-badge&logo=typescript&logoColor=d4b8ff&labelColor=1a0033)](https://typescriptlang.org)
 
 <br/>
 
-> **"Minimal input. Maximum execution."**
-
-**Dardcor Agent** adalah asisten pemrograman AI yang sepenuhnya otonom — menggabungkan kecerdasan model AI terkini dengan sistem eksekusi lokal yang cepat, aman, dan efisien, langsung dari terminal atau browser Anda.
+<img src="https://readme-typing-svg.herokuapp.com?font=JetBrains+Mono&weight=700&size=18&duration=3000&pause=1000&color=9B59FF&center=true&vCenter=true&width=600&lines=%22Minimal+Input.+Maximum+Execution.%22;Autonomous.+Private.+Unstoppable.;Your+terminal+just+got+a+brain+upgrade." alt="Typing SVG" />
 
 <br/>
 
-[🚀 Quick Start](#-quick-start) · [⚡ Features](#-features) · [📖 Usage](#-usage) · [🗺️ Roadmap](#️-roadmap)
+**[🚀 Quick Start](#-quick-start)** · **[⚡ Features](#-features)** · **[📖 Usage](#-usage)** · **[🧠 Architecture](#-system-architecture)** · **[🗺️ Roadmap](#️-roadmap)**
 
 </div>
 
 ---
 
-## 🎯 Mengapa Dardcor Agent?
+## 🔥 Why Dardcor Agent?
 
-Kebanyakan asisten AI hanya bisa *berbicara*. **Dardcor Agent mengambil tindakan nyata.**
+Most AI assistants are glorified chatbots — they advise, suggest, and then leave you to do all the actual work.
 
-| Kemampuan | AI Chat Biasa | Dardcor Agent |
-|---|:---:|:---:|
-| Menjawab pertanyaan | ✅ | ✅ |
-| Eksekusi kode otonom | ❌ | ✅ |
-| Self-healing saat error | ❌ | ✅ |
-| Berjalan 100% lokal & privat | ❌ | ✅ |
-| Antarmuka Web UI + CLI | ❌ | ✅ |
-| Output hemat token | ❌ | ✅ |
+**Dardcor Agent is different. It executes.**
+
+It doesn't wait for your next prompt. It analyzes your system, makes decisions, runs code, detects errors, fixes itself — and keeps going. This is what true AI autonomy looks like: a relentless local agent that turns your intent into results with zero hand-holding.
+
+Whether you're a solo developer, a power user, or someone who's sick of switching between 10 tools — Dardcor Agent collapses your workflow into a single, razor-sharp command.
+
+<br/>
+
+| Capability | Ordinary AI Chat | **Dardcor Agent** |
+|:---|:---:|:---:|
+| Answer questions | ✅ | ✅ |
+| Autonomous code execution | ❌ | ✅ |
+| Self-healing on errors | ❌ | ✅ |
+| 100% local & private | ❌ | ✅ |
+| Web UI + CLI in one tool | ❌ | ✅ |
+| Ultra token-efficient output | ❌ | ✅ |
+| Zero external data exposure | ❌ | ✅ |
 
 ---
 
 ## ✨ Features
 
 ### 🔥 Ultra Token Efficient
-Arsitektur prompt yang dioptimalkan menghasilkan output logis maksimum dengan penggunaan token minimal — lebih ramping, lebih cepat, lebih tajam.
+Every token counts. Dardcor Agent's prompt architecture is engineered to extract maximum logical output with minimum token usage — leaner responses, faster results, lower cost. No fluff, no filler, just pure execution.
 
 ### 🤖 Fully Autonomous Execution
-Bukan sekadar saran — agen ini **menganalisis, memutuskan, dan mengeksekusi** operasi secara mandiri di sistem lokal Anda.
+This isn't an assistant that drafts code for you to copy-paste. Dardcor Agent **analyzes, decides, and executes** operations directly on your local system — end-to-end, without babysitting.
 
-### 🛠️ Self-Healing System
-Jalankan `dardcor doctor` dan biarkan agen mendeteksi konfigurasi yang rusak, memperbaiki dependensi, dan memulihkan sistem ke kondisi optimal secara otomatis.
+### 🛠️ Self-Healing System (Doctor Mode)
+Broken config? Corrupted dependencies? Just run `dardcor doctor` and watch the agent diagnose, repair, and restore your system to peak condition — automatically, no manual debugging required.
 
 ### 🔒 100% Local & Private
-Semua aktivitas dibatasi pada `127.0.0.1:25000`. Tidak ada data yang keluar dari mesin Anda — kode Anda tetap milik Anda.
+Every operation stays within `127.0.0.1:25000`. Zero telemetry. Zero external calls. Your code, your secrets, your data — **never leave your machine**. Privacy isn't a feature here, it's the architecture.
 
-### 🌐 Modern Web UI
-Dashboard real-time dengan sistem cache-busting bawaan. Visual, interaktif, dan responsif — dapat diakses dari browser kapan saja.
+### 🌐 Modern Web UI — Real-Time Dashboard
+A sleek, interactive browser dashboard with live session history, real-time feedback, and a built-in cache-busting system. Beautiful and functional — no Electron bloat, just open `http://127.0.0.1:25000`.
 
-### ⚡ Lightweight CLI
-Mode terminal yang cepat dan ringan. Sempurna untuk otomasi, scripting, dan alur kerja developer yang tidak memerlukan UI.
+### ⚡ Lightweight CLI — Terminal Native
+A blazing-fast terminal interface with zero overhead. Perfect for automation pipelines, scripting, and developer workflows that demand speed over spectacle.
 
 ---
 
 ## 🚀 Quick Start
 
-> **Prasyarat:** Pastikan [Node.js](https://nodejs.org) sudah terinstal. Gunakan terminal dengan akses admin jika diperlukan.
+> **Prerequisite:** [Node.js](https://nodejs.org) must be installed. Use a terminal with admin access if required.
 
-### Install via NPM (Global)
+### Install via NPM (Recommended)
 
 ```bash
 npm install -g dardcor-agent
 ```
 
-Setelah terinstal, perintah `dardcor` langsung tersedia di terminal Anda — database berbasis JSON lokal diinisialisasi secara otomatis.
+Once installed, the `dardcor` command is immediately available globally. A local JSON-based database is initialized automatically on first run — no setup, no configuration wizard, no friction.
 
-### Clone Manual
+### Install from Source
 
 ```bash
 git clone https://github.com/Dardcor/Dardcor-Agent.git
 cd Dardcor-Agent
+```
+
+### Update
+
+```bash
+# Via NPM
+npm install -g dardcor-agent@latest
+
+# Via GitHub (bleeding edge)
+npm install -g github:Dardcor/Dardcor-Agent
 ```
 
 ### Uninstall
@@ -86,23 +103,11 @@ cd Dardcor-Agent
 npm uninstall -g dardcor-agent
 ```
 
-### Update (via NPM)
-
-```bash
-npm install -g dardcor-agent@latest
-```
-
-### Update (via GitHub)
-
-```bash
-npm install -g github:Dardcor/Dardcor-Agent
-```
-
 ---
 
 ## 📖 Usage
 
-### Tampilkan Semua Perintah
+### Show All Commands
 
 ```bash
 dardcor help
@@ -110,98 +115,110 @@ dardcor help
 
 ---
 
-### 🌐 Web UI Mode
+### 🌐 Launch Web UI
 
 ```bash
 dardcor run
 ```
 
-Buka browser dan akses:
+Open your browser and navigate to:
 
 ```
 http://127.0.0.1:25000
 ```
 
-Fitur yang tersedia di Web UI:
-- Real-time dashboard
-- Riwayat sesi interaktif
-- Sistem cache-busting
+**What you get in Web UI:**
+- Real-time session dashboard
+- Interactive conversation history
+- Built-in cache-busting system
+- Clean, responsive interface — no install, no app, just a browser tab
 
 ---
 
-### 💻 CLI Mode
+### 💻 Launch CLI Mode
 
 ```bash
 dardcor cli
 ```
 
-Cocok untuk:
-- Coding cepat langsung dari terminal
-- Otomasi & scripting
-- Alur kerja ringan tanpa overhead UI
+**Built for:**
+- Rapid coding sessions directly in terminal
+- Automation, CI pipelines, and scripting
+- Lightweight workflows where UI overhead is unwelcome
 
 ---
 
-### 🛠️ Self-Repair (System Doctor)
+### 🛠️ Run System Doctor
 
 ```bash
 dardcor doctor
 ```
 
-Jalankan ini saat terjadi masalah. Agen akan:
-1. Mendeteksi konfigurasi yang rusak
-2. Memperbaiki dependensi yang bermasalah
-3. Memulihkan sistem ke kondisi optimal
+Trigger this whenever something breaks. The agent will:
+
+1. **Scan** — detect broken configurations and failed dependencies
+2. **Diagnose** — identify the root cause, not just symptoms
+3. **Repair** — automatically restore the system to its optimal state
+
+No error Googling. No Stack Overflow rabbit holes. Just one command.
 
 ---
 
-## 🧠 Arsitektur Sistem
+## 🧠 System Architecture
 
 ```
 Dardcor Agent
-├── 🌐 Web Server (Go backend)     → Port 127.0.0.1:25000
-├── 💻 CLI Interface (Node.js)     → Akses terminal langsung
-├── 🗄️ Local Database              → /database (berbasis JSON)
-├── ⚙️  Config                     → ~/.dardcor/config.json
-└── 🔒 Network Scope               → Localhost only (zero external exposure)
+├── 🌐 Web Server (Go backend)      → 127.0.0.1:25000
+├── 💻 CLI Interface (Node.js)      → Direct terminal access
+├── 🗄️  Local Database              → /database (JSON file-based)
+├── ⚙️  Config Store                → ~/.dardcor/config.json
+└── 🔒 Network Scope               → Localhost only — zero external exposure
 ```
 
 **Tech Stack:**
 
-| Layer | Teknologi | Keterangan |
-|---|---|---|
-| Backend | Go | Performa tinggi, konkurensi native |
-| Frontend | TypeScript + Vite | UI modern dan type-safe |
-| CLI | Node.js | Cross-platform dan ringan |
-| Database | JSON File-based | Tanpa setup database eksternal |
+| Layer | Technology | Why It's Here |
+|:---|:---|:---|
+| Backend | **Go** | Native concurrency, high throughput, tiny binary |
+| Frontend | **TypeScript + Vite** | Type-safe, fast-build, modern DX |
+| CLI | **Node.js** | Cross-platform, lightweight, instant startup |
+| Storage | **JSON File-based** | No database server required — just works |
+
+The architecture is intentionally simple. No microservices. No Docker requirement. No ops overhead. A single agent that runs anywhere Node.js runs.
 
 ---
 
 ## 🗺️ Roadmap
 
-- [x] Web UI (real-time dashboard)
+- [x] Web UI with real-time dashboard
 - [x] CLI mode
-- [x] Self-healing system (doctor)
-- [x] Local-only network (privacy-first)
-- [ ] Sistem kolaborasi multi-agent
-- [ ] Ekosistem plugin
-- [ ] Cloud sync (opsional, privacy-first)
-- [ ] Config GUI (tanpa edit JSON manual)
+- [x] Self-healing system (`dardcor doctor`)
+- [x] Local-only network (privacy-first by default)
+- [ ] Multi-agent collaboration system
+- [ ] Plugin ecosystem & extension API
+- [ ] Cloud sync (optional, privacy-first)
+- [ ] GUI config editor (no more JSON editing)
 
 ---
 
-## 📄 Lisensi
+## 📄 License
 
-Proyek ini dilisensikan di bawah [MIT License](LICENSE) — bebas digunakan, dimodifikasi, dan didistribusikan.
+Licensed under the [MIT License](LICENSE) — free to use, modify, and distribute.
 
 ---
 
 <div align="center">
 
+<br/>
+
 **Built with 💜 by [Dardcor](https://github.com/Dardcor)**
 
-Jika proyek ini membantu Anda, berikan ⭐ — itu sangat berarti!
+*If this project saves you time, a ⭐ means everything.*
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=0:6600cc,50:3d0066,100:1a0033&height=120&section=footer" width="100%"/>
+<br/>
+
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:3d006e,50:1a0033,100:0d0017&height=140&section=footer" width="100%"/>
 
 </div>
+
+

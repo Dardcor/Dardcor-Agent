@@ -356,4 +356,3 @@ func (wsh *WebSocketHandler) Broadcast(msg models.WSMessage) {
 		return true
 	})
 }
-

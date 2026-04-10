@@ -1,6 +1,6 @@
 {
   "name": "dardcor-agent",
-  "version": "1.0.2",
+  "edition": "1.0.3",
   "preferGlobal": true,
   "private": false,
   "type": "module",
@@ -8,18 +8,29 @@
     "dardcor": "cli.js"
   },
   "scripts": {
-    "dev":     "vite",
-    "build":   "tsc && vite build",
+    "dev": "vite",
+    "build": "tsc && vite build",
     "preview": "vite preview",
-    "start":   "dardcor run",
+    "start": "dardcor run",
     "prepack": "npm run build",
     "postinstall": "node -e \"const fs = require('fs'); if (!fs.existsSync('database')) fs.mkdirSync('database');\""
   },
   "description": "Autonomous AI Agent — Gateway, CLI TUI, Multi-Provider LLM, Skills",
   "keywords": [
-    "ai", "agent", "autonomous", "dashboard", "cli", "tui",
-    "openai", "claude", "gemini", "deepseek", "ollama",
-    "dardcor", "coding-agent", "terminal"
+    "ai",
+    "agent",
+    "autonomous",
+    "dashboard",
+    "cli",
+    "tui",
+    "openai",
+    "claude",
+    "gemini",
+    "deepseek",
+    "ollama",
+    "dardcor",
+    "coding-agent",
+    "terminal"
   ],
   "author": "Dardcor Team",
   "license": "MIT",
@@ -48,17 +59,22 @@
     "LICENSE"
   ],
   "devDependencies": {
-    "@types/react":        "^19.2.14",
-    "@types/react-dom":    "^19.2.3",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
-    "typescript":          "~5.9.3",
-    "vite":                "^8.0.1"
+    "typescript": "~5.9.3",
+    "vite": "^8.0.1"
   },
   "dependencies": {
-    "react":     "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-router-dom": "^7.14.0"
   },
   "engines": {
     "node": ">=18.0.0"
   }
 }
+
+
+
+

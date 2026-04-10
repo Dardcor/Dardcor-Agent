@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"dardcor-agent/models"
 	"dardcor-agent/services"
@@ -104,23 +105,25 @@ func (h *AntigravityHandler) RemoveAccount(w http.ResponseWriter, r *http.Reques
 func (h *AntigravityHandler) ToggleActiveAccount(w http.ResponseWriter, r *http.Request) {
 	email := r.URL.Query().Get("email")
 	if email == "" {
-		writeJSON(w, http.StatusBadRequest, models.APIResponse{ Success: false, Error: "email required" })
+		writeJSON(w, http.StatusBadRequest, models.APIResponse{Success: false, Error: "email required"})
 		return
 	}
 	if err := h.service.SetActiveAccount(email); err != nil {
-		writeJSON(w, http.StatusInternalServerError, models.APIResponse{ Success: false, Error: err.Error() })
+		writeJSON(w, http.StatusInternalServerError, models.APIResponse{Success: false, Error: err.Error()})
 		return
 	}
-	writeJSON(w, http.StatusOK, models.APIResponse{ Success: true, Message: "Agent activated updated" })
+	writeJSON(w, http.StatusOK, models.APIResponse{Success: true, Message: "Agent activated updated"})
 }
 
 func (h *AntigravityHandler) OAuthStart(w http.ResponseWriter, r *http.Request) {
-	authURL := fmt.Sprintf("https://accounts.google.com/o/oauth2/v2/auth?client_id=%s&redirect_uri=%s&response_type=code&scope=%s&access_type=offline&prompt=consent&include_granted_scopes=true", 
-		services.AntigravityClientID(), 
-		"http%3A%2F%2F127.0.0.1%3A25000%2Fapi%2Fantigravity%2Foauth%2Fcallback", 
+	cfg := h.service.LoadConfig()
+	clientID := strings.TrimSpace(cfg.GoogleClientID)
+	authURL := fmt.Sprintf("https://accounts.google.com/o/oauth2/auth?client_id=%s&redirect_uri=%s&response_type=code&scope=%s&access_type=offline&prompt=consent&include_granted_scopes=true",
+		clientID,
+		"http%3A%2F%2F127.0.0.1%3A25000%2Fapi%2Fantigravity%2Foauth%2Fcallback",
 		"https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcloud-platform+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.email+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fuserinfo.profile+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fcclog+https%3A%2F%2Fwww.googleapis.com%2Fauth%2Fexperimentsandconfigs",
 	)
-	
+
 	http.Redirect(w, r, authURL, http.StatusTemporaryRedirect)
 }
 
@@ -130,7 +133,7 @@ func (h *AntigravityHandler) OAuthCallback(w http.ResponseWriter, r *http.Reques
 		redirectURI := "http://127.0.0.1:25000/api/antigravity/oauth/callback"
 		err := h.service.ExchangeCode(code, redirectURI)
 		if err != nil {
-			// If the account already exists, redirect back — user just needs the dashboard
+
 			if len(err.Error()) > 17 && err.Error()[:17] == "account already r" {
 				http.Redirect(w, r, "/?error=account_exists", http.StatusTemporaryRedirect)
 				return

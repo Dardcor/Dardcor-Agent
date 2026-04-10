@@ -109,20 +109,13 @@ func (p *LLMProvider) callOpenAICompat(systemPrompt string, messages []LLMMessag
 		"temperature": p.cfg.Temperature,
 	}
 
-	bodyBytes, err := json.Marshal(payload)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
-	}
-
+	bodyBytes, _ := json.Marshal(payload)
 	baseURL := p.cfg.BaseURL
 	if baseURL == "" {
 		baseURL = "https://api.openai.com/v1"
 	}
 
-	req, err := http.NewRequest("POST", baseURL+"/chat/completions", bytes.NewBuffer(bodyBytes))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create HTTP request: %w", err)
-	}
+	req, _ := http.NewRequest("POST", baseURL+"/chat/completions", bytes.NewBuffer(bodyBytes))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+p.cfg.APIKey)
 	if p.cfg.Provider == "openrouter" {
@@ -131,26 +124,18 @@ func (p *LLMProvider) callOpenAICompat(systemPrompt string, messages []LLMMessag
 	}
 
 	resp, err := p.client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("HTTP request failed: %w", err)
-	}
+	if err != nil { return nil, err }
 	defer resp.Body.Close()
 
-	respBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response body: %w", err)
-	}
-
+	respBytes, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("API error %d: %s", resp.StatusCode, string(respBytes))
 	}
 
 	var result openAIResponseBody
-	if err := json.Unmarshal(respBytes, &result); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
+	json.Unmarshal(respBytes, &result)
 	if len(result.Choices) == 0 {
-		return nil, fmt.Errorf("empty choices in API response")
+		return nil, fmt.Errorf("empty choices")
 	}
 
 	return &LLMResponse{
@@ -164,9 +149,7 @@ func (p *LLMProvider) callOpenAICompat(systemPrompt string, messages []LLMMessag
 
 func (p *LLMProvider) callAnthropic(systemPrompt string, messages []LLMMessage, start time.Time) (*LLMResponse, error) {
 	maxTokens := p.cfg.MaxTokens
-	if maxTokens == 0 {
-		maxTokens = 4096
-	}
+	if maxTokens == 0 { maxTokens = 4096 }
 
 	payload := anthropicReqBody{
 		Model:     p.cfg.Model,
@@ -175,43 +158,26 @@ func (p *LLMProvider) callAnthropic(systemPrompt string, messages []LLMMessage, 
 		System:    systemPrompt,
 	}
 
-	bodyBytes, err := json.Marshal(payload)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal Anthropic request: %w", err)
-	}
-
-	req, err := http.NewRequest("POST", "https://api.anthropic.com/v1/messages", bytes.NewBuffer(bodyBytes))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create Anthropic request: %w", err)
-	}
+	bodyBytes, _ := json.Marshal(payload)
+	req, _ := http.NewRequest("POST", "https://api.anthropic.com/v1/messages", bytes.NewBuffer(bodyBytes))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("x-api-key", p.cfg.APIKey)
 	req.Header.Set("anthropic-version", "2023-06-01")
 
 	resp, err := p.client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("Anthropic HTTP request failed: %w", err)
-	}
+	if err != nil { return nil, err }
 	defer resp.Body.Close()
 
-	respBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read Anthropic response: %w", err)
-	}
+	respBytes, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Anthropic API error %d: %s", resp.StatusCode, string(respBytes))
+		return nil, fmt.Errorf("API error %d: %s", resp.StatusCode, string(respBytes))
 	}
 
 	var result anthropicRespBody
-	if err := json.Unmarshal(respBytes, &result); err != nil {
-		return nil, fmt.Errorf("failed to parse Anthropic response: %w", err)
-	}
-
+	json.Unmarshal(respBytes, &result)
 	content := ""
 	for _, c := range result.Content {
-		if c.Type == "text" {
-			content += c.Text
-		}
+		if c.Type == "text" { content += c.Text }
 	}
 
 	return &LLMResponse{
@@ -226,9 +192,7 @@ func (p *LLMProvider) callAnthropic(systemPrompt string, messages []LLMMessage, 
 func (p *LLMProvider) callLocal(_ string, messages []LLMMessage, start time.Time) (*LLMResponse, error) {
 	lastMsg := ""
 	for _, m := range messages {
-		if m.Role == "user" {
-			lastMsg = m.Content
-		}
+		if m.Role == "user" { lastMsg = m.Content }
 	}
 	response := buildLocalResponse(lastMsg)
 	return &LLMResponse{
@@ -242,254 +206,153 @@ func (p *LLMProvider) callLocal(_ string, messages []LLMMessage, start time.Time
 
 func buildLocalResponse(message string) string {
 	msg := strings.ToLower(strings.TrimSpace(message))
-
 	if strings.Contains(msg, "ultrawork") || strings.Contains(msg, "ulw") {
-		return "**ULTRAWORK MODE** — AI provider not configured. Configure a provider to continue."
+		return "**ULTRAWORK MODE** — Configure a provider to continue."
 	}
-
-	return fmt.Sprintf("**Dardcor Agent** (Local Mode)\n\nCommand: \"%s\"\n\nAI provider not configured. Configure a provider via CLI or Dashboard.", message)
+	return fmt.Sprintf("**Dardcor Agent** (Local Mode)\n\nConfigure a provider via CLI or Dashboard.")
 }
 
 func (p *LLMProvider) callAntigravity(systemPrompt string, messages []LLMMessage, start time.Time) (*LLMResponse, error) {
-	if p.agSvc == nil {
-		return nil, fmt.Errorf("antigravity service is not initialized")
-	}
-
+	if p.agSvc == nil { return nil, fmt.Errorf("antigravity service not initialized") }
 	acc, err := p.agSvc.GetActiveAccount()
-	if err != nil {
-		return nil, fmt.Errorf("no active Antigravity agent. Please activate one in Model > Antigravity dashboard: %v", err)
-	}
+	if err != nil { return nil, err }
 
-	// Auto-refresh token if expired, missing, or expiring soon
-	needsRefresh := acc.AccessToken == ""
-	if !needsRefresh && !acc.Expiry.IsZero() && time.Now().After(acc.Expiry.Add(-2*time.Minute)) {
-		needsRefresh = true
-	}
-	if needsRefresh {
-		refreshed, refreshErr := p.agSvc.RefreshToken(acc.Email)
-		if refreshErr != nil {
-			return nil, fmt.Errorf("token refresh failed: %v. Please re-authenticate in the Antigravity dashboard", refreshErr)
-		}
+	if acc.AccessToken == "" || (!acc.Expiry.IsZero() && time.Now().After(acc.Expiry.Add(-2*time.Minute))) {
+		refreshed, err := p.agSvc.RefreshToken(acc.Email)
+		if err != nil { return nil, err }
 		acc = refreshed
 	}
 
-	if acc.AccessToken == "" {
-		return nil, fmt.Errorf("no valid access token for active Antigravity account. Please re-authenticate in the dashboard")
-	}
 	if acc.ProjectID == "" {
-		// Try to fetch project ID one more time
-		if err := p.agSvc.FetchProjectAndQuotas(acc); err != nil {
-			return nil, fmt.Errorf("active account has no project ID. Please click Refresh on the account in the dashboard")
-		}
-		// Re-fetch the latest account state
-		if updated, err := p.agSvc.GetActiveAccount(); err == nil {
-			acc = updated
-		}
+		p.agSvc.FetchProjectAndQuotas(acc)
+		if updated, err := p.agSvc.GetActiveAccount(); err == nil { acc = updated }
 	}
 
 	var contents []map[string]interface{}
 	for _, m := range messages {
 		role := m.Role
-		if role == "system" {
-			role = "user"
-		}
-		if role == "assistant" {
-			role = "model"
-		}
+		if role == "system" { role = "user" }
+		if role == "assistant" { role = "model" }
 		contents = append(contents, map[string]interface{}{
 			"role": role,
-			"parts": []map[string]interface{}{
-				{"text": m.Content},
-			},
+			"parts": []map[string]interface{}{{"text": m.Content}},
 		})
 	}
 
 	modelName := p.cfg.Model
-
-	// Load Antigravity config for user-selected model
 	agCfg := p.agSvc.LoadConfig()
-	if agCfg.SelectedModel != "" {
-		modelName = agCfg.SelectedModel
-	} else {
-		// Auto-pick: find first available Gemini model key from account's quotas
-		validModelFound := false
-		for _, q := range acc.Quotas {
-			if q.Key != "" && q.Available && q.Percentage > 0 {
-				modelName = q.Key
-				validModelFound = true
-				// Prefer gemini-3-flash or similar free/low-tier models first
-				if strings.Contains(strings.ToLower(q.Name), "flash") &&
-					!strings.Contains(strings.ToLower(q.Name), "image") {
-					break // flash models are best default
-				}
-			}
-		}
-		if !validModelFound {
-			modelName = "gemini-3-flash-agent" // safest fallback if quota is empty
-		}
-	}
+	if agCfg.SelectedModel != "" { modelName = agCfg.SelectedModel }
 
-	temp := 0.7
-	maxTok := 8192
-	if agCfg.Temperature > 0 {
-		temp = agCfg.Temperature
-	}
-	if agCfg.MaxTokens > 0 {
-		maxTok = agCfg.MaxTokens
+	temp, maxTok, thinkBudget := 0.7, 8192, 0
+	if agCfg.Temperature > 0 { temp = agCfg.Temperature }
+	if agCfg.MaxTokens > 0 { maxTok = agCfg.MaxTokens }
+	if agCfg.ThinkingBudget > 0 { thinkBudget = agCfg.ThinkingBudget }
+
+	if maxTok <= thinkBudget {
+		maxTok = thinkBudget + 8192
 	}
 
 	reqMap := map[string]interface{}{
 		"contents": contents,
 		"model":    modelName,
 	}
-
 	if systemPrompt != "" {
 		reqMap["systemInstruction"] = map[string]interface{}{
 			"role": "user",
-			"parts": []map[string]interface{}{
-				{"text": systemPrompt},
-			},
+			"parts": []map[string]interface{}{{"text": systemPrompt}},
+		}
+	}
+	reqMap["generationConfig"] = map[string]interface{}{
+		"temperature":     temp,
+		"maxOutputTokens": maxTok,
+	}
+	if thinkBudget > 0 {
+		reqMap["generationConfig"].(map[string]interface{})["thinkingConfig"] = map[string]interface{}{
+			"includeThoughts": true,
+			"thinkingBudget":  thinkBudget,
 		}
 	}
 
-	reqMap["generationConfig"] = map[string]interface{}{
-		"temperature":     temp,
-		"topK":            40,
-		"topP":            1.0,
-		"maxOutputTokens": maxTok,
-	}
-
+	// [IMPORTANT] v1internal payload requires these exact fields
 	finalPayload := map[string]interface{}{
-		"project":     acc.ProjectID,
-		"requestId":   fmt.Sprintf("agent/antigravity/dardcor/%d", time.Now().Unix()),
-		"request":     reqMap,
-		"model":       modelName,
-		"userAgent":   "antigravity",
+		"project": acc.ProjectID,
+		"request": reqMap,
+		"model":   modelName,
+		"requestId": fmt.Sprintf("agent/antigravity/%s/%d", acc.ID[:8], len(messages)),
+		"userAgent": "antigravity",
 		"requestType": "agent",
 	}
 
-	bodyBytes, err := json.Marshal(finalPayload)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal antigravity payload: %v", err)
-	}
-
-	// Try endpoints in priority order: sandbox → daily → prod
+	bodyBytes, _ := json.Marshal(finalPayload)
 	endpoints := []string{
-		"https://daily-cloudcode-pa.sandbox.googleapis.com/v1internal:generateContent",
 		"https://daily-cloudcode-pa.googleapis.com/v1internal:generateContent",
 		"https://cloudcode-pa.googleapis.com/v1internal:generateContent",
 	}
 
-	var lastErr error
-	var respBytes []byte
-
 	for _, endpoint := range endpoints {
-		req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(bodyBytes))
-		if err != nil {
-			lastErr = err
-			continue
-		}
-
+		fmt.Printf("[Antigravity] Sending chat request to %s (Project: %s, Model: %s)\n", endpoint, acc.ProjectID, modelName)
+		req, _ := http.NewRequest("POST", endpoint, bytes.NewBuffer(bodyBytes))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+acc.AccessToken)
-		req.Header.Set("x-client-name", "antigravity")
 		req.Header.Set("User-Agent", "antigravity")
-
+		
+		// [IMPORTANT] Essential headers to match official client
+		req.Header.Set("x-client-name", "antigravity")
+		req.Header.Set("x-client-version", "3.3.18")
+		req.Header.Set("x-machine-id", "dardcor-agent-local")
+		
 		resp, err := p.client.Do(req)
-		if err != nil {
-			lastErr = fmt.Errorf("endpoint %s failed: %v", endpoint, err)
-			continue
+		if err != nil { 
+			fmt.Printf("[Antigravity] Connection error: %v\n", err)
+			continue 
 		}
-		respBytes, err = io.ReadAll(resp.Body)
+		respBytes, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
-		if err != nil {
-			lastErr = err
-			continue
+
+		if resp.StatusCode != http.StatusOK { 
+			fmt.Printf("[Antigravity] API Error %d: %s\n", resp.StatusCode, string(respBytes))
+			continue 
 		}
 
-		if resp.StatusCode == http.StatusUnauthorized {
-			// Token expired - try to refresh and retry once
-			refreshed, refreshErr := p.agSvc.RefreshToken(acc.Email)
-			if refreshErr != nil {
-				return nil, fmt.Errorf("token expired (401) and auto-refresh failed: %v. Please re-authenticate in the dashboard", refreshErr)
-			}
-			acc = refreshed
-			// Rebuild request with new token - continue to next endpoint attempt
-			lastErr = fmt.Errorf("refreshed token, retrying")
-			continue
-		}
-		if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500 {
-			lastErr = fmt.Errorf("endpoint %s returned %d, trying next", endpoint, resp.StatusCode)
-			continue
-		}
-		if resp.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("Antigravity API error (Code %d): %s", resp.StatusCode, string(respBytes))
-		}
-
-		// Success - parse response
-		// v1internal wraps response in 'response' field
 		var googleResp struct {
 			Response struct {
 				Candidates []struct {
 					Content struct {
 						Parts []struct {
-							Text string `json:"text"`
+							Text         string `json:"text,omitempty"`
+							Thought      string `json:"thought,omitempty"`
+							FunctionCall *struct {
+								Name string                 `json:"name"`
+								Args map[string]interface{} `json:"args"`
+							} `json:"functionCall,omitempty"`
 						} `json:"parts"`
 					} `json:"content"`
 				} `json:"candidates"`
-				UsageMetadata struct {
-					TotalTokenCount int `json:"totalTokenCount"`
-				} `json:"usageMetadata"`
 			} `json:"response"`
 		}
-		// Also try direct format (some endpoints return candidates directly)
-		var directResp struct {
-			Candidates []struct {
-				Content struct {
-					Parts []struct {
-						Text string `json:"text"`
-					} `json:"parts"`
-				} `json:"content"`
-			} `json:"candidates"`
-			UsageMetadata struct {
-				TotalTokenCount int `json:"totalTokenCount"`
-			} `json:"usageMetadata"`
-		}
-
-		var generatedText string
-		var totalTokens int
-
-		if err := json.Unmarshal(respBytes, &googleResp); err == nil && len(googleResp.Response.Candidates) > 0 {
-			for _, part := range googleResp.Response.Candidates[0].Content.Parts {
-				generatedText += part.Text
+		json.Unmarshal(respBytes, &googleResp)
+		if len(googleResp.Response.Candidates) > 0 {
+			text := ""
+			for _, p := range googleResp.Response.Candidates[0].Content.Parts {
+				if p.Text != "" {
+					text += p.Text
+				}
+				if p.Thought != "" {
+					text = "> [Thinking]\n" + p.Thought + "\n\n" + text
+				}
+				if p.FunctionCall != nil {
+					// Synthetic command format for dardcor autonomous parser
+					jsonArgs, _ := json.Marshal(p.FunctionCall.Args)
+					text += fmt.Sprintf("\n[ACTION] %s %s [/ACTION]", p.FunctionCall.Name, string(jsonArgs))
+				}
 			}
-			totalTokens = googleResp.Response.UsageMetadata.TotalTokenCount
-		} else if err := json.Unmarshal(respBytes, &directResp); err == nil && len(directResp.Candidates) > 0 {
-			for _, part := range directResp.Candidates[0].Content.Parts {
-				generatedText += part.Text
-			}
-			totalTokens = directResp.UsageMetadata.TotalTokenCount
+			return &LLMResponse{
+				Content:  text,
+				Model:    modelName,
+				Provider: "antigravity",
+				Duration: time.Since(start).Milliseconds(),
+			}, nil
 		}
-
-		if generatedText == "" {
-			return nil, fmt.Errorf("Antigravity returned empty response from %s. Raw: %s", endpoint, string(respBytes[:intMin(200, len(respBytes))]))
-		}
-
-		return &LLMResponse{
-			Content:  generatedText,
-			Model:    modelName,
-			Provider: "antigravity",
-			Tokens:   totalTokens,
-			Duration: time.Since(start).Milliseconds(),
-		}, nil
 	}
-
-	return nil, fmt.Errorf("all Antigravity endpoints failed. Last error: %v", lastErr)
-}
-
-func intMin(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
+	return nil, fmt.Errorf("antigravity request failed")
 }

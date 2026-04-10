@@ -144,3 +144,7 @@ export const systemAPI = {
 
   getMemoryUsage: () => fetchAPI<MemoryInfo>('/system/memory'),
 }
+
+
+
+

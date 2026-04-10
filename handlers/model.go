@@ -15,14 +15,14 @@ type ModelHandler struct {
 }
 
 func NewModelHandler() *ModelHandler {
-	// Ensure directories exist
+
 	os.MkdirAll(filepath.Join("database", "model"), 0755)
 	os.MkdirAll(filepath.Join("database", "tools"), 0755)
 	os.MkdirAll(filepath.Join("database", "skills"), 0755)
+	os.MkdirAll(filepath.Join("database", "settings"), 0755)
 
 	h := &ModelHandler{}
 
-	// Create default configs if missing
 	h.ensureFileExists("tools", defaultTools)
 	h.ensureFileExists("skills", defaultSkills)
 	h.ensureFileExists("model", map[string]bool{"antigravity": false, "gemini": false, "openrouter": false})
@@ -64,6 +64,8 @@ func (h *ModelHandler) getPath(configType string) string {
 		return filepath.Join("database", "tools", "config.json")
 	case "skills":
 		return filepath.Join("database", "skills", "config.json")
+	case "workspace":
+		return filepath.Join("database", "settings", "workspace.json")
 	default:
 		return filepath.Join("database", "model", "configure_active.json")
 	}
@@ -79,6 +81,10 @@ func (h *ModelHandler) GetToolsConfig(w http.ResponseWriter, r *http.Request) {
 
 func (h *ModelHandler) GetSkillsConfig(w http.ResponseWriter, r *http.Request) {
 	h.getConfig(w, r, "skills")
+}
+
+func (h *ModelHandler) GetWorkspaceConfig(w http.ResponseWriter, r *http.Request) {
+	h.getConfig(w, r, "workspace")
 }
 
 func (h *ModelHandler) getConfig(w http.ResponseWriter, r *http.Request, configType string) {
@@ -121,6 +127,10 @@ func (h *ModelHandler) SaveToolsConfig(w http.ResponseWriter, r *http.Request) {
 
 func (h *ModelHandler) SaveSkillsConfig(w http.ResponseWriter, r *http.Request) {
 	h.saveConfig(w, r, "skills")
+}
+
+func (h *ModelHandler) SaveWorkspaceConfig(w http.ResponseWriter, r *http.Request) {
+	h.saveConfig(w, r, "workspace")
 }
 
 func (h *ModelHandler) saveConfig(w http.ResponseWriter, r *http.Request, configType string) {

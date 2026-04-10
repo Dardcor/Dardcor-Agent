@@ -14,29 +14,29 @@ var (
 )
 
 type Config struct {
-	Port     string         `json:"port"`
-	DataDir  string         `json:"data_dir"`
+	Port     string          `json:"port"`
+	DataDir  string          `json:"data_dir"`
 	Settings models.Settings `json:"settings"`
-	AI       AIConfig       `json:"ai"`
+	AI       AIConfig        `json:"ai"`
 }
 
 type AIConfig struct {
-	Provider   string  `json:"provider"`
-	Model      string  `json:"model"`
-	APIKey     string  `json:"api_key"`
-	BaseURL    string  `json:"base_url"`
-	MaxTokens  int     `json:"max_tokens"`
-	Streaming  bool    `json:"streaming"`
+	Provider    string  `json:"provider"`
+	Model       string  `json:"model"`
+	APIKey      string  `json:"api_key"`
+	BaseURL     string  `json:"base_url"`
+	MaxTokens   int     `json:"max_tokens"`
+	Streaming   bool    `json:"streaming"`
 	Temperature float64 `json:"temperature"`
 }
 
 type UserConfig struct {
-	Provider       string `json:"provider"`
-	Model          string `json:"model"`
-	APIKey         string `json:"api_key"`
+	Provider        string `json:"provider"`
+	Model           string `json:"model"`
+	APIKey          string `json:"api_key"`
 	ProviderBaseURL string `json:"provider_base_url"`
-	Port           string `json:"port"`
-	Initialized    bool   `json:"initialized"`
+	Port            string `json:"port"`
+	Initialized     bool   `json:"initialized"`
 }
 
 func Init() (*Config, error) {
@@ -53,6 +53,9 @@ func Init() (*Config, error) {
 		cwd, _ := os.Getwd()
 		dataDir = filepath.Join(cwd, "database")
 		if _, err := os.Stat(dataDir); os.IsNotExist(err) {
+			dataDir = filepath.Join(cwd, "Dardcor Agent", "database")
+		}
+		if _, err := os.Stat(dataDir); os.IsNotExist(err) {
 			dataDir = filepath.Join(cwd, "..", "database")
 		}
 	}
@@ -63,9 +66,7 @@ func Init() (*Config, error) {
 	}
 
 	port := "25000"
-	
 	userCfg := loadUserConfig()
-
 	aiCfg := buildAIConfig(userCfg)
 
 	cfg := &Config{
@@ -192,4 +193,3 @@ func (c *Config) GetCommandsDir() string {
 func (c *Config) IsAIEnabled() bool {
 	return c.AI.Provider != "local" && c.AI.Provider != ""
 }
-

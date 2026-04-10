@@ -23,7 +23,6 @@ const ToolsPanel: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch tools from database on mount
   useEffect(() => {
     fetch('/api/tools/config')
       .then(res => res.json())
@@ -39,7 +38,6 @@ const ToolsPanel: React.FC = () => {
       });
   }, []);
 
-  // Save tools to database
   const saveTools = (updatedTools: Tool[]) => {
     fetch('/api/tools/config', {
       method: 'POST',
@@ -122,3 +120,7 @@ const ToolsPanel: React.FC = () => {
 };
 
 export default ToolsPanel;
+
+
+
+

@@ -11,42 +11,47 @@ const C = {
   white:   '\x1b[37m',
   bgMagenta: '\x1b[45m',
   bgBlue:    '\x1b[44m',
-  purple:  '\x1b[38;5;93m', // Deep Purple
+  purple:  '\x1b[38;5;93m',
 };
 
+const banner = [
+  '  ██████╗  █████╗ ██████╗ ██████╗  ██████╗ ██████╗ ██████╗ ',
+  '  ██╔══██╗██╔══██╗██╔══██╗██╔══██╗██╔════╝██╔═══██╗██╔══██╗',
+  '  ██║  ██║███████║██████╔╝██║  ██║██║     ██║   ██║██████╔╝',
+  '  ██║  ██║██╔══██║██╔══██╗██║  ██║██║     ██║   ██║██╔══██╗',
+  '  ██████╔╝██║  ██║██║  ██║██████╔╝╚██████╗╚██████╔╝██║  ██║',
+  '  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝  ╚═════╝ ╚═════╝ ╚═╝  ╚═╝'
+];
+
 export function printBanner(subtitle = '') {
-  console.log(`
-${C.purple}${C.bold}  ██████╗  █████╗ ██████╗ ██████╗  ██████╗ ██████╗ ██████╗
-  ██╔══██╗██╔══██╗██╔══██╗██╔══██╗██╔════╝██╔═══██╗██╔══██╗
-  ██║  ██║███████║██████╔╝██║  ██║██║     ██║   ██║██████╔╝
-  ██║  ██║██╔══██║██╔══██╗██║  ██║██║     ██║   ██║██╔══██╗
-  ██████╔╝██║  ██║██║  ██║██████╔╝╚██████╗╚██████╔╝██║  ██║
-  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝  ╚═════╝ ╚═════╝ ╚═╝  ╚═╝
-${C.reset}${C.bold}${C.purple}  Unified Agent Workspace${C.reset} — ${C.dim}Hyper-Optimized Runtime${C.reset}${subtitle ? `\n  ${C.purple}→ ${C.bold}${subtitle}${C.reset}` : ''}
-`);
+  console.log(`${C.purple}${C.bold}`);
+  banner.forEach(l => console.log(l));
+  console.log(`${C.reset}${C.bold}${C.purple}  DARDCOR AGENT${C.reset} — ${C.dim}Superior Autonomous System${C.reset}${subtitle ? `\n  ${C.purple}→ ${C.bold}${subtitle}${C.reset}` : ''}\n`);
 }
 
 export function printHelp() {
   printBanner();
   console.log(`${C.bold}USAGE:${C.reset}
 
-  ${C.cyan}dardcor help${C.reset}              Show this help message
-  ${C.cyan}dardcor doctor${C.reset}            Health check & auto-repair system
-  ${C.cyan}dardcor run${C.reset}               Start Gateway + WebUI (Live Updates)
-  ${C.cyan}dardcor cli${C.reset}               Interactive terminal coding agent
+  ${C.cyan}dardcor help${C.reset}              Menampilkan bantuan system
+  ${C.cyan}dardcor doctor${C.reset}            Memperbaiki system secara otomatis
+  ${C.cyan}dardcor run${C.reset}               Menjalankan Dashboard UI Dardcor
+  ${C.cyan}dardcor cli${C.reset}               Menjalankan Terminal Agent Dardcor
+
+${C.bold}COMMANDS:${C.reset}
+
+  dardcor run     (Port: 25000, UI Banner DARDCOR)
+  dardcor cli     (Port: 25000, UI Banner DARDCOR CLI)
+  dardcor doctor  (Repair system)
+  dardcor help    (Show this help)
 
 ${C.bold}INSTALLATION:${C.reset}
 
-  git clone https://github.com/dardcor/dardcor-agent.git
-  cd dardcor-agent
   npm install -g dardcor-agent
-
-${C.bold}EXAMPLES:${C.reset}
-
-  dardcor run                    Launch Dashboard with live preview
-  dardcor cli                    Headless coding agent
-  dardcor doctor                 Fix system issues
-
-${C.bold}DOCS:${C.reset}  https://github.com/dardcor/dardcor-agent
+  npm uninstall -g dardcor-agent
 `);
 }
+
+
+
+

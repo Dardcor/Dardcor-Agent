@@ -4,7 +4,7 @@ interface Skill {
   id: string;
   name: string;
   description: string;
-  level: number; // 0 to 100
+  level: number;
   tags: string[];
   icon: string;
 }
@@ -21,7 +21,6 @@ const SkillsPanel: React.FC = () => {
 
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch skills from database on mount
   useEffect(() => {
     fetch('/api/skills/config')
       .then(res => res.json())
@@ -37,7 +36,6 @@ const SkillsPanel: React.FC = () => {
       });
   }, []);
 
-  // Save skills to database
   const saveSkills = (updatedSkills: Skill[]) => {
     fetch('/api/skills/config', {
       method: 'POST',
@@ -134,3 +132,7 @@ const SkillsPanel: React.FC = () => {
 };
 
 export default SkillsPanel;
+
+
+
+

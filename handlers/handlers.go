@@ -195,6 +195,21 @@ func (h *FileSystemHandler) GetDrives(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (h *FileSystemHandler) GetDefaultWorkspace(w http.ResponseWriter, r *http.Request) {
+	path, err := h.service.GetDefaultWorkspace()
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, models.APIResponse{
+			Success: false,
+			Error:   err.Error(),
+		})
+		return
+	}
+	writeJSON(w, http.StatusOK, models.APIResponse{
+		Success: true,
+		Data:    path,
+	})
+}
+
 func (h *FileSystemHandler) MoveFile(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Source      string `json:"source"`

@@ -55,98 +55,82 @@ function checkServer(url) {
 }
 
 export async function runDoctor() {
-  hdr('=== HEALTH CHECK ===');
+  hdr('=== DARDCOR SYSTEM DOCTOR ===');
   const cfg = loadConfig();
   let issues = 0;
   let fixed = 0;
 
   if (fs.existsSync(CONFIG_FILE)) {
-    ok(`Config: ${CONFIG_FILE}`);
+    ok(`Configuration: FOUND (${CONFIG_FILE})`);
   } else {
-    wrn(`Config not found. Creating default...`);
+    wrn(`Configuration: NOT FOUND. Initializing...`);
     saveConfig({ provider: 'local', model: 'dardcor-agent', port: '25000', initialized: true });
     fixed++;
-    ok('Config created with default settings.');
+    ok('Configuration: CREATED with defaults');
   }
 
   const reloadedCfg = loadConfig();
 
-  if (reloadedCfg.provider) {
-    ok(`Provider: ${reloadedCfg.provider} | Model: ${reloadedCfg.model || 'auto'}`);
-  } else {
-    wrn('Provider not configured. Setting to local...');
-    reloadedCfg.provider = 'local';
-    reloadedCfg.model = 'dardcor-agent';
-    reloadedCfg.initialized = true;
-    saveConfig(reloadedCfg);
-    fixed++;
-    ok('Provider set to local.');
-  }
-
-  if (reloadedCfg.provider === 'local' || reloadedCfg.provider === 'ollama') {
-    ok(`API Key: not required (${reloadedCfg.provider})`);
-  } else if (reloadedCfg.api_key) {
-    ok(`API Key: configured`);
-  } else {
-    issues++;
-    err('API Key: missing');
-  }
-
   if (reloadedCfg.port !== '25000') {
-    wrn('Port mismatch. Forcing port 25000...');
+    wrn('Port Conflict: Forcing 25000...');
     reloadedCfg.port = '25000';
     saveConfig(reloadedCfg);
     fixed++;
-    ok('Port set to 25000.');
+    ok('Port: RESOLVED to 25000');
   } else {
     ok('Port: 25000');
   }
 
   try {
     execSync('go version', { stdio: 'pipe' });
-    ok('Go runtime: available');
+    ok('Go Kernel: AVAILABLE');
   } catch {
     issues++;
-    err('Go runtime: not found');
+    err('Go Kernel: MISSING');
   }
 
-  const nodeVerStr = process.version;
-  const major = parseInt(nodeVerStr.replace('v', '').split('.')[0]);
-  if (major >= 18) {
-    ok(`Node.js: ${nodeVerStr}`);
+  const nodeVer = process.version;
+  const majorNode = parseInt(nodeVer.substring(1).split('.')[0]);
+  if (majorNode >= 18) {
+    ok(`Node Runtime: ${nodeVer}`);
   } else {
     issues++;
-    err(`Node.js: ${nodeVerStr} — requires v18+`);
+    err(`Node Runtime: ${nodeVer} (Requires 18+)`);
   }
 
   const dataDir = path.join(rootDir, 'database');
-  const requiredDirs = [
+  const requiredPaths = [
     dataDir,
     path.join(dataDir, 'conversations'),
     path.join(dataDir, 'commands'),
     path.join(dataDir, 'settings'),
+    path.join(dataDir, 'model', 'antigravity'),
   ];
-  for (const dir of requiredDirs) {
-    if (!fs.existsSync(dir)) {
-      wrn(`Directory missing: ${dir} — creating...`);
-      fs.mkdirSync(dir, { recursive: true });
+  for (const p of requiredPaths) {
+    if (!fs.existsSync(p)) {
+      wrn(`Structure: ${path.basename(p)} missing — Creating...`);
+      fs.mkdirSync(p, { recursive: true });
       fixed++;
-      ok(`Created: ${dir}`);
+      ok(`Structure: ${path.basename(p)} CREATED`);
     }
   }
 
-  const serverUp = await checkServer('http://127.0.0.1:25000/api/system');
-  if (serverUp) {
-    ok('Gateway: online at http://127.0.0.1:25000');
+  const engineUp = await checkServer('http://127.0.0.1:25000/api/system');
+  if (engineUp) {
+    ok('Dardcor Engine: ONLINE');
   } else {
-    wrn('Gateway: offline (run dardcor run)');
+    wrn('Dardcor Engine: OFFLINE (use dardcor run)');
   }
 
-  hdr('=== DIAGNOSIS COMPLETE ===');
-  if (fixed > 0) ok(`${fixed} issue(s) auto-repaired.`);
+  hdr('=== DIAGNOSIS RESULT ===');
+  if (fixed > 0) ok(`${fixed} issue(s) resolved automatically.`);
   if (issues > 0) {
-    err(`${issues} issue(s) require manual attention.`);
+    err(`${issues} issue(s) need manual intervention.`);
   } else {
-    ok('All systems operational.');
+    ok('System Perfect. No issues found.');
   }
 }
+
+
+
+

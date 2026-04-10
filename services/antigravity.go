@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -17,17 +18,11 @@ import (
 )
 
 const (
-	AntigravityUserAgent = "vscode/1.92.2 (Antigravity/4.1.31)"
-	AntigravityFullUA    = "Antigravity/4.1.31 (Windows NT 10.0; Win64; x64) Chrome/132.0.6834.160 Electron/39.2.3"
+	AntigravityUserAgent = "vscode (Antigravity)"
+	AntigravityFullUA    = "Antigravity (Windows NT; Win64; x64) Chrome Electron"
 )
 
-func AntigravityClientID() string {
-	return os.Getenv("ANTIGRAVITY_CLIENT_ID")
-}
-
-func AntigravityClientSecret() string {
-	return os.Getenv("ANTIGRAVITY_CLIENT_SECRET")
-}
+// Standalone credential functions removed. Use AntigravityService.LoadConfig() instead.
 
 type GoogleUserInfo struct {
 	Email string `json:"email"`
@@ -46,8 +41,7 @@ func NewAntigravityService() *AntigravityService {
 		baseDir = config.AppConfig.DataDir
 	}
 	dbPath := filepath.Join(baseDir, "model", "antigravity", "accounts.json")
-	
-	// Ensure directory exists
+
 	os.MkdirAll(filepath.Dir(dbPath), 0755)
 
 	svc := &AntigravityService{
@@ -78,7 +72,7 @@ func (s *AntigravityService) loadAccounts() {
 			}
 
 			var fileAcc models.AntigravityFileAccount
-			if err := json.Unmarshal(data, &fileAcc); err != nil {
+			if err := json.Unmarshal(data, &fileAcc); err != nil || fileAcc.Email == "" || fileAcc.Token.RefreshToken == "" {
 				continue
 			}
 
@@ -92,10 +86,9 @@ func (s *AntigravityService) loadAccounts() {
 				IsActive:     fileAcc.IsActive,
 			}
 
-			// Restore Expiry from file so auto-refresh logic works correctly
 			if fileAcc.Token.Expiry > 0 {
 				acc.Expiry = time.Unix(fileAcc.Token.Expiry, 0)
-				// If access token is already expired, clear it to force a refresh on next use
+
 				if time.Now().After(acc.Expiry) {
 					acc.AccessToken = ""
 				}
@@ -111,7 +104,6 @@ func (s *AntigravityService) loadAccounts() {
 				acc.Type = "FREE"
 			}
 
-			// Deduplicate quotas by name on load (keep highest percentage), restore Key
 			quotaMap := make(map[string]models.ModelQuota)
 			for _, m := range fileAcc.Quota.Models {
 				color := "#7c3aed"
@@ -125,7 +117,7 @@ func (s *AntigravityService) loadAccounts() {
 				if existing, ok := quotaMap[m.Name]; !ok || m.Percentage > existing.Percentage {
 					quotaMap[m.Name] = models.ModelQuota{
 						Name:       m.Name,
-						Key:        m.Key, // restore raw API key
+						Key:        m.Key,
 						Percentage: m.Percentage,
 						Available:  m.Percentage > 0,
 						Color:      color,
@@ -140,16 +132,15 @@ func (s *AntigravityService) loadAccounts() {
 			s.accounts = append(s.accounts, acc)
 		}
 	}
+	fmt.Printf("[AntigravityService] Loaded %d accounts from %s\n", len(s.accounts), dir)
 }
 
 func (s *AntigravityService) saveAccountFile(acc models.AntigravityAccount) error {
 	dir := filepath.Dir(s.dbPath)
 	filePath := filepath.Join(dir, acc.ID+".json")
 
-	// Create structure to match exactly
 	var fileAcc models.AntigravityFileAccount
-	
-	// Read existing if any to preserve other fields like device profile
+
 	data, err := os.ReadFile(filePath)
 	if err == nil {
 		json.Unmarshal(data, &fileAcc)
@@ -160,15 +151,15 @@ func (s *AntigravityService) saveAccountFile(acc models.AntigravityAccount) erro
 	if fileAcc.Name == "" {
 		fileAcc.Name = acc.Email
 	}
-	
+
 	fileAcc.Token.AccessToken = acc.AccessToken
 	fileAcc.Token.RefreshToken = acc.RefreshToken
 	fileAcc.Token.ProjectID = acc.ProjectID
 	fileAcc.Token.Expiry = acc.Expiry.Unix()
-	
+
 	fileAcc.Quota.SubscriptionTier = acc.Type
 	fileAcc.Quota.IsForbidden = (acc.Status == "FORBIDDEN")
-	
+
 	fileAcc.IsActive = acc.IsActive
 	fileAcc.LastUsed = acc.LastUsed.Unix()
 	fileAcc.Quota.Models = nil
@@ -196,65 +187,6 @@ func (s *AntigravityService) saveAccounts() error {
 		s.saveAccountFile(acc)
 	}
 	return nil
-}
-
-func (s *AntigravityService) RefreshToken(email string) (*models.AntigravityAccount, error) {
-	s.mu.Lock()
-	var account *models.AntigravityAccount
-	for i := range s.accounts {
-		if s.accounts[i].Email == email {
-			account = &s.accounts[i]
-			break
-		}
-	}
-	s.mu.Unlock()
-
-	if account == nil {
-		return nil, fmt.Errorf("account not found: %s", email)
-	}
-
-	// 1. Get Access Token from Google
-	data := url.Values{}
-	data.Set("client_id", AntigravityClientID())
-	data.Set("client_secret", AntigravityClientSecret())
-	data.Set("refresh_token", account.RefreshToken)
-	data.Set("grant_type", "refresh_token")
-
-	req, _ := http.NewRequest("POST", "https://oauth2.googleapis.com/token", bytes.NewBufferString(data.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("User-Agent", AntigravityUserAgent)
-
-	resp, err := s.client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	var tokenResp models.GoogleTokenResponse
-	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
-		return nil, err
-	}
-
-	s.mu.Lock()
-	account.AccessToken = tokenResp.AccessToken
-	account.Expiry = time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
-	s.mu.Unlock()
-
-	// 2. Load Project ID via loadCodeAssist
-	if err := s.fetchProjectID(account); err != nil {
-		return nil, err
-	}
-
-	// 3. Fetch Quotas
-	if err := s.FetchQuotas(account); err != nil {
-		return nil, err
-	}
-
-	s.mu.Lock()
-	s.saveAccounts()
-	s.mu.Unlock()
-
-	return account, nil
 }
 
 func (s *AntigravityService) fetchProjectID(acc *models.AntigravityAccount) error {
@@ -287,7 +219,6 @@ func (s *AntigravityService) fetchProjectID(acc *models.AntigravityAccount) erro
 
 	acc.ProjectID = assistResp.ProjectID
 
-    // Logic replicated from Antigravity Manager Tier Extraction:
 	subscriptionTier := ""
 	isIneligible := len(assistResp.IneligibleTiers) > 0
 
@@ -337,6 +268,7 @@ func (s *AntigravityService) FetchQuotas(acc *models.AntigravityAccount) error {
 	}
 	body, _ := json.Marshal(payload)
 
+	// Quota API endpoints (fallback order: Sandbox → Daily → Prod)
 	endpoints := []string{
 		"https://daily-cloudcode-pa.sandbox.googleapis.com/v1internal:fetchAvailableModels",
 		"https://daily-cloudcode-pa.googleapis.com/v1internal:fetchAvailableModels",
@@ -366,7 +298,7 @@ func (s *AntigravityService) FetchQuotas(acc *models.AntigravityAccount) error {
 			lastErr = fmt.Errorf("API error %d from %s", resp.StatusCode, urlStr)
 			continue
 		}
-		
+
 		acc.Status = "CURRENT"
 
 		var modelsResp models.AntigravityAvailableModelsResponse
@@ -375,14 +307,14 @@ func (s *AntigravityService) FetchQuotas(acc *models.AntigravityAccount) error {
 			continue
 		}
 
-		// Success! Map to internal models with backend deduplication by displayName
 		acc.Quotas = []models.ModelQuota{}
 		byDisplayName := make(map[string]models.ModelQuota)
 		for name, mInfo := range modelsResp.Models {
-			// Only include Antigravity-targeted models
+
 			nameLower := strings.ToLower(name)
 			isTarget := strings.HasPrefix(nameLower, "gpt") ||
 				strings.HasPrefix(nameLower, "image") ||
+				strings.HasPrefix(nameLower, "imagen") ||
 				strings.HasPrefix(nameLower, "gemini") ||
 				strings.HasPrefix(nameLower, "claude")
 			if !isTarget {
@@ -390,21 +322,25 @@ func (s *AntigravityService) FetchQuotas(acc *models.AntigravityAccount) error {
 			}
 
 			percentage := int(mInfo.QuotaInfo.RemainingFraction * 100)
-			if percentage < 0 { percentage = 0 }
-			if percentage > 100 { percentage = 100 }
+			if percentage < 0 {
+				percentage = 0
+			}
+			if percentage > 100 {
+				percentage = 100
+			}
 
-			color := "#7c3aed" // Default purple
+			color := "#7c3aed"
 			if percentage < 20 {
-				color = "#ef4444" // Red
+				color = "#ef4444"
 			} else if percentage < 60 {
-				color = "#f59e0b" // Orange
+				color = "#f59e0b"
 			} else {
-				color = "#10b981" // Green
+				color = "#10b981"
 			}
 
 			displayName := mInfo.DisplayName
 			if displayName == "" {
-				displayName = name // Fallback to API key if no display name
+				displayName = name
 			}
 
 			duration := ""
@@ -412,11 +348,10 @@ func (s *AntigravityService) FetchQuotas(acc *models.AntigravityAccount) error {
 				duration = mInfo.QuotaInfo.ResetTime
 			}
 
-			// Deduplicate: keep entry with highest remaining percentage
 			if existing, ok := byDisplayName[displayName]; !ok || percentage > existing.Percentage {
 				byDisplayName[displayName] = models.ModelQuota{
 					Name:       displayName,
-					Key:        name, // store raw API key for use in generateContent
+					Key:        name,
 					Percentage: percentage,
 					Available:  percentage > 0,
 					Color:      color,
@@ -450,7 +385,7 @@ func (s *AntigravityService) AddAccount(email, refreshToken string) error {
 		}
 	}
 
-	newID := fmt.Sprintf("%d", time.Now().UnixNano()) // using simple timestamp string for new inserts
+	newID := fmt.Sprintf("%d", time.Now().UnixNano())
 	newAcc := models.AntigravityAccount{
 		ID:           newID,
 		Email:        email,
@@ -470,7 +405,7 @@ func (s *AntigravityService) RemoveAccount(email string) error {
 		if acc.Email == email {
 			filePath := filepath.Join(filepath.Dir(s.dbPath), acc.ID+".json")
 			os.Remove(filePath)
-			
+
 			s.accounts = append(s.accounts[:i], s.accounts[i+1:]...)
 			return s.saveAccounts()
 		}
@@ -485,10 +420,10 @@ func (s *AntigravityService) SetActiveAccount(email string) error {
 	found := false
 	for i, acc := range s.accounts {
 		if acc.Email == email {
-			s.accounts[i].IsActive = !s.accounts[i].IsActive // Toggle
+			s.accounts[i].IsActive = !s.accounts[i].IsActive
 			found = true
 		} else {
-			s.accounts[i].IsActive = false // Disable others
+			s.accounts[i].IsActive = false
 		}
 	}
 
@@ -503,7 +438,7 @@ func (s *AntigravityService) GetActiveAccount() (*models.AntigravityAccount, err
 	defer s.mu.Unlock()
 	for _, acc := range s.accounts {
 		if acc.IsActive {
-			// Return a copy to prevent mutation
+
 			cpy := acc
 			return &cpy, nil
 		}
@@ -511,26 +446,25 @@ func (s *AntigravityService) GetActiveAccount() (*models.AntigravityAccount, err
 	return nil, fmt.Errorf("no active agent configured. please select an active agent in the Antigravity Model dashboard")
 }
 
-// LoadConfig reads persisted Antigravity chat configuration from config.json, or creates it.
 func (s *AntigravityService) LoadConfig() models.AntigravityConfig {
 	configPath := filepath.Join(filepath.Dir(s.dbPath), "config.json")
 	cfg := models.AntigravityConfig{
-		Temperature: 0.7,
-		MaxTokens:   8192,
-		SelectedModel: "",
+		Temperature:        0.7,
+		MaxTokens:          8192,
+		SelectedModel:      "",
+		GoogleClientID:     "ENTER_CLIENT_ID_VIA_DASHBOARD",
+		GoogleClientSecret: "ENTER_CLIENT_SECRET_VIA_DASHBOARD",
 	}
-	
+
 	data, err := os.ReadFile(configPath)
 	if err == nil {
 		json.Unmarshal(data, &cfg)
 	} else if os.IsNotExist(err) {
-		// Auto-create to populate real-time
 		s.SaveConfig(cfg)
 	}
 	return cfg
 }
 
-// SaveConfig persists Antigravity chat configuration to config.json.
 func (s *AntigravityService) SaveConfig(cfg models.AntigravityConfig) error {
 	configPath := filepath.Join(filepath.Dir(s.dbPath), "config.json")
 	if cfg.Temperature == 0 {
@@ -539,6 +473,12 @@ func (s *AntigravityService) SaveConfig(cfg models.AntigravityConfig) error {
 	if cfg.MaxTokens == 0 {
 		cfg.MaxTokens = 8192
 	}
+	if cfg.GoogleClientID == "" {
+		cfg.GoogleClientID = "ENTER_CLIENT_ID_VIA_DASHBOARD"
+	}
+	if cfg.GoogleClientSecret == "" {
+		cfg.GoogleClientSecret = "ENTER_CLIENT_SECRET_VIA_DASHBOARD"
+	}
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return err
@@ -546,8 +486,6 @@ func (s *AntigravityService) SaveConfig(cfg models.AntigravityConfig) error {
 	return os.WriteFile(configPath, data, 0644)
 }
 
-// FetchProjectAndQuotas fetches project ID and quotas for an account that is missing them.
-// It updates the passed account struct, syncs to in-memory accounts, and persists to disk.
 func (s *AntigravityService) FetchProjectAndQuotas(acc *models.AntigravityAccount) error {
 	if err := s.fetchProjectID(acc); err != nil {
 		return err
@@ -555,7 +493,7 @@ func (s *AntigravityService) FetchProjectAndQuotas(acc *models.AntigravityAccoun
 	if err := s.FetchQuotas(acc); err != nil {
 		return err
 	}
-	// Sync updated fields back into s.accounts
+
 	s.mu.Lock()
 	for i := range s.accounts {
 		if s.accounts[i].Email == acc.Email {
@@ -572,9 +510,10 @@ func (s *AntigravityService) FetchProjectAndQuotas(acc *models.AntigravityAccoun
 }
 
 func (s *AntigravityService) ExchangeCode(code string, redirectURI string) error {
+	cfg := s.LoadConfig()
 	data := url.Values{}
-	data.Set("client_id", AntigravityClientID())
-	data.Set("client_secret", AntigravityClientSecret())
+	data.Set("client_id", cfg.GoogleClientID)
+	data.Set("client_secret", cfg.GoogleClientSecret)
 	data.Set("code", code)
 	data.Set("redirect_uri", redirectURI)
 	data.Set("grant_type", "authorization_code")
@@ -598,7 +537,6 @@ func (s *AntigravityService) ExchangeCode(code string, redirectURI string) error
 		return err
 	}
 
-	// Fetch Email Address matching userinfo scope
 	userReq, _ := http.NewRequest("GET", "https://www.googleapis.com/oauth2/v2/userinfo", nil)
 	userReq.Header.Set("Authorization", "Bearer "+tokenResp.AccessToken)
 	userResp, err := s.client.Do(userReq)
@@ -616,7 +554,6 @@ func (s *AntigravityService) ExchangeCode(code string, redirectURI string) error
 		return err
 	}
 
-	// Check for duplicate email BEFORE adding
 	s.mu.Lock()
 	for _, existing := range s.accounts {
 		if existing.Email == userInfo.Email {
@@ -637,11 +574,9 @@ func (s *AntigravityService) ExchangeCode(code string, redirectURI string) error
 	s.accounts = append(s.accounts, newAcc)
 	s.mu.Unlock()
 
-	// Fetch project ID and quotas on the local copy
 	s.fetchProjectID(&newAcc)
 	s.FetchQuotas(&newAcc)
 
-	// Sync the updated local copy back into s.accounts
 	s.mu.Lock()
 	for i := range s.accounts {
 		if s.accounts[i].Email == newAcc.Email {
@@ -653,4 +588,58 @@ func (s *AntigravityService) ExchangeCode(code string, redirectURI string) error
 	s.mu.Unlock()
 
 	return err
+}
+
+func (s *AntigravityService) RefreshToken(email string) (*models.AntigravityAccount, error) {
+	s.mu.Lock()
+	var acc *models.AntigravityAccount
+	for i := range s.accounts {
+		if s.accounts[i].Email == email {
+			acc = &s.accounts[i]
+			break
+		}
+	}
+	s.mu.Unlock()
+
+	if acc == nil {
+		return nil, fmt.Errorf("account not found")
+	}
+
+	cfg := s.LoadConfig()
+	data := url.Values{}
+	data.Set("client_id", cfg.GoogleClientID)
+	data.Set("client_secret", cfg.GoogleClientSecret)
+	data.Set("refresh_token", acc.RefreshToken)
+	data.Set("grant_type", "refresh_token")
+
+	req, _ := http.NewRequest("POST", "https://oauth2.googleapis.com/token", bytes.NewBufferString(data.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("User-Agent", AntigravityFullUA)
+
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("refresh failed (%d): %s", resp.StatusCode, string(body))
+	}
+
+	var tokenResp models.GoogleTokenResponse
+	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+		return nil, err
+	}
+
+	s.mu.Lock()
+	acc.AccessToken = tokenResp.AccessToken
+	if tokenResp.ExpiresIn > 0 {
+		acc.Expiry = time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
+	}
+	acc.LastUsed = time.Now()
+	s.saveAccountFile(*acc)
+	s.mu.Unlock()
+
+	return acc, nil
 }

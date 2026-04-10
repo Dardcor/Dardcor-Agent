@@ -7,22 +7,24 @@ import { printBanner } from './help.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const rootDir = path.join(__dirname, '..');
+
+// Dynamic root detection: If CWD looks like a dardcor project, use it.
+// This allows global 'dardcor' command to sync with local project edits.
+const cwd = process.cwd();
+const isLocalProject = fs.existsSync(path.join(cwd, 'package.json')) && 
+                       fs.readFileSync(path.join(cwd, 'package.json'), 'utf8').includes('dardcor-agent');
+
+const rootDir = isLocalProject ? cwd : path.join(__dirname, '..');
 
 const C = {
   reset:   '\x1b[0m',
   bold:    '\x1b[1m',
-  dim:     '\x1b[2m',
   red:     '\x1b[31m',
   green:   '\x1b[32m',
   yellow:  '\x1b[33m',
-  blue:    '\x1b[34m',
-  magenta: '\x1b[35m',
-  cyan:    '\x1b[36m',
   purple:  '\x1b[38;5;93m',
 };
 
-const ok  = (msg) => console.log(`${C.purple}[✓]${C.reset} ${msg}`);
 const inf = (msg) => console.log(`${C.purple}[i]${C.reset} ${msg}`);
 const wrn = (msg) => console.log(`${C.yellow}[!]${C.reset} ${msg}`);
 
@@ -31,11 +33,7 @@ const CONFIG_FILE = path.join(CONFIG_DIR, 'config.json');
 
 function loadConfig() {
   if (fs.existsSync(CONFIG_FILE)) {
-    try {
-      return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
-    } catch {
-      return {};
-    }
+    try { return JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8')); } catch { return {}; }
   }
   return {};
 }
@@ -50,9 +48,8 @@ function killOldInstance() {
 
 export async function run() {
   const cfg = loadConfig();
-  
   console.clear();
-  printBanner();
+  printBanner('DARDCOR');
 
   if (!fs.existsSync(path.join(rootDir, 'node_modules'))) {
     inf('Optimizing Dependencies...');
@@ -67,47 +64,39 @@ export async function run() {
   process.env.PORT = port;
   process.env.DARDCOR_AI_PROVIDER = cfg.provider || 'local';
   process.env.DARDCOR_AI_MODEL = cfg.model || 'dardcor-agent';
-  process.env.DARDCOR_API_KEY = cfg.api_key || '';
 
   const distPath = path.join(rootDir, 'dist');
-  const srcPath = path.join(rootDir, 'src');
-
-  if (!fs.existsSync(distPath)) {
-    if (fs.existsSync(srcPath)) {
-      process.stdout.write(`${C.purple}[i]${C.reset} Compiling Hyper-Agent UI... `);
-      try {
-        execSync('npm run build', { cwd: rootDir, stdio: 'ignore' });
-        process.stdout.write(`${C.green}COMPLETE${C.reset}\n`);
-      } catch (e) {
-        process.stdout.write(`${C.red}FAILED${C.reset}\n`);
-        wrn('Could not build UI. Ensure you have devDependencies installed.');
-      }
-    } else {
-      wrn('Distribution folder (dist) is missing and source (src) is not available.');
+  
+  process.stdout.write(`${C.purple}[i]${C.reset} Synchronizing System UI... `);
+  try {
+    // Hard reset dist to ensure no stale files
+    if (fs.existsSync(distPath)) {
+      fs.rmSync(distPath, { recursive: true, force: true });
     }
-  } else {
-    inf('Using pre-compiled Agent UI.');
+    
+    execSync('npm run build', { cwd: rootDir, stdio: 'ignore' });
+    process.stdout.write(`${C.green}READY${C.reset}\n`);
+  } catch (error) {
+    process.stdout.write(`${C.red}FAILED${C.reset}\n`);
+    if (fs.existsSync(distPath)) {
+       wrn('System build failed. Using legacy assets...');
+    } else {
+       console.error(`${C.red}[!]${C.reset} Critical: Build failed and no legacy assets found. Aborting.`);
+       process.exit(1);
+    }
   }
 
   console.log(`${C.purple}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${C.reset}`);
-  console.log(`${C.purple}  Status     →${C.reset} ${C.green}${C.bold}OPTIMIZED AGENT ACTIVE${C.reset}`);
-  console.log(`${C.purple}  Dashboard  →${C.reset} ${C.bold}${devUrl}${C.reset}`);
-  console.log(`${C.purple}  Provider   →${C.reset} ${C.dim}${process.env.DARDCOR_AI_PROVIDER} | ${process.env.DARDCOR_AI_MODEL}${C.reset}`);
+  console.log(`${C.purple}  Status     →${C.reset} ${C.green}${C.bold}DARDCOR ENGINE ACTIVE${C.reset}`);
+  console.log(`${C.purple}  Interface  →${C.reset} ${C.bold}Dashboard: ${devUrl}${C.reset}`);
   console.log(`${C.purple}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${C.reset}`);
 
-  if (fs.existsSync(path.join(rootDir, 'src'))) {
-    spawn(process.platform === 'win32' ? 'npx.cmd' : 'npx', ['vite', 'build', '--watch', '--emptyOutDir', 'false'], {
-      cwd: rootDir,
-      stdio: 'ignore',
-      shell: true
-    });
-  }
-
-  const backend = spawn('go', ['run', 'main.go', 'run'], {
+  const backend = spawn('go', ['run', 'main.go'], {
     cwd: rootDir,
     stdio: 'ignore',
     shell: true,
-    env: process.env,
+    env: { ...process.env, GOMAXPROCS: '' + os.cpus().length },
+    windowsHide: true,
   });
 
   const cleanup = () => {
@@ -117,27 +106,17 @@ export async function run() {
       } else {
         backend.kill();
       }
-    } catch (e) {}
+    } catch {}
   };
 
-  process.on('SIGINT', () => {
-    cleanup();
-    process.exit();
-  });
+  process.on('SIGINT', cleanup);
+  process.on('SIGTERM', cleanup);
+  process.on('exit', cleanup);
 
-  process.on('SIGTERM', () => {
-    cleanup();
-    process.exit();
-  });
-
-  backend.on('exit', (code) => {
-    if (code !== 0 && code !== null) {
-      wrn(`Agent Workspace Engine stopped (Code: ${code})`);
-    }
-  });
-
-  setTimeout(() => {
-    const openCmd = process.platform === 'win32' ? `start "" "${devUrl}"` : `open "${devUrl}"`;
-    exec(openCmd);
-  }, 2000);
+  setTimeout(async () => {
+    try {
+      const openCmd = process.platform === 'win32' ? `start "" "${devUrl}"` : `open "${devUrl}"`;
+      exec(openCmd);
+    } catch {}
+  }, 3000);
 }

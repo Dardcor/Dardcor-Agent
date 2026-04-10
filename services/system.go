@@ -2,11 +2,11 @@ package services
 
 import (
 	"fmt"
+	"os/exec"
 	"runtime"
 	"sort"
-	"time"
-	"os/exec"
 	"strings"
+	"time"
 
 	"dardcor-agent/models"
 
@@ -40,11 +40,10 @@ func (ss *SystemService) GetSystemInfo() (*models.SystemInfo, error) {
 		}
 		info.Uptime = hostInfo.Uptime
 		info.HostName = hostInfo.Hostname
-		
-		info.Bios["kernel_version"] = hostInfo.KernelVersion
+
+		info.Bios["kernel_Version"] = hostInfo.KernelVersion
 		info.Bios["os_release"] = hostInfo.OS
 	}
-
 
 	if runtime.GOOS == "windows" {
 		out, err := exec.Command("wmic", "path", "win32_VideoController", "get", "name").Output()
@@ -57,7 +56,7 @@ func (ss *SystemService) GetSystemInfo() (*models.SystemInfo, error) {
 				}
 			}
 		}
-		
+
 		out, err = exec.Command("wmic", "baseboard", "get", "product,manufacturer").Output()
 		if err == nil {
 			lines := strings.Split(string(out), "\n")

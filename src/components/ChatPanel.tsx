@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
 import wsService from '../services/websocket'
 
 interface Message {
@@ -16,6 +17,8 @@ interface ConversationSummary {
 }
 
 const ChatPanel: React.FC = () => {
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isConnected, setIsConnected] = useState(false)
@@ -31,9 +34,9 @@ const ChatPanel: React.FC = () => {
     setMessages([])
     setConversationId(undefined)
     setShowHistory(false)
-  }, [])
+    navigate('/chat')
+  }, [navigate])
 
-  // --- WebSocket Setup ---
   useEffect(() => {
     wsService.connect().catch(() => {})
 
@@ -48,9 +51,14 @@ const ChatPanel: React.FC = () => {
         content: msg.payload?.content || '',
         timestamp: new Date().toLocaleTimeString(),
       }])
-      // Remember the conversation ID from the response
+
       if (msg.payload?.conversation_id) {
-        setConversationId(msg.payload.conversation_id)
+        const newId = msg.payload.conversation_id
+        setConversationId(newId)
+
+        if (window.location.pathname === '/chat') {
+          navigate(`/chat/${newId}`, { replace: true })
+        }
       }
     })
 
@@ -89,12 +97,15 @@ const ChatPanel: React.FC = () => {
       setMessages(loaded)
     })
 
-    // Toggle history from Riwayat button in sidebar
     const handleExternalToggle = () => setShowHistory(prev => !prev)
     const handleNewChat = () => startNewChat()
     
     document.addEventListener('toggle-history', handleExternalToggle)
     document.addEventListener('new-chat', handleNewChat)
+
+    if (id && isConnected) {
+      wsService.getConversation(id)
+    }
 
     setIsConnected(wsService.isConnected)
 
@@ -104,13 +115,12 @@ const ChatPanel: React.FC = () => {
       document.removeEventListener('toggle-history', handleExternalToggle)
       document.removeEventListener('new-chat', handleNewChat)
     }
-  }, [startNewChat])
+  }, [startNewChat, id, isConnected, navigate])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isTyping])
 
-  // Load history list when panel opens
   useEffect(() => {
     if (showHistory) {
       setLoadingHistory(true)
@@ -151,6 +161,7 @@ const ChatPanel: React.FC = () => {
   }
 
   const loadConversation = (id: string) => {
+    navigate(`/chat/${id}`)
     wsService.getConversation(id)
   }
 
@@ -164,7 +175,7 @@ const ChatPanel: React.FC = () => {
   }
 
   const renderContent = (content: string) => {
-    // Simple markdown-like rendering for code blocks
+
     const parts = content.split(/(```[\s\S]*?```)/g)
     return parts.map((part, i) => {
       if (part.startsWith('```')) {
@@ -184,7 +195,7 @@ const ChatPanel: React.FC = () => {
   return (
     <div className="chat-container" style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
 
-      {/* History Modal */}
+      {}
       {showHistory && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 9999,
@@ -249,7 +260,7 @@ const ChatPanel: React.FC = () => {
         </div>
       )}
 
-      {/* Main Chat Area */}
+      {}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
         <div className="chat-messages" style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
           {messages.length === 0 && (
@@ -281,7 +292,7 @@ const ChatPanel: React.FC = () => {
             </div>
           ))}
 
-          {/* Typing Indicator */}
+          {}
           {isTyping && (
             <div className="message assistant">
               <div className="message-avatar"><div className="avatar-img" /></div>
@@ -329,3 +340,7 @@ const ChatPanel: React.FC = () => {
 }
 
 export default ChatPanel
+
+
+
+

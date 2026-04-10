@@ -3,17 +3,17 @@ package models
 import "time"
 
 type AntigravityAccount struct {
-	ID           string          `json:"id"`
-	Email        string          `json:"email"`
-	RefreshToken string          `json:"refresh_token"`
-	AccessToken  string          `json:"access_token,omitempty"`
-	Expiry       time.Time       `json:"expiry,omitempty"`
-	ProjectID    string          `json:"project_id,omitempty"`
-	Type         string          `json:"type"` // e.g., FREE, PRO, ULTRA
-	Status       string          `json:"status"` // e.g., CURRENT
-	IsActive     bool            `json:"is_active"`
-	Quotas       []ModelQuota    `json:"quotas,omitempty"`
-	LastUsed     time.Time       `json:"last_used"`
+	ID           string       `json:"id"`
+	Email        string       `json:"email"`
+	RefreshToken string       `json:"refresh_token"`
+	AccessToken  string       `json:"access_token,omitempty"`
+	Expiry       time.Time    `json:"expiry,omitempty"`
+	ProjectID    string       `json:"project_id,omitempty"`
+	Type         string       `json:"type"`
+	Status       string       `json:"status"`
+	IsActive     bool         `json:"is_active"`
+	Quotas       []ModelQuota `json:"quotas,omitempty"`
+	LastUsed     time.Time    `json:"last_used"`
 }
 
 type AntigravityFileAccount struct {
@@ -41,20 +41,14 @@ type AntigravityFileAccount struct {
 }
 
 type ModelQuota struct {
-	Name       string `json:"name"`        // Human-readable display name
-	Key        string `json:"key,omitempty"` // Raw API model key (e.g., "gemini-3-flash")
+	Name       string `json:"name"`
+	Key        string `json:"key,omitempty"`
 	Percentage int    `json:"percentage"`
 	Available  bool   `json:"available"`
 	Duration   string `json:"duration,omitempty"`
 	Color      string `json:"color,omitempty"`
 }
 
-// AntigravityConfig stores persisted chat settings
-type AntigravityConfig struct {
-	SelectedModel string  `json:"selected_model"` // Raw API model key to use for chat
-	Temperature   float64 `json:"temperature"`
-	MaxTokens     int     `json:"max_tokens"`
-}
 
 type GoogleTokenResponse struct {
 	AccessToken  string `json:"access_token"`
@@ -65,7 +59,7 @@ type GoogleTokenResponse struct {
 }
 
 type AntigravityLoadAssistResponse struct {
-	ProjectID string `json:"cloudaicompanionProject"`
+	ProjectID   string `json:"cloudaicompanionProject"`
 	CurrentTier struct {
 		ID   string `json:"id"`
 		Name string `json:"name"`
@@ -79,7 +73,7 @@ type AntigravityLoadAssistResponse struct {
 		ID        string `json:"id"`
 		Name      string `json:"name"`
 	} `json:"allowedTiers"`
-    IneligibleTiers []struct {
+	IneligibleTiers []struct {
 		ReasonCode string `json:"reasonCode"`
 	} `json:"ineligibleTiers"`
 }

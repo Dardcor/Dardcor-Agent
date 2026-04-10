@@ -19,11 +19,13 @@ desktop.ini
 
 # Data (local storage and logs)
 database/
-backend.log
-backend_cli.log
+
 *.exe
 *.bin
 
 # Environment
 .env
 .env.local
+
+
+

@@ -87,7 +87,7 @@ export interface SystemInfo {
 export interface OSInfo {
   platform: string;
   family: string;
-  version: string;
+  edition: string;
   arch: string;
 }
 
@@ -163,3 +163,7 @@ export interface Notification {
   message: string;
   duration?: number;
 }
+
+
+
+

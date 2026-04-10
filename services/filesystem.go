@@ -293,3 +293,36 @@ func (fs *FileSystemService) GetDrives() []string {
 	return drives
 }
 
+func (fs *FileSystemService) GetDefaultWorkspace() (string, error) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+	workspacePath := filepath.Join(home, "Documents", "Dardcor-Workspace")
+	if _, err := os.Stat(workspacePath); os.IsNotExist(err) {
+		if err := os.MkdirAll(workspacePath, 0755); err != nil {
+			return "", err
+		}
+	}
+	return workspacePath, nil
+}
+func (fs *FileSystemService) Glob(root, pattern string) ([]string, error) {
+	relPattern := pattern
+	if !filepath.IsAbs(pattern) {
+		relPattern = filepath.Join(root, pattern)
+	}
+	matches, err := filepath.Glob(relPattern)
+	if err != nil {
+		return nil, err
+	}
+	var results []string
+	for _, m := range matches {
+		rel, err := filepath.Rel(root, m)
+		if err == nil {
+			results = append(results, rel)
+		} else {
+			results = append(results, m)
+		}
+	}
+	return results, nil
+}
