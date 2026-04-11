@@ -2,11 +2,13 @@ package services
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"dardcor-agent/config"
 )
 
 type SkillDefinition struct {
@@ -24,6 +26,9 @@ type SkillService struct {
 
 func NewSkillService() *SkillService {
 	dir := "database/skills"
+	if config.AppConfig != nil {
+		dir = filepath.Join(config.AppConfig.DataDir, "skills")
+	}
 	os.MkdirAll(dir, 0755)
 	
 	ss := &SkillService{
@@ -40,7 +45,7 @@ func (ss *SkillService) Reload() {
 
 	ss.skills = ss.getDefaultSkills()
 
-	files, err := ioutil.ReadDir(ss.skillsDir)
+	files, err := os.ReadDir(ss.skillsDir)
 	if err != nil {
 		return
 	}
@@ -48,10 +53,12 @@ func (ss *SkillService) Reload() {
 	for _, f := range files {
 		if !f.IsDir() && (strings.HasSuffix(f.Name(), ".md") || strings.HasSuffix(f.Name(), ".json")) {
 			path := filepath.Join(ss.skillsDir, f.Name())
-			data, err := ioutil.ReadFile(path)
+			file, err := os.Open(path)
 			if err != nil {
 				continue
 			}
+			data, _ := io.ReadAll(file)
+			file.Close()
 
 			if strings.HasSuffix(f.Name(), ".json") {
 				var skill SkillDefinition
@@ -99,3 +106,4 @@ func (ss *SkillService) getDefaultSkills() []SkillDefinition {
 		{"remember", "Store long-term memory", "remember <key> <value>", ""},
 	}
 }
+

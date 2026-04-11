@@ -50,6 +50,11 @@ type ModelQuota struct {
 }
 
 
+type AntigravityAuth struct {
+	GoogleClientID     string `json:"google_client_id"`
+	GoogleClientSecret string `json:"google_client_secret"`
+}
+
 type GoogleTokenResponse struct {
 	AccessToken  string `json:"access_token"`
 	ExpiresIn    int    `json:"expires_in"`

@@ -1,7 +1,6 @@
 {
   "name": "dardcor-agent",
-  "version": "1.0.4",
-  "edition": "1.0.4",
+  "version": "1.0.5",
   "preferGlobal": true,
   "private": false,
   "type": "module",
@@ -14,7 +13,7 @@
     "preview": "vite preview",
     "start": "dardcor run",
     "prepack": "npm run build",
-    "postinstall": "node -e \"const fs = require('fs'); if (!fs.existsSync('database')) fs.mkdirSync('database');\""
+    "postinstall": "node -e \"const fs = require('fs'); const dirs = ['database', 'database/model/antigravity']; dirs.forEach(d => { if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true }); })\""
   },
   "description": "Autonomous AI Agent — Gateway, CLI TUI, Multi-Provider LLM, Skills",
   "keywords": [
@@ -75,7 +74,3 @@
     "node": ">=18.0.0"
   }
 }
-
-
-
-

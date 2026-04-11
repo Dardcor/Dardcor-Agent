@@ -6,6 +6,7 @@ import os from 'os';
 import { fileURLToPath } from 'url';
 
 import { spawn } from 'child_process';
+import { initializeSystem } from './init_agent.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -80,6 +81,9 @@ const banner = [
 
 export async function runCLI() {
   const cfg = loadConfig();
+  
+  initializeSystem(rootDir);
+
   const gateUrl = 'http://127.0.0.1:25000';
   
   const serverUp = await checkServer(gateUrl + '/api/system');

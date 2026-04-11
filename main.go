@@ -131,11 +131,9 @@ func main() {
 	r.HandleFunc("/ws", wsHandler.HandleWebSocket)
 
 	r.PathPrefix("/assets/").Handler(http.StripPrefix("/assets/", http.FileServer(http.Dir("dist/assets"))))
-	// Root and Fallback handler
 	r.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		path := req.URL.Path
 
-		// Very strict cache control for everything
 		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate, proxy-revalidate")
 		w.Header().Set("Pragma", "no-cache")
 		w.Header().Set("Expires", "0")

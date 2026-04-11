@@ -4,25 +4,24 @@ import fs from 'fs';
 import os from 'os';
 import { fileURLToPath } from 'url';
 import { printBanner } from './help.js';
+import { initializeSystem } from './init_agent.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Dynamic root detection: If CWD looks like a dardcor project, use it.
-// This allows global 'dardcor' command to sync with local project edits.
 const cwd = process.cwd();
-const isLocalProject = fs.existsSync(path.join(cwd, 'package.json')) && 
-                       fs.readFileSync(path.join(cwd, 'package.json'), 'utf8').includes('dardcor-agent');
+const isLocalProject = fs.existsSync(path.join(cwd, 'package.json')) &&
+  fs.readFileSync(path.join(cwd, 'package.json'), 'utf8').includes('dardcor-agent');
 
 const rootDir = isLocalProject ? cwd : path.join(__dirname, '..');
 
 const C = {
-  reset:   '\x1b[0m',
-  bold:    '\x1b[1m',
-  red:     '\x1b[31m',
-  green:   '\x1b[32m',
-  yellow:  '\x1b[33m',
-  purple:  '\x1b[38;5;93m',
+  reset: '\x1b[0m',
+  bold: '\x1b[1m',
+  red: '\x1b[31m',
+  green: '\x1b[32m',
+  yellow: '\x1b[33m',
+  purple: '\x1b[38;5;93m',
 };
 
 const inf = (msg) => console.log(`${C.purple}[i]${C.reset} ${msg}`);
@@ -43,13 +42,17 @@ function killOldInstance() {
     if (process.platform === 'win32') {
       execSync(`for /f "tokens=5" %p in ('netstat -ano ^| findstr :25000 ^| findstr LISTENING') do taskkill /F /PID %p /T >nul 2>&1`, { timeout: 2000, shell: true });
     }
-  } catch {}
+  } catch { }
 }
 
 export async function run() {
   const cfg = loadConfig();
   console.clear();
   printBanner('DARDCOR');
+
+
+  initializeSystem(rootDir);
+
 
   if (!fs.existsSync(path.join(rootDir, 'node_modules'))) {
     inf('Optimizing Dependencies...');
@@ -66,19 +69,19 @@ export async function run() {
   process.env.DARDCOR_AI_MODEL = cfg.model || 'dardcor-agent';
 
   const distPath = path.join(rootDir, 'dist');
-  
+
   process.stdout.write(`${C.purple}[i]${C.reset} Synchronizing System UI... `);
   try {
-    
+
     execSync('npm run build', { cwd: rootDir, stdio: 'ignore' });
     process.stdout.write(`${C.green}READY${C.reset}\n`);
   } catch (error) {
     process.stdout.write(`${C.red}FAILED${C.reset}\n`);
     if (fs.existsSync(distPath)) {
-       wrn('System build failed. Using legacy assets...');
+      wrn('System build failed. Using legacy assets...');
     } else {
-       console.error(`${C.red}[!]${C.reset} Critical: Build failed and no legacy assets found. Aborting.`);
-       process.exit(1);
+      console.error(`${C.red}[!]${C.reset} Critical: Build failed and no legacy assets found. Aborting.`);
+      process.exit(1);
     }
   }
 
@@ -102,7 +105,7 @@ export async function run() {
       } else {
         backend.kill();
       }
-    } catch {}
+    } catch { }
   };
 
   process.on('SIGINT', cleanup);
@@ -113,6 +116,6 @@ export async function run() {
     try {
       const openCmd = process.platform === 'win32' ? `start "" "${devUrl}"` : `open "${devUrl}"`;
       exec(openCmd);
-    } catch {}
+    } catch { }
   }, 3000);
 }

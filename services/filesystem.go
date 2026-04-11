@@ -326,3 +326,192 @@ func (fs *FileSystemService) Glob(root, pattern string) ([]string, error) {
 	}
 	return results, nil
 }
+
+func (fs *FileSystemService) EditFile(path string, startLine, endLine int, newContent string) error {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return fmt.Errorf("invalid path: %w", err)
+	}
+
+	data, err := os.ReadFile(absPath)
+	if err != nil {
+		return fmt.Errorf("cannot read file: %w", err)
+	}
+
+	lines := strings.Split(string(data), "\n")
+
+	if startLine < 1 {
+		startLine = 1
+	}
+	if endLine > len(lines) {
+		endLine = len(lines)
+	}
+	if startLine > len(lines) {
+		startLine = len(lines) + 1
+	}
+
+	newLines := strings.Split(newContent, "\n")
+
+	var result []string
+	result = append(result, lines[:startLine-1]...)
+	result = append(result, newLines...)
+	if endLine < len(lines) {
+		result = append(result, lines[endLine:]...)
+	}
+
+	return os.WriteFile(absPath, []byte(strings.Join(result, "\n")), 0644)
+}
+
+func (fs *FileSystemService) InsertLines(path string, afterLine int, content string) error {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return fmt.Errorf("invalid path: %w", err)
+	}
+
+	data, err := os.ReadFile(absPath)
+	if err != nil {
+		return fmt.Errorf("cannot read file: %w", err)
+	}
+
+	lines := strings.Split(string(data), "\n")
+	newLines := strings.Split(content, "\n")
+
+	if afterLine < 0 {
+		afterLine = 0
+	}
+	if afterLine > len(lines) {
+		afterLine = len(lines)
+	}
+
+	var result []string
+	result = append(result, lines[:afterLine]...)
+	result = append(result, newLines...)
+	result = append(result, lines[afterLine:]...)
+
+	return os.WriteFile(absPath, []byte(strings.Join(result, "\n")), 0644)
+}
+
+func (fs *FileSystemService) ReadFileLines(path string, startLine, endLine int) (string, error) {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return "", fmt.Errorf("invalid path: %w", err)
+	}
+
+	data, err := os.ReadFile(absPath)
+	if err != nil {
+		return "", fmt.Errorf("cannot read file: %w", err)
+	}
+
+	lines := strings.Split(string(data), "\n")
+
+	if startLine < 1 {
+		startLine = 1
+	}
+	if endLine > len(lines) {
+		endLine = len(lines)
+	}
+	if startLine > len(lines) {
+		return "", fmt.Errorf("start line %d exceeds file length %d", startLine, len(lines))
+	}
+
+	selected := lines[startLine-1 : endLine]
+	var sb strings.Builder
+	for i, line := range selected {
+		sb.WriteString(fmt.Sprintf("%d: %s\n", startLine+i, line))
+	}
+	return sb.String(), nil
+}
+
+func (fs *FileSystemService) ReplaceInFile(path, oldText, newText string) (int, error) {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return 0, fmt.Errorf("invalid path: %w", err)
+	}
+
+	data, err := os.ReadFile(absPath)
+	if err != nil {
+		return 0, fmt.Errorf("cannot read file: %w", err)
+	}
+
+	content := string(data)
+	count := strings.Count(content, oldText)
+	if count == 0 {
+		return 0, fmt.Errorf("text not found in file")
+	}
+
+	newContent := strings.ReplaceAll(content, oldText, newText)
+	err = os.WriteFile(absPath, []byte(newContent), 0644)
+	return count, err
+}
+
+func (fs *FileSystemService) AppendToFile(path, content string) error {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return fmt.Errorf("invalid path: %w", err)
+	}
+
+	dir := filepath.Dir(absPath)
+	os.MkdirAll(dir, 0755)
+
+	f, err := os.OpenFile(absPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	_, err = f.WriteString(content)
+	return err
+}
+
+func (fs *FileSystemService) TreeDir(path string, maxDepth int) (string, error) {
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return "", fmt.Errorf("invalid path: %w", err)
+	}
+
+	var sb strings.Builder
+	sb.WriteString(absPath + "\n")
+
+	err = fs.walkTree(&sb, absPath, "", 0, maxDepth)
+	return sb.String(), err
+}
+
+func (fs *FileSystemService) walkTree(sb *strings.Builder, dir, prefix string, depth, maxDepth int) error {
+	if maxDepth > 0 && depth >= maxDepth {
+		return nil
+	}
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return nil
+	}
+
+	filtered := make([]os.DirEntry, 0)
+	for _, e := range entries {
+		name := e.Name()
+		if name == "node_modules" || name == ".git" || name == "dist" || name == "vendor" || name == "__pycache__" || name == ".next" {
+			continue
+		}
+		filtered = append(filtered, e)
+	}
+
+	for i, entry := range filtered {
+		isLast := i == len(filtered)-1
+		connector := "├── "
+		if isLast {
+			connector = "└── "
+		}
+
+		sb.WriteString(fmt.Sprintf("%s%s%s\n", prefix, connector, entry.Name()))
+
+		if entry.IsDir() {
+			nextPrefix := prefix + "│   "
+			if isLast {
+				nextPrefix = prefix + "    "
+			}
+			fs.walkTree(sb, filepath.Join(dir, entry.Name()), nextPrefix, depth+1, maxDepth)
+		}
+	}
+	return nil
+}
+

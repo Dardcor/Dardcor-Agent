@@ -273,7 +273,6 @@ func (p *LLMProvider) callAntigravity(systemPrompt string, messages []LLMMessage
 		}
 	}
 
-	// [IMPORTANT] v1internal payload requires these exact fields
 	finalPayload := map[string]interface{}{
 		"project": acc.ProjectID,
 		"request": reqMap,
@@ -296,7 +295,6 @@ func (p *LLMProvider) callAntigravity(systemPrompt string, messages []LLMMessage
 		req.Header.Set("Authorization", "Bearer "+acc.AccessToken)
 		req.Header.Set("User-Agent", "antigravity")
 		
-		// [IMPORTANT] Essential headers to match official client
 		req.Header.Set("x-client-name", "antigravity")
 		req.Header.Set("x-client-version", "3.3.18")
 		req.Header.Set("x-machine-id", "dardcor-agent-local")
@@ -341,7 +339,6 @@ func (p *LLMProvider) callAntigravity(systemPrompt string, messages []LLMMessage
 					text = "> [Thinking]\n" + p.Thought + "\n\n" + text
 				}
 				if p.FunctionCall != nil {
-					// Synthetic command format for dardcor autonomous parser
 					jsonArgs, _ := json.Marshal(p.FunctionCall.Args)
 					text += fmt.Sprintf("\n[ACTION] %s %s [/ACTION]", p.FunctionCall.Name, string(jsonArgs))
 				}

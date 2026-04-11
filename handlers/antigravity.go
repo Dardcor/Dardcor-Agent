@@ -117,7 +117,7 @@ func (h *AntigravityHandler) ToggleActiveAccount(w http.ResponseWriter, r *http.
 
 func (h *AntigravityHandler) OAuthStart(w http.ResponseWriter, r *http.Request) {
 	cfg := h.service.LoadConfig()
-	clientID := strings.TrimSpace(cfg.GoogleClientID)
+	clientID := cfg.GoogleClientID
 	authURL := fmt.Sprintf("https://accounts.google.com/o/oauth2/auth?client_id=%s&redirect_uri=%s&response_type=code&scope=%s&access_type=offline&prompt=consent&include_granted_scopes=true",
 		clientID,
 		"http%3A%2F%2F127.0.0.1%3A25000%2Fapi%2Fantigravity%2Foauth%2Fcallback",
@@ -133,9 +133,8 @@ func (h *AntigravityHandler) OAuthCallback(w http.ResponseWriter, r *http.Reques
 		redirectURI := "http://127.0.0.1:25000/api/antigravity/oauth/callback"
 		err := h.service.ExchangeCode(code, redirectURI)
 		if err != nil {
-
-			if len(err.Error()) > 17 && err.Error()[:17] == "account already r" {
-				http.Redirect(w, r, "/?error=account_exists", http.StatusTemporaryRedirect)
+			if strings.Contains(err.Error(), "account already registered") {
+				http.Redirect(w, r, "/model/antigravity?error=account_exists", http.StatusTemporaryRedirect)
 				return
 			}
 			w.Header().Set("Content-Type", "text/html")
@@ -143,12 +142,12 @@ func (h *AntigravityHandler) OAuthCallback(w http.ResponseWriter, r *http.Reques
 <div style="text-align:center;max-width:480px;padding:32px;background:#1a0a2e;border:1px solid rgba(124,58,237,.3);border-radius:16px">
 <h2 style="color:#ef4444">Authentication Failed</h2>
 <p style="color:#94a3b8">%v</p>
-<a href="/" style="display:inline-block;margin-top:16px;padding:10px 24px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:8px">← Back to Dashboard</a>
+<a href="/model/antigravity" style="display:inline-block;margin-top:16px;padding:10px 24px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:8px">← Back to Dashboard</a>
 </div></body></html>`, err)
 			return
 		}
 	}
-	http.Redirect(w, r, "/", http.StatusTemporaryRedirect)
+	http.Redirect(w, r, "/model/antigravity", http.StatusTemporaryRedirect)
 }
 
 func (h *AntigravityHandler) GetConfig(w http.ResponseWriter, r *http.Request) {

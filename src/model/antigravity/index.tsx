@@ -445,20 +445,24 @@ const AntigravityView: React.FC = () => {
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4"/></svg>
           </button>
 
-          <button
-            className="btn-icon"
-            onClick={() => {
-              const clientID = prompt('Enter Google OAuth Client ID:', agConfig.google_client_id);
-              if (clientID === null) return;
-              const clientSecret = prompt('Enter Google OAuth Client Secret:', agConfig.google_client_secret);
-              if (clientSecret === null) return;
-              saveConfig({ ...agConfig, google_client_id: clientID, google_client_secret: clientSecret });
-            }}
-            title="Google OAuth Identity"
-            style={{ color: '#a78bfa' }}
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(167,139,250,0.08)', padding: '4px 10px', borderRadius: '6px', border: '1px solid rgba(167,139,250,0.15)' }}>
+            <span style={{ fontSize: '10px', color: '#a78bfa', fontWeight: 600 }}>ID:</span>
+            <span style={{ fontSize: '10px', color: '#fff', opacity: 0.8 }}>Automatic</span>
+            <button
+              className="btn-icon"
+              onClick={() => {
+                const clientID = prompt('Override Google OAuth Client ID:', agConfig.google_client_id);
+                if (clientID === null) return;
+                const clientSecret = prompt('Override Google OAuth Client Secret:', agConfig.google_client_secret);
+                if (clientSecret === null) return;
+                saveConfig({ ...agConfig, google_client_id: clientID, google_client_secret: clientSecret });
+              }}
+              title="Override Google OAuth Identity"
+              style={{ color: '#a78bfa', marginLeft: '4px', padding: '0', background: 'none' }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+          </div>
         </div>
       </div>
 

@@ -40,23 +40,23 @@ type UserConfig struct {
 }
 
 func Init() (*Config, error) {
-	execPath, err := os.Executable()
-	if err != nil {
-		execPath = "."
-	}
-	baseDir := filepath.Dir(execPath)
-	dataDir := filepath.Join(baseDir, "database")
-	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
-		dataDir = filepath.Join(baseDir, "..", "database")
-	}
-	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
+	homeDir, _ := os.UserHomeDir()
+	dataDir := filepath.Join(homeDir, ".dardcor", "database")
+
+	if envDir := os.Getenv("DARDCOR_DATA_DIR"); envDir != "" {
+		dataDir = envDir
+	} else {
 		cwd, _ := os.Getwd()
-		dataDir = filepath.Join(cwd, "database")
-		if _, err := os.Stat(dataDir); os.IsNotExist(err) {
-			dataDir = filepath.Join(cwd, "Dardcor Agent", "database")
-		}
-		if _, err := os.Stat(dataDir); os.IsNotExist(err) {
-			dataDir = filepath.Join(cwd, "..", "database")
+		localData := filepath.Join(cwd, "database")
+		if _, err := os.Stat(localData); err == nil {
+			dataDir = localData
+		} else {
+			execPath, _ := os.Executable()
+			baseDir := filepath.Dir(execPath)
+			execData := filepath.Join(baseDir, "database")
+			if _, err := os.Stat(execData); err == nil {
+				dataDir = execData
+			}
 		}
 	}
 
