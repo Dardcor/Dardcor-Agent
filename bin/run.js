@@ -69,19 +69,21 @@ export async function run() {
   process.env.DARDCOR_AI_MODEL = cfg.model || 'dardcor-agent';
 
   const distPath = path.join(rootDir, 'dist');
+  const needsBuild = !fs.existsSync(path.join(distPath, 'index.html'));
 
-  process.stdout.write(`${C.purple}[i]${C.reset} Synchronizing System UI... `);
-  try {
-
-    execSync('npm run build', { cwd: rootDir, stdio: 'ignore' });
-    process.stdout.write(`${C.green}READY${C.reset}\n`);
-  } catch (error) {
-    process.stdout.write(`${C.red}FAILED${C.reset}\n`);
-    if (fs.existsSync(distPath)) {
-      wrn('System build failed. Using legacy assets...');
-    } else {
-      console.error(`${C.red}[!]${C.reset} Critical: Build failed and no legacy assets found. Aborting.`);
-      process.exit(1);
+  if (needsBuild) {
+    process.stdout.write(`${C.purple}[i]${C.reset} Synchronizing System UI... `);
+    try {
+      execSync('npm run build', { cwd: rootDir, stdio: 'ignore' });
+      process.stdout.write(`${C.green}READY${C.reset}\n`);
+    } catch (error) {
+      process.stdout.write(`${C.red}FAILED${C.reset}\n`);
+      if (fs.existsSync(distPath)) {
+        wrn('System build failed. Using legacy assets...');
+      } else {
+        console.error(`${C.red}[!]${C.reset} Critical: Build failed and no legacy assets found. Aborting.`);
+        process.exit(1);
+      }
     }
   }
 
