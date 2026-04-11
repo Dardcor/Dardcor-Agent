@@ -241,7 +241,8 @@ func (wsh *WebSocketHandler) handleKillCommand(client *WSClient, msg models.WSMe
 }
 
 func (wsh *WebSocketHandler) handleGetConversations(client *WSClient) {
-	conversations, err := storage.Store.ListConversations()
+	// Web UI always uses 'web' source
+	conversations, err := storage.Store.ListConversations("web")
 	if err != nil {
 		wsh.sendToClient(client, models.WSMessage{
 			Type:    "error",
@@ -263,7 +264,7 @@ func (wsh *WebSocketHandler) handleGetConversation(client *WSClient, msg models.
 	}
 
 	id, _ := payload["id"].(string)
-	conv, err := storage.Store.LoadConversation(id)
+	conv, err := storage.Store.LoadConversation(id, "web")
 	if err != nil {
 		wsh.sendToClient(client, models.WSMessage{
 			Type:    "error",
@@ -285,7 +286,7 @@ func (wsh *WebSocketHandler) handleDeleteConversation(client *WSClient, msg mode
 	}
 
 	id, _ := payload["id"].(string)
-	if err := storage.Store.DeleteConversation(id); err != nil {
+	if err := storage.Store.DeleteConversation(id, "web"); err != nil {
 		wsh.sendToClient(client, models.WSMessage{
 			Type:    "error",
 			Payload: map[string]string{"error": err.Error()},
@@ -310,7 +311,7 @@ func (wsh *WebSocketHandler) handleRenameConversation(client *WSClient, msg mode
 	id, _ := payload["id"].(string)
 	title, _ := payload["title"].(string)
 
-	if err := storage.Store.RenameConversation(id, title); err != nil {
+	if err := storage.Store.RenameConversation(id, title, "web"); err != nil {
 		wsh.sendToClient(client, models.WSMessage{
 			Type:    "error",
 			Payload: map[string]string{"error": err.Error()},

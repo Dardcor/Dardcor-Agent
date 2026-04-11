@@ -24,7 +24,7 @@ func Init() {
 	Store = &JSONStore{}
 }
 
-func (s *JSONStore) SaveConversation(conv *models.Conversation) error {
+func (s *JSONStore) SaveConversation(conv *models.Conversation, source string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -34,15 +34,17 @@ func (s *JSONStore) SaveConversation(conv *models.Conversation) error {
 		return fmt.Errorf("failed to marshal conversation: %w", err)
 	}
 
-	path := filepath.Join(config.AppConfig.GetConversationsDir(), conv.ID+".json")
+	dir := config.AppConfig.GetConversationsDir(source)
+	path := filepath.Join(dir, conv.ID+".json")
 	return os.WriteFile(path, data, 0644)
 }
 
-func (s *JSONStore) LoadConversation(id string) (*models.Conversation, error) {
+func (s *JSONStore) LoadConversation(id string, source string) (*models.Conversation, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	path := filepath.Join(config.AppConfig.GetConversationsDir(), id+".json")
+	dir := config.AppConfig.GetConversationsDir(source)
+	path := filepath.Join(dir, id+".json")
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("conversation not found: %w", err)
@@ -56,11 +58,11 @@ func (s *JSONStore) LoadConversation(id string) (*models.Conversation, error) {
 	return &conv, nil
 }
 
-func (s *JSONStore) ListConversations() ([]models.Conversation, error) {
+func (s *JSONStore) ListConversations(source string) ([]models.Conversation, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	dir := config.AppConfig.GetConversationsDir()
+	dir := config.AppConfig.GetConversationsDir(source)
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
@@ -94,25 +96,26 @@ func (s *JSONStore) ListConversations() ([]models.Conversation, error) {
 	return conversations, nil
 }
 
-func (s *JSONStore) DeleteConversation(id string) error {
+func (s *JSONStore) DeleteConversation(id string, source string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	path := filepath.Join(config.AppConfig.GetConversationsDir(), id+".json")
+	dir := config.AppConfig.GetConversationsDir(source)
+	path := filepath.Join(dir, id+".json")
 	return os.Remove(path)
 }
 
-func (s *JSONStore) RenameConversation(id string, newTitle string) error {
-	conv, err := s.LoadConversation(id)
+func (s *JSONStore) RenameConversation(id string, newTitle string, source string) error {
+	conv, err := s.LoadConversation(id, source)
 	if err != nil {
 		return err
 	}
 
 	conv.Title = newTitle
-	return s.SaveConversation(conv)
+	return s.SaveConversation(conv, source)
 }
 
-func (s *JSONStore) CreateConversation(title string) (*models.Conversation, error) {
+func (s *JSONStore) CreateConversation(title string, source string) (*models.Conversation, error) {
 	conv := &models.Conversation{
 		ID:        uuid.New().String(),
 		Title:     title,
@@ -121,15 +124,15 @@ func (s *JSONStore) CreateConversation(title string) (*models.Conversation, erro
 		UpdatedAt: time.Now(),
 	}
 
-	if err := s.SaveConversation(conv); err != nil {
+	if err := s.SaveConversation(conv, source); err != nil {
 		return nil, err
 	}
 
 	return conv, nil
 }
 
-func (s *JSONStore) AddMessage(convID string, msg models.Message) error {
-	conv, err := s.LoadConversation(convID)
+func (s *JSONStore) AddMessage(convID string, msg models.Message, source string) error {
+	conv, err := s.LoadConversation(convID, source)
 	if err != nil {
 		return err
 	}
@@ -138,7 +141,7 @@ func (s *JSONStore) AddMessage(convID string, msg models.Message) error {
 	msg.Timestamp = time.Now()
 	conv.Messages = append(conv.Messages, msg)
 
-	return s.SaveConversation(conv)
+	return s.SaveConversation(conv, source)
 }
 
 func (s *JSONStore) SaveCommandHistory(cmd models.CommandResponse) error {

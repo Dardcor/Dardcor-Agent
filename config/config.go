@@ -182,8 +182,14 @@ func (c *Config) SaveSettings() error {
 	return os.WriteFile(settingsPath, data, 0644)
 }
 
-func (c *Config) GetConversationsDir() string {
-	return filepath.Join(c.DataDir, "conversations-web")
+func (c *Config) GetConversationsDir(source string) string {
+	folder := "conversations-web"
+	if source == "cli" {
+		folder = "conversations-cli"
+	}
+	dir := filepath.Join(c.DataDir, folder)
+	os.MkdirAll(dir, 0755)
+	return dir
 }
 
 func (c *Config) GetCommandsDir() string {

@@ -92,19 +92,38 @@ export async function run() {
   console.log(`${C.purple}  Interface  →${C.reset} ${C.bold}Dashboard: ${devUrl}${C.reset}`);
   console.log(`${C.purple}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${C.reset}`);
 
-  const backend = spawn('go', ['run', 'main.go'], {
-    cwd: rootDir,
-    stdio: 'ignore',
-    shell: true,
-    env: { ...process.env, GOMAXPROCS: '' + os.cpus().length },
-    windowsHide: true,
-  });
+  let backend;
+  if (process.platform === 'win32') {
+    const vbsPath = path.join(os.tmpdir(), "dardcor_dashboard_stealth.vbs");
+    const batPath = path.join(os.tmpdir(), "dardcor_dashboard.bat");
+    
+    fs.writeFileSync(batPath, `cd /d "${rootDir}"\ngo run main.go`);
+    fs.writeFileSync(vbsPath, `Set WshShell = CreateObject("WScript.Shell")\nWshShell.Run chr(34) & "${batPath}" & Chr(34), 0\nSet WshShell = Nothing`);
+    
+    backend = spawn('cscript', ['//nologo', vbsPath], {
+      cwd: rootDir,
+      stdio: 'ignore',
+      shell: false,
+      windowsHide: true,
+      detached: true
+    });
+    backend.unref();
+  } else {
+    backend = spawn('go', ['run', 'main.go'], {
+      cwd: rootDir,
+      stdio: 'ignore',
+      shell: false,
+      detached: true,
+      env: { ...process.env, GOMAXPROCS: '' + os.cpus().length },
+    });
+    backend.unref();
+  }
 
   const cleanup = () => {
     try {
       if (process.platform === 'win32') {
-        execSync(`taskkill /F /T /PID ${backend.pid} >nul 2>&1`, { shell: true });
-      } else {
+        execSync(`taskkill /F /IM go.exe /T >nul 2>&1`, { shell: true });
+      } else if (backend) {
         backend.kill();
       }
     } catch { }

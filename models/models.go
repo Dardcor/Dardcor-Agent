@@ -5,6 +5,7 @@ import "time"
 type AgentRequest struct {
 	Message        string `json:"message"`
 	ConversationID string `json:"conversation_id,omitempty"`
+	Source         string `json:"source,omitempty"`
 }
 
 type AgentResponse struct {

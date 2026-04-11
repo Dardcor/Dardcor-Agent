@@ -102,10 +102,15 @@ func (as *AgentService) getWorkspacePath() string {
 
 func (as *AgentService) ProcessMessage(req models.AgentRequest) (*models.AgentResponse, error) {
 	var convID string
+	source := "web"
+	if req.Source == "cli" {
+		source = "cli"
+	}
+
 	if req.ConversationID != "" {
 		convID = req.ConversationID
 	} else {
-		conv, err := storage.Store.CreateConversation(as.generateTitle(req.Message))
+		conv, err := storage.Store.CreateConversation(as.generateTitle(req.Message), source)
 		if err != nil {
 			return nil, err
 		}
@@ -116,7 +121,7 @@ func (as *AgentService) ProcessMessage(req models.AgentRequest) (*models.AgentRe
 		Role:    "user",
 		Content: req.Message,
 	}
-	storage.Store.AddMessage(convID, userMsg)
+	storage.Store.AddMessage(convID, userMsg, source)
 
 	var actions []models.Action
 	var responseText string
@@ -135,7 +140,7 @@ func (as *AgentService) ProcessMessage(req models.AgentRequest) (*models.AgentRe
 	}
 
 	if useAI && as.llmProvider != nil {
-		responseText = as.processWithLLM(req.Message, convID)
+		responseText = as.processWithLLM(req.Message, convID, source)
 
 		aiActions, aiFinalText := as.parseAndExecuteActions(responseText)
 		if len(aiActions) > 0 {
@@ -165,19 +170,19 @@ func (as *AgentService) ProcessMessage(req models.AgentRequest) (*models.AgentRe
 		Content: responseText,
 		Actions: actions,
 	}
-	storage.Store.AddMessage(convID, assistantMsg)
+	storage.Store.AddMessage(convID, assistantMsg, source)
 
 	return response, nil
 }
 
-func (as *AgentService) processWithLLM(message string, convID string) string {
+func (as *AgentService) processWithLLM(message string, convID string, source string) string {
 	if as.llmProvider == nil {
 		return ""
 	}
 
 	var allMessages []LLMMessage
 	if convID != "" {
-		if conv, err := storage.Store.LoadConversation(convID); err == nil {
+		if conv, err := storage.Store.LoadConversation(convID, source); err == nil {
 			for _, m := range conv.Messages {
 				allMessages = append(allMessages, LLMMessage{
 					Role:    m.Role,
