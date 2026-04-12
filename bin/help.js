@@ -33,25 +33,20 @@ export function printHelp() {
   printBanner();
   console.log(`${C.bold}USAGE:${C.reset}
 
-  ${C.cyan}dardcor help${C.reset}              Menampilkan bantuan system
-  ${C.cyan}dardcor doctor${C.reset}            Memperbaiki system secara otomatis
-  ${C.cyan}dardcor run${C.reset}               Menjalankan Dashboard UI Dardcor
+  ${C.cyan}dardcor run${C.reset}               Menjalankan Dashboard UI (Auto Real-time)
   ${C.cyan}dardcor cli${C.reset}               Menjalankan Terminal Agent Dardcor
+  ${C.cyan}dardcor doctor${C.reset}            Memperbaiki system secara otomatis
+  ${C.cyan}dardcor help${C.reset}              Menampilkan bantuan system
 
 ${C.bold}COMMANDS:${C.reset}
 
-  dardcor run     (Port: 25000, UI Banner DARDCOR)
-  dardcor cli     (Port: 25000, UI Banner DARDCOR CLI)
+  dardcor run     (Port: 25000, Auto-Detects Dev/Source Mode)
+  dardcor cli     (Port: 25000, Terminal Interface)
   dardcor doctor  (Repair system)
   dardcor help    (Show this help)
 
 ${C.bold}INSTALLATION:${C.reset}
 
-  npm install -g dardcor-agent
-  npm uninstall -g dardcor-agent
+  npm link        (Menghubungkan project ke command 'dardcor' sistem)
 `);
 }
-
-
-
-

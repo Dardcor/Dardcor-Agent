@@ -53,17 +53,17 @@ const GeminiView: React.FC = () => {
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
-           <div style={{ 
-             width: '10px', height: '10px', borderRadius: '50%', 
-             background: isActive ? '#4285f4' : '#4b5563', 
-             boxShadow: isActive ? '0 0 12px #4285f4, 0 0 20px rgba(66,133,244,0.4)' : 'none', 
+           <div style={{
+             width: '10px', height: '10px', borderRadius: '50%',
+             background: isActive ? '#4285f4' : '#4b5563',
+             boxShadow: isActive ? '0 0 12px #4285f4, 0 0 20px rgba(66,133,244,0.4)' : 'none',
              flexShrink: 0,
              transition: 'all 0.3s ease'
            }}></div>
            <div style={{ display: 'flex', flexDirection: 'column' }}>
-             <strong style={{ 
+             <strong style={{
                fontSize: '15px',
-               letterSpacing: '0.2px', 
+               letterSpacing: '0.2px',
                color: isActive ? '#fff' : 'rgba(255,255,255,0.6)',
                transition: 'all 0.3s ease'
              }}>Aktifkan model ini</strong>
@@ -75,7 +75,7 @@ const GeminiView: React.FC = () => {
            </div>
         </div>
 
-        <div 
+        <div
           onClick={toggleModel}
           style={{
             width: '48px',
@@ -107,13 +107,13 @@ const GeminiView: React.FC = () => {
          <h2>Google Gemini Configuration</h2>
          <p>Link your API key to start using Google Gemini with Dardcor Agent.</p>
       </div>
-      
+
       <div className="config-form">
          <div className="form-group">
             <label>API Key</label>
             <input type="password" placeholder="Enter Gemini API Key..." className="input-premium" />
          </div>
-         
+
          <div className="form-group">
             <label>Select Model</label>
             <select className="input-premium" defaultValue="Select a model...">

@@ -507,7 +507,7 @@ func (s *AntigravityService) GetActiveAccount() (*models.AntigravityAccount, err
 func (s *AntigravityService) LoadConfig() models.AntigravityConfig {
 	configPath := filepath.Join(filepath.Dir(s.dbPath), "config.json")
 	auth := s.LoadAuth()
-	
+
 	cfg := models.AntigravityConfig{
 		Temperature:        0.7,
 		MaxTokens:          8192,
@@ -549,7 +549,7 @@ func (s *AntigravityService) SaveConfig(cfg models.AntigravityConfig) error {
 	if cfg.MaxTokens == 0 {
 		cfg.MaxTokens = 8192
 	}
-	
+
 	if cfg.GoogleClientID != "" && cfg.GoogleClientID != "ENTER_CLIENT_ID_VIA_DASHBOARD" &&
 	   cfg.GoogleClientSecret != "" && cfg.GoogleClientSecret != "ENTER_CLIENT_SECRET_VIA_DASHBOARD" {
 		s.SaveAuth(models.AntigravityAuth{
@@ -557,7 +557,7 @@ func (s *AntigravityService) SaveConfig(cfg models.AntigravityConfig) error {
 			GoogleClientSecret: cfg.GoogleClientSecret,
 		})
 	}
-	
+
 	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return err

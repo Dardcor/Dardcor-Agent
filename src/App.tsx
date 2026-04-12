@@ -71,14 +71,14 @@ const App: React.FC = () => {
 
         <nav className="sidebar-nav">
           {[
-            { id: 'chat',      path: '/chat',          label: 'Agent Chat',      icon: '💬' },
-            { id: 'model',     path: '/model',         label: 'Model',           icon: '🤖' },
-            { id: 'tools',     path: '/tools',         label: 'Tools',           icon: '🛠️' },
-            { id: 'skills',    path: '/skills',        label: 'Skills',          icon: '🧠' },
-            { id: 'explorer',  path: '/file-explorer', label: 'File Explorer',  icon: '📂' },
-            { id: 'terminal',  path: '/terminal',      label: 'Terminal',       icon: '💻' },
-            { id: 'system',    path: '/monitor',       label: 'System Monitor', icon: '📊' },
-            { id: 'workspace', path: '/workspace',     label: 'Workspace',      icon: '🏗️' },
+            { id: 'chat',        path: localStorage.getItem('last_conv_id') ? `/chat/${localStorage.getItem('last_conv_id')}` : '/chat', label: 'Agent Chat', icon: '💬' },
+            { id: 'model',       path: '/model',         label: 'Model Settings', icon: '🤖' },
+            { id: 'tools',       path: '/tools',         label: 'Tools',           icon: '🛠️' },
+            { id: 'skills',      path: '/skills',        label: 'Skills',          icon: '🧠' },
+            { id: 'explorer',    path: '/file-explorer', label: 'File Explorer',  icon: '📂' },
+            { id: 'terminal',    path: '/terminal',      label: 'Terminal',       icon: '💻' },
+            { id: 'system',      path: '/monitor',       label: 'System Monitor', icon: '📊' },
+            { id: 'workspace',   path: '/workspace',     label: 'Workspace',      icon: '🏗️' },
           ].map(item => (
             <Link
               key={item.id}
@@ -138,7 +138,6 @@ const App: React.FC = () => {
             <Route path="/terminal" element={<Terminal />} />
             <Route path="/monitor" element={<SystemDashboard />} />
             <Route path="/workspace" element={<Workspace />} />
-            {}
             <Route path="*" element={<Navigate to="/chat" replace />} />
           </Routes>
         </div>
@@ -148,7 +147,3 @@ const App: React.FC = () => {
 }
 
 export default App
-
-
-
-

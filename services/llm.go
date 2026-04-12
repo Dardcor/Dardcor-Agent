@@ -294,22 +294,22 @@ func (p *LLMProvider) callAntigravity(systemPrompt string, messages []LLMMessage
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("Authorization", "Bearer "+acc.AccessToken)
 		req.Header.Set("User-Agent", "antigravity")
-		
+
 		req.Header.Set("x-client-name", "antigravity")
 		req.Header.Set("x-client-version", "3.3.18")
 		req.Header.Set("x-machine-id", "dardcor-agent-local")
-		
+
 		resp, err := p.client.Do(req)
-		if err != nil { 
+		if err != nil {
 			fmt.Printf("[Antigravity] Connection error: %v\n", err)
-			continue 
+			continue
 		}
 		respBytes, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
 
-		if resp.StatusCode != http.StatusOK { 
+		if resp.StatusCode != http.StatusOK {
 			fmt.Printf("[Antigravity] API Error %d: %s\n", resp.StatusCode, string(respBytes))
-			continue 
+			continue
 		}
 
 		var googleResp struct {

@@ -157,6 +157,11 @@ func (wsh *WebSocketHandler) handleAgentMessage(client *WSClient, msg models.WSM
 	response, err := wsh.agentSvc.ProcessMessage(models.AgentRequest{
 		Message:        message,
 		ConversationID: convID,
+	}, func(part *models.AgentResponse) {
+		wsh.sendToClient(client, models.WSMessage{
+			Type:    "agent_turn",
+			Payload: part,
+		})
 	})
 
 	wsh.sendToClient(client, models.WSMessage{
@@ -241,7 +246,7 @@ func (wsh *WebSocketHandler) handleKillCommand(client *WSClient, msg models.WSMe
 }
 
 func (wsh *WebSocketHandler) handleGetConversations(client *WSClient) {
-	// Web UI always uses 'web' source
+
 	conversations, err := storage.Store.ListConversations("web")
 	if err != nil {
 		wsh.sendToClient(client, models.WSMessage{

@@ -98,7 +98,7 @@ const FileExplorer: React.FC = () => {
                </svg>
             </button>
          </div>
-         
+
          <div className="drive-selector">
             {drives.map(d => (
                <button key={d} className="drive-pill" onClick={() => fetchFiles(d)}>
@@ -115,7 +115,7 @@ const FileExplorer: React.FC = () => {
 
       <div className="file-grid-container">
         {isLoading && <div className="loading-overlay"><div className="spinner"></div></div>}
-        
+
         <div className="file-grid-header">
            <div className="col-name">Name</div>
            <div className="col-size">Size</div>

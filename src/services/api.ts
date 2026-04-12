@@ -145,6 +145,38 @@ export const systemAPI = {
   getMemoryUsage: () => fetchAPI<MemoryInfo>('/system/memory'),
 }
 
+export const antigravityAPI = {
+  getAccounts: () => fetchAPI<any[]>('/antigravity/accounts'),
+  
+  addAccount: (email: string, refreshToken: string) =>
+    fetchAPI<void>('/antigravity/accounts', {
+      method: 'POST',
+      body: JSON.stringify({ email, refresh_token: refreshToken }),
+    }),
+
+  removeAccount: (email: string) =>
+    fetchAPI<void>(`/antigravity/accounts?email=${encodeURIComponent(email)}`, {
+      method: 'DELETE',
+    }),
+
+  toggleActive: (email: string) =>
+    fetchAPI<void>('/antigravity/active', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+
+  refreshAccount: (email: string) =>
+    fetchAPI<void>(`/antigravity/refresh?email=${encodeURIComponent(email)}`),
+
+  getConfig: () => fetchAPI<any>('/antigravity/config'),
+
+  saveConfig: (config: any) =>
+    fetchAPI<void>('/antigravity/config', {
+      method: 'POST',
+      body: JSON.stringify(config),
+    }),
+}
+
 
 
 

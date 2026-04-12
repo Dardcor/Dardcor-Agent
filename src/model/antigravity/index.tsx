@@ -39,9 +39,9 @@ const AntigravityView: React.FC = () => {
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const [agConfig, setAgConfig] = useState<AntigravityConfig>({ 
-    selected_model: '', 
-    temperature: 0.7, 
+  const [agConfig, setAgConfig] = useState<AntigravityConfig>({
+    selected_model: '',
+    temperature: 0.7,
     max_tokens: 8192,
     google_client_id: '',
     google_client_secret: ''
@@ -272,17 +272,17 @@ const AntigravityView: React.FC = () => {
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
-           <div style={{ 
-             width: '10px', height: '10px', borderRadius: '50%', 
-             background: activeAccount ? '#10b981' : '#4b5563', 
-             boxShadow: activeAccount ? '0 0 12px #10b981, 0 0 20px rgba(16,185,129,0.4)' : 'none', 
+           <div style={{
+             width: '10px', height: '10px', borderRadius: '50%',
+             background: activeAccount ? '#10b981' : '#4b5563',
+             boxShadow: activeAccount ? '0 0 12px #10b981, 0 0 20px rgba(16,185,129,0.4)' : 'none',
              flexShrink: 0,
              transition: 'all 0.3s ease'
            }}></div>
            <div style={{ display: 'flex', flexDirection: 'column' }}>
-             <strong style={{ 
+             <strong style={{
                fontSize: '15px',
-               letterSpacing: '0.2px', 
+               letterSpacing: '0.2px',
                color: activeAccount ? '#fff' : 'rgba(255,255,255,0.6)',
                transition: 'all 0.3s ease'
              }}>{activeAccount ? 'AGENT ENGINE ACTIVE' : 'AGENT ENGINE STANDBY'}</strong>
@@ -298,7 +298,7 @@ const AntigravityView: React.FC = () => {
            </div>
         </div>
 
-        <div 
+        <div
           onClick={() => {
             if (activeAccount) {
               toggleActive(activeAccount.email)
@@ -372,9 +372,9 @@ const AntigravityView: React.FC = () => {
 
           <div style={{ padding: '0 10px', height: '32px', display: 'flex', alignItems: 'center', background: 'rgba(16,185,129,0.05)', borderRadius: '8px', border: '1px solid rgba(16,185,129,0.15)' }}>
             <span style={{ fontSize: '11px', color: '#10b981', fontWeight: 600, marginRight: '8px' }}>Thinking:</span>
-            <input 
-              type="range" min="0" max="32000" step="1000" 
-              value={agConfig.thinking_budget || 0} 
+            <input
+              type="range" min="0" max="32000" step="1000"
+              value={agConfig.thinking_budget || 0}
               onChange={(e) => saveConfig({ thinking_budget: parseInt(e.target.value) })}
               style={{ width: '60px', height: '4px', cursor: 'pointer', accentColor: '#10b981' }}
             />
@@ -383,9 +383,9 @@ const AntigravityView: React.FC = () => {
 
           <div style={{ padding: '0 10px', height: '32px', display: 'flex', alignItems: 'center', background: 'rgba(59,130,246,0.05)', borderRadius: '8px', border: '1px solid rgba(59,130,246,0.15)' }}>
             <span style={{ fontSize: '11px', color: '#60a5fa', fontWeight: 600, marginRight: '8px' }}>Temp:</span>
-            <input 
-              type="range" min="0" max="1" step="0.1" 
-              value={agConfig.temperature || 0.7} 
+            <input
+              type="range" min="0" max="1" step="0.1"
+              value={agConfig.temperature || 0.7}
               onChange={(e) => saveConfig({ temperature: parseFloat(e.target.value) })}
               style={{ width: '40px', height: '4px', cursor: 'pointer', accentColor: '#60a5fa' }}
             />

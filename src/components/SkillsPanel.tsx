@@ -45,7 +45,7 @@ const SkillsPanel: React.FC = () => {
   };
 
   const updateSkillLevel = (id: string, newLevel: number) => {
-    const updatedSkills = skills.map(skill => 
+    const updatedSkills = skills.map(skill =>
       skill.id === id ? { ...skill, level: Math.min(100, Math.max(0, newLevel)) } : skill
     );
     setSkills(updatedSkills);
@@ -79,12 +79,12 @@ const SkillsPanel: React.FC = () => {
             <div className="mastery-orb">
               <svg viewBox="0 0 100 100">
                 <circle cx="50" cy="50" r="45" className="orb-bg" />
-                <circle 
-                  cx="50" 
-                  cy="50" 
-                  r="45" 
-                  className="orb-fill" 
-                  style={{ strokeDashoffset: 282.7 * (1 - averageMastery / 100) }} 
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="45"
+                  className="orb-fill"
+                  style={{ strokeDashoffset: 282.7 * (1 - averageMastery / 100) }}
                 />
               </svg>
               <div className="orb-text">

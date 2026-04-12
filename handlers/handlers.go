@@ -456,7 +456,7 @@ func (h *AgentHandler) ProcessMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	response, err := h.service.ProcessMessage(req)
+	response, err := h.service.ProcessMessage(req, nil)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, models.APIResponse{
 			Success: false,

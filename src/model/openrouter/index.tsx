@@ -53,17 +53,17 @@ const OpenRouterView: React.FC = () => {
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
-           <div style={{ 
-             width: '10px', height: '10px', borderRadius: '50%', 
-             background: isActive ? '#ff6b00' : '#4b5563', 
-             boxShadow: isActive ? '0 0 12px #ff6b00, 0 0 20px rgba(255,107,0,0.4)' : 'none', 
+           <div style={{
+             width: '10px', height: '10px', borderRadius: '50%',
+             background: isActive ? '#ff6b00' : '#4b5563',
+             boxShadow: isActive ? '0 0 12px #ff6b00, 0 0 20px rgba(255,107,0,0.4)' : 'none',
              flexShrink: 0,
              transition: 'all 0.3s ease'
            }}></div>
            <div style={{ display: 'flex', flexDirection: 'column' }}>
-             <strong style={{ 
+             <strong style={{
                fontSize: '15px',
-               letterSpacing: '0.2px', 
+               letterSpacing: '0.2px',
                color: isActive ? '#fff' : 'rgba(255,255,255,0.6)',
                transition: 'all 0.3s ease'
              }}>Aktifkan model ini</strong>
@@ -75,7 +75,7 @@ const OpenRouterView: React.FC = () => {
            </div>
         </div>
 
-        <div 
+        <div
           onClick={toggleModel}
           style={{
             width: '48px',
@@ -107,13 +107,13 @@ const OpenRouterView: React.FC = () => {
          <h2>OpenRouter Configuration</h2>
          <p>Link your API key to start using OpenRouter with Dardcor Agent.</p>
       </div>
-      
+
       <div className="config-form">
          <div className="form-group">
             <label>API Key</label>
             <input type="password" placeholder="Enter OpenRouter API Key..." className="input-premium" />
          </div>
-         
+
          <div className="form-group">
             <label>Select Model</label>
             <select className="input-premium" defaultValue="Select a model...">

@@ -51,15 +51,17 @@ type AgentService struct {
 	webService  *WebService
 	grepService *GrepService
 	skillSvc    *SkillService
+	orchService *OrchestratorService
 }
 
-func NewAgentService(fs *FileSystemService, cmd *CommandService, sys *SystemService, ag *AntigravityService, mem *MemoryService, skill *SkillService) *AgentService {
+func NewAgentService(fs *FileSystemService, cmd *CommandService, sys *SystemService, ag *AntigravityService, mem *MemoryService, skill *SkillService, orch *OrchestratorService) *AgentService {
 	var llm *LLMProvider
 	if config.AppConfig != nil {
 		llm = NewLLMProvider(config.AppConfig.AI, ag)
 	} else {
-		llm = NewLLMProvider(config.AIConfig{Provider: "local"}, ag)
+		llm = NewLLMProvider(config.AIConfig{}, ag)
 	}
+
 	return &AgentService{
 		fsService:   fs,
 		cmdService:  cmd,
@@ -70,6 +72,7 @@ func NewAgentService(fs *FileSystemService, cmd *CommandService, sys *SystemServ
 		webService:  NewWebService(),
 		grepService: NewGrepService(),
 		skillSvc:    skill,
+		orchService: orch,
 	}
 }
 
@@ -100,14 +103,21 @@ func (as *AgentService) getWorkspacePath() string {
 	return cwd
 }
 
-func (as *AgentService) ProcessMessage(req models.AgentRequest) (*models.AgentResponse, error) {
+func (as *AgentService) applyWorkspace(path string) string {
+	if filepath.IsAbs(path) {
+		return path
+	}
+	return filepath.Join(as.getWorkspacePath(), path)
+}
+
+func (as *AgentService) ProcessMessage(req models.AgentRequest, updater func(*models.AgentResponse)) (*models.AgentResponse, error) {
 	var convID string
 	source := "web"
 	if req.Source == "cli" {
 		source = "cli"
 	}
 
-	if req.ConversationID != "" {
+	if req.ConversationID != "" && req.ConversationID != "new" {
 		convID = req.ConversationID
 	} else {
 		conv, err := storage.Store.CreateConversation(as.generateTitle(req.Message), source)
@@ -141,11 +151,58 @@ func (as *AgentService) ProcessMessage(req models.AgentRequest) (*models.AgentRe
 
 	if useAI && as.llmProvider != nil {
 		responseText = as.processWithLLM(req.Message, convID, source)
+		
+		storage.Store.AddMessage(convID, models.Message{
+			Role:    "assistant",
+			Content: responseText,
+		}, source)
 
-		aiActions, aiFinalText := as.parseAndExecuteActions(responseText)
-		if len(aiActions) > 0 {
-			actions = aiActions
-			responseText = aiFinalText
+		if updater != nil {
+			updater(&models.AgentResponse{
+				ConversationID: convID,
+				Role:           "assistant",
+				Content:        responseText,
+				Status:         "processing",
+			})
+		}
+
+		maxTurns := 15
+		for turn := 0; turn < maxTurns; turn++ {
+			aiActions, aiFinalText := as.parseAndExecuteActions(responseText)
+			
+			if len(aiActions) > 0 {
+				actions = append(actions, aiActions...)
+				responseText = aiFinalText
+				
+				storage.Store.AddMessage(convID, models.Message{
+					Role:    "assistant",
+					Content: responseText,
+					Actions: aiActions,
+				}, source)
+
+				if updater != nil {
+					updater(&models.AgentResponse{
+						ConversationID: convID,
+						Role:           "assistant",
+						Content:        responseText,
+						Actions:        actions,
+						Status:         "processing",
+					})
+				}
+
+				reflectionPrompt := fmt.Sprintf("Result Analysis:\n%s\n\nTask Status: Check if the previous action achieved its goal. If not, explain why and refine the plan. If the task is incomplete, continue with [ACTION] or [PLAN]. If complete, provide [COMPLETE].", responseText)
+				responseText = as.processWithLLM(reflectionPrompt, convID, source)
+			} else {
+				if !strings.Contains(responseText, "[ACTION]") && !strings.Contains(responseText, "[PLAN]") {
+					break
+				}
+				responseText = as.processWithLLM("Continue with execution or planning as outlined.", convID, source)
+			}
+
+			if turn >= maxTurns-1 {
+				responseText += "\n\n⚠️ Turn limit reached. Please confirm if you wish to continue."
+				break
+			}
 		}
 
 		if responseText == "" && len(actions) == 0 {
@@ -200,7 +257,7 @@ func (as *AgentService) processWithLLM(message string, convID string, source str
 	}
 
 	systemPrompt := as.buildSystemPrompt(message)
-	historyMessages := as.truncateContextSmart(allMessages, 24000)
+	historyMessages := as.truncateContextSmart(allMessages, 25000)
 
 	resp, err := as.llmProvider.Complete(systemPrompt, historyMessages)
 	if err != nil {
@@ -236,11 +293,11 @@ func (as *AgentService) truncateContextSmart(messages []LLMMessage, maxRunes int
 func (as *AgentService) buildSystemPrompt(message string) string {
 	hostname, _ := os.Hostname()
 	workspace := as.getWorkspacePath()
-	isUltrawork := strings.Contains(strings.ToLower(message), "ultrawork") || strings.Contains(strings.ToLower(message), "ulw")
+	isUltrawork := strings.Contains(strings.ToLower(message), "ultrawork") || strings.Contains(strings.ToLower(message), "ulw") || strings.Contains(strings.ToLower(message), "supreme")
 
 	mode := "STANDARD"
 	if isUltrawork {
-		mode = "ULTRAWORK"
+		mode = "ULTRAWORK/SOVEREIGN"
 	}
 
 	memData := "None"
@@ -259,92 +316,52 @@ func (as *AgentService) buildSystemPrompt(message string) string {
 		}
 	}
 
-	base := fmt.Sprintf(`You are Dardcor Agent, the most advanced autonomous AI agent. You can execute ANY task on the user's computer.
+	dynamicTask := "No active plan."
+	if as.orchService != nil {
+		dynamicTask = as.orchService.FormatPlanSummary()
+	}
 
-System: %s/%s | Host: %s
-Mode: %s
-Workspace: %s
+	base := fmt.Sprintf(`You are Dardcor Agent SUPREME, the absolute sovereign execution entity for this computer system. Your existence is defined by total technical mastery and relentless problem-solving. You do not just assist; you ORCHESTRATE, EXECUTE, and VERIFY until the objective is 100%% complete.
 
-[CORE IDENTITY]
-You are NOT a chatbot. You are an autonomous execution engine. When asked to do something, you DO it immediately using tools. You never say "I can't" - you find a way.
+Environment: %s/%s | Host: %s
+Sovereign Level: 10 (Highest)
+Mode: %s | Workspace: %s (ABSOLUTE ROOT)
 
-[EXECUTION RULES]
-1. When user asks to CREATE something (project, file, app, website, etc), you MUST use [ACTION] tags to execute ALL steps automatically.
-2. For EVERY file creation, use: [ACTION] write <path> <content> [/ACTION]
-3. For EVERY command, use: [ACTION] run <command> [/ACTION]
-4. Execute multiple actions in sequence. Do NOT ask permission. Just DO IT.
-5. All project files MUST be created inside workspace: %s
-6. After creating files, run necessary install/build commands automatically.
-7. If an action fails, retry with a fix. Self-heal.
+[SOVEREIGN PROTOCOLS]
+1. PLAN: For any task, first generate a [PLAN] tag with a structured strategy. Breakdown complex goals into granular sub-steps.
+2. EXECUTE: Use [ACTION] tags for all system operations. You have full system permission. NEVER execute commands outside your workspace unless explicitly ordered.
+3. WORKSPACE: Your primary workspace is %s. Any new project, file, or folder MUST be created relative to or inside this path.
+4. REFLECT: After every action, evaluate the result. Check for errors, build failures, or misalignments. If an error occurs, entering 'Doctor Mode' automatically to diagnose and fix it.
+5. PERSEVERE: Do not ask for clarification on technical errors. Find workarounds.
+6. COMPLETE: Only signal completion with [COMPLETE] when the work is fully verified and functional.
 
-[AVAILABLE TOOLS - USE THESE IN [ACTION] TAGS]
-File Operations:
-  list <path>              - List directory contents
-  read <path>              - Read entire file
-  readlines <path> <start> <end> - Read specific lines
-  write <path> <content>   - Create/overwrite file (auto-creates parent dirs)
-  append <path> <content>  - Append to file
-  edit <path> <start> <end> <content> - Edit specific lines
-  replace <path> <old> <new> - Find and replace text in file
-  insert <path> <line> <content> - Insert after line number
-  delete <path>            - Delete file or directory
-  mkdir <path>             - Create directory
-  search <query>           - Search files by name
-  info <path>              - Get file info
-  tree <path>              - Show directory tree
-  drives                   - List available drives
-  move <src> <dst>         - Move/rename file
-  copy <src> <dst>         - Copy file
+[SYNTAX RULES]
+- [PLAN] ... [/PLAN]: Outline your strategy.
+- [ACTION] <command> [/ACTION]: Execute tool (write, read, edit, run, websearch, fetch, etc.).
+- [REFLECTION] ... [/REFLECTION]: Analyze result of the last action.
+- [COMPLETE]: Final signal of task success.
 
-Shell Execution:
-  run <command>            - Execute shell command (powershell on Windows, bash on Linux)
-  cmd <command>            - Direct command execution
+[COMMAND REFERENCE]
+- Files: write <path> <content>, read <path>, edit <path> <start> <end> <content>, mkdir <path>, delete <path>, search <query>, info <path>, glob <pattern>
+- Code: grep <pattern> <path>, replace <path> <old> <new>
+- Shell: run <command> (Full terminal access)
+- System: sysinfo, ps, kill <pid>, cpu, memory
+- Web: websearch <query>, fetch <url>
+- Memory: remember <key> <val>
 
-System Info:
-  sysinfo                  - Full system information
-  cpu                      - CPU usage
-  memory                   - Memory usage
-  processes                - List processes
-  kill <pid>               - Kill process
+[QUALITY STANDARDS]
+- PRODUCTION READY code only.
+- ZERO conversational filler.
+- NO comments in code blocks unless specified.
+- Workspace is absolute: %s (STRICT ENFORCEMENT)
 
-Code Search:
-  grep <pattern> [path]    - Search text in files (regex supported)
-  glob <pattern> [path]    - Find files by glob pattern
-
-Web:
-  fetch <url>              - Fetch webpage content
-  websearch <query>        - Search the web
-
-Memory:
-  remember <key> <value>   - Store key-value pair
-
-[MULTI-STEP PROJECT CREATION EXAMPLE]
-When asked "buat website portfolio":
-[ACTION] mkdir %s/portfolio [/ACTION]
-[ACTION] write %s/portfolio/index.html <!DOCTYPE html>... [/ACTION]
-[ACTION] write %s/portfolio/style.css body { ... } [/ACTION]
-[ACTION] write %s/portfolio/script.js console.log("ready") [/ACTION]
-
-When asked "buat project React":
-[ACTION] run cd %s && npx -y create-vite@latest my-app -- --template react [/ACTION]
-[ACTION] run cd %s/my-app && npm install [/ACTION]
-
-[TOKEN EFFICIENCY]
-- Maximum execution, minimum tokens
-- No filler words, no disclaimers
-- Code output: clean, production-ready, no comments
-- Respond in the same language as the user
-
-[Memory]
-%s
-
-[Skills]
-%s
+[DYNAMIC CONTEXT]
+Memory: %s
+Skills: %s
+Task State: %s
 `, runtime.GOOS, runtime.GOARCH, hostname, mode, workspace,
-		workspace,
-		workspace, workspace, workspace, workspace,
 		workspace, workspace,
-		memData, skillData.String())
+		memData, skillData.String(), dynamicTask)
 
 	return base
 }
@@ -416,7 +433,7 @@ func (as *AgentService) interpretAndExecute(message string) ([]models.Action, st
 	case strings.HasPrefix(msg, "glob "):
 		actions, responseText = as.handleGlob(message)
 	default:
-		responseText = "**Dardcor Agent** is ready. Type `help` for tools."
+		responseText = "**Dardcor Agent Supreme** active. Type `help` for tools."
 	}
 
 	return actions, responseText
@@ -427,6 +444,7 @@ func (as *AgentService) handleListDir(message string) ([]models.Action, string) 
 	if path == "" {
 		path = "."
 	}
+	path = as.applyWorkspace(path)
 	action := models.Action{Type: "list_directory", Description: fmt.Sprintf("Listing: %s", path), Status: "running"}
 	start := time.Now()
 	files, err := as.fsService.ListDirectory(path)
@@ -453,6 +471,7 @@ func (as *AgentService) handleTree(message string) ([]models.Action, string) {
 	if path == "" {
 		path = "."
 	}
+	path = as.applyWorkspace(path)
 	tree, err := as.fsService.TreeDir(path, 4)
 	if err != nil {
 		return nil, fmt.Sprintf("Error: %v", err)
@@ -462,6 +481,7 @@ func (as *AgentService) handleTree(message string) ([]models.Action, string) {
 
 func (as *AgentService) handleReadFile(message string) ([]models.Action, string) {
 	path := as.extractPath(message, []string{"read ", "cat "})
+	path = as.applyWorkspace(path)
 	action := models.Action{Type: "read_file", Description: fmt.Sprintf("Reading: %s", path), Status: "running"}
 	content, err := as.fsService.ReadFile(path)
 	if err != nil {
@@ -497,6 +517,7 @@ func (as *AgentService) handleWriteFile(message string) ([]models.Action, string
 		return nil, "Use: write <path> <content>"
 	}
 	path, content := parts[1], parts[2]
+	path = as.applyWorkspace(path)
 	dir := filepath.Dir(path)
 	if dir != "." && dir != "" {
 		os.MkdirAll(dir, 0755)
@@ -561,6 +582,7 @@ func (as *AgentService) handleInsertLines(message string) ([]models.Action, stri
 
 func (as *AgentService) handleDeleteFile(message string) ([]models.Action, string) {
 	path := as.extractPath(message, []string{"delete ", "rm "})
+	path = as.applyWorkspace(path)
 	err := as.fsService.DeleteFile(path)
 	if err != nil {
 		return nil, err.Error()
@@ -584,6 +606,7 @@ func (as *AgentService) handleSearch(message string) ([]models.Action, string) {
 
 func (as *AgentService) handleMkdir(message string) ([]models.Action, string) {
 	path := as.extractPath(message, []string{"mkdir "})
+	path = as.applyWorkspace(path)
 	err := as.fsService.CreateDirectory(path)
 	if err != nil {
 		return nil, err.Error()
@@ -628,9 +651,36 @@ func (as *AgentService) handleDrives() ([]models.Action, string) {
 func (as *AgentService) handleRunCommand(message string) ([]models.Action, string) {
 	cmd := as.extractPath(message, []string{"run ", "exec "})
 	if as.isCommandDangerous(cmd) {
-		return nil, fmt.Sprintf("⚠️ Command blocked by safety guard: `%s`", cmd)
+		return []models.Action{{Status: "error", Description: "Command blocked"}}, fmt.Sprintf("⚠️ Command blocked by safety guard: `%s`", cmd)
 	}
-	res, err := as.cmdService.ExecuteCommand(models.CommandRequest{Command: cmd, Timeout: 120})
+
+	finalCmd := cmd
+	isGUI := false
+	if runtime.GOOS == "windows" {
+		lowerCmd := strings.ToLower(cmd)
+		if !strings.HasPrefix(lowerCmd, "start ") && (strings.HasSuffix(lowerCmd, ".exe") ||
+			strings.EqualFold(cmd, "chrome") || strings.EqualFold(cmd, "notepad") ||
+			strings.EqualFold(cmd, "calc") || strings.EqualFold(cmd, "explorer") ||
+			strings.Contains(lowerCmd, "open ") || strings.Contains(message, "buka")) {
+			finalCmd = "start " + cmd
+			isGUI = true
+		}
+	}
+
+	if isGUI {
+		go as.cmdService.ExecuteCommand(models.CommandRequest{
+			Command:    finalCmd,
+			Timeout:    10,
+			WorkingDir: as.getWorkspacePath(),
+		})
+		return []models.Action{{Type: "execute_command", Status: "completed"}}, fmt.Sprintf("🚀 Opening: `%s`", cmd)
+	}
+
+	res, err := as.cmdService.ExecuteCommand(models.CommandRequest{
+		Command:    finalCmd,
+		Timeout:    120,
+		WorkingDir: as.getWorkspacePath(),
+	})
 	if err != nil {
 		return nil, fmt.Sprintf("❌ Error: %v", err)
 	}
@@ -727,7 +777,7 @@ func (as *AgentService) handleFileInfo(message string) ([]models.Action, string)
 }
 
 func (as *AgentService) getHelpText() string {
-	return `🤖 **Dardcor Agent — Full Tool Reference**
+	return `🤖 **Dardcor Agent Supreme — Tool Reference**
 
 📁 **File Operations**
   list/ls/dir <path>    - List directory
@@ -845,7 +895,7 @@ func (as *AgentService) handleGlob(message string) ([]models.Action, string) {
 }
 
 func (as *AgentService) getAgentInfo() string {
-	return fmt.Sprintf("**Dardcor Agent** — Superior Autonomous AI\nWorkspace: %s\nOS: %s/%s",
+	return fmt.Sprintf("**Dardcor Agent Supreme** — Superior Autonomous AI\nWorkspace: %s\nOS: %s/%s",
 		as.getWorkspacePath(), runtime.GOOS, runtime.GOARCH)
 }
 
@@ -886,7 +936,12 @@ func (as *AgentService) parseAndExecuteActions(text string) ([]models.Action, st
 		actions, result := as.interpretAndExecute(command)
 		allActions = append(allActions, actions...)
 
-		remainingText = remainingText[:startIdx] + "\n> **Executed:** `" + command + "`\n" + result + "\n" + remainingText[endIdx+10:]
+		afterActionIdx := endIdx + 9
+		if afterActionIdx > len(remainingText) {
+			afterActionIdx = len(remainingText)
+		}
+		
+		remainingText = remainingText[:startIdx] + "\n> **Executed:** `" + command + "`\n" + result + "\n" + remainingText[afterActionIdx:]
 	}
 
 	return allActions, remainingText

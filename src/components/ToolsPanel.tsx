@@ -47,9 +47,9 @@ const ToolsPanel: React.FC = () => {
   };
 
   const toggleTool = (id: string) => {
-    const updatedTools = tools.map(tool => 
-      tool.id === id 
-        ? { ...tool, status: (tool.status === 'active' ? 'inactive' : 'active') as 'active' | 'inactive' } 
+    const updatedTools = tools.map(tool =>
+      tool.id === id
+        ? { ...tool, status: (tool.status === 'active' ? 'inactive' : 'active') as 'active' | 'inactive' }
         : tool
     );
     setTools(updatedTools);

@@ -64,8 +64,8 @@ const Terminal: React.FC = () => {
     setLogs(prev => [...prev, { type: 'command', text: cmd, shell: activeShell }])
     setIsExecuting(true)
     setActiveCommandId(null)
-    
-    wsService.send('execute_command', { 
+
+    wsService.send('execute_command', {
        command: cmd,
        shell: activeShell
     })
@@ -89,7 +89,7 @@ const Terminal: React.FC = () => {
           <span>DARDCOR TERMINAL</span>
         </div>
         <div className="terminal-actions">
-           <select 
+           <select
              className="shell-selector"
              value={activeShell}
              onChange={(e) => setActiveShell(e.target.value)}
@@ -107,7 +107,7 @@ const Terminal: React.FC = () => {
            <button className="terminal-action-btn" onClick={clearLogs}>Clear</button>
         </div>
       </div>
-      
+
       <div className="terminal-body" onClick={() => document.getElementById('term-input')?.focus()}>
         <div className="terminal-history">
            {logs.map((log, i) => (

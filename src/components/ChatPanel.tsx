@@ -33,6 +33,7 @@ const ChatPanel: React.FC = () => {
   const startNewChat = useCallback(() => {
     setMessages([])
     setConversationId(undefined)
+    localStorage.removeItem('last_conv_id')
     setShowHistory(false)
     navigate('/chat')
   }, [navigate])
@@ -55,6 +56,7 @@ const ChatPanel: React.FC = () => {
       if (msg.payload?.conversation_id) {
         const newId = msg.payload.conversation_id
         setConversationId(newId)
+        localStorage.setItem('last_conv_id', newId)
 
         if (window.location.pathname === '/chat') {
           navigate(`/chat/${newId}`, { replace: true })
@@ -88,6 +90,7 @@ const ChatPanel: React.FC = () => {
       const conv = msg.payload
       if (!conv) return
       setConversationId(conv.id)
+      localStorage.setItem('last_conv_id', conv.id)
       setShowHistory(false)
       const loaded: Message[] = (conv.messages || []).map((m: any) => ({
         role: m.role,
@@ -99,12 +102,13 @@ const ChatPanel: React.FC = () => {
 
     const handleExternalToggle = () => setShowHistory(prev => !prev)
     const handleNewChat = () => startNewChat()
-    
+
     document.addEventListener('toggle-history', handleExternalToggle)
     document.addEventListener('new-chat', handleNewChat)
 
     if (id && isConnected) {
       wsService.getConversation(id)
+      localStorage.setItem('last_conv_id', id)
     }
 
     setIsConnected(wsService.isConnected)
@@ -161,6 +165,8 @@ const ChatPanel: React.FC = () => {
   }
 
   const loadConversation = (id: string) => {
+    setConversationId(id)
+    localStorage.setItem('last_conv_id', id)
     navigate(`/chat/${id}`)
     wsService.getConversation(id)
   }
@@ -175,27 +181,56 @@ const ChatPanel: React.FC = () => {
   }
 
   const renderContent = (content: string) => {
+    const thinkingMatch = content.match(/^> \[Thinking\]\n([\s\S]*?)\n\n/);
+    let thinkingPrompt = '';
+    let mainContent = content;
 
-    const parts = content.split(/(```[\s\S]*?```)/g)
-    return parts.map((part, i) => {
-      if (part.startsWith('```')) {
-        const code = part.replace(/^```[^\n]*\n?/, '').replace(/```$/, '')
-        return (
-          <pre key={i} style={{
-            background: 'rgba(0,0,0,0.4)', padding: '12px', borderRadius: '8px',
-            overflowX: 'auto', fontSize: '12px', margin: '8px 0',
-            border: '1px solid rgba(124,58,237,0.2)', fontFamily: 'monospace',
-          }}><code>{code}</code></pre>
-        )
-      }
-      return <span key={i} style={{ whiteSpace: 'pre-wrap' }}>{part}</span>
-    })
+    if (thinkingMatch) {
+      thinkingPrompt = thinkingMatch[1];
+      mainContent = content.replace(thinkingMatch[0], '');
+    }
+
+    const parts = mainContent.split(/(```[\s\S]*?```)/g);
+    
+    return (
+      <>
+        {thinkingPrompt && (
+          <div style={{
+            background: 'rgba(124,58,237,0.05)',
+            borderLeft: '3px solid #7c3aed',
+            padding: '10px 14px',
+            marginBottom: '15px',
+            borderRadius: '0 8px 8px 0',
+            fontSize: '13px',
+            color: 'rgba(255,255,255,0.7)',
+            fontStyle: 'italic',
+            lineHeight: '1.5',
+            fontFamily: 'system-ui'
+          }}>
+            <div style={{ fontSize: '10px', fontWeight: 800, color: '#a78bfa', textTransform: 'uppercase', marginBottom: '4px', letterSpacing: '0.5px' }}>Strategic Thought</div>
+            {thinkingPrompt}
+          </div>
+        )}
+        {parts.map((part, i) => {
+          if (part.startsWith('```')) {
+            const code = part.replace(/^```[^\n]*\n?/, '').replace(/```$/, '')
+            return (
+              <pre key={i} style={{
+                background: 'rgba(0,0,0,0.5)', padding: '15px', borderRadius: '10px',
+                overflowX: 'auto', fontSize: '12px', margin: '12px 0',
+                border: '1px solid rgba(124,58,237,0.15)', fontFamily: 'Fira Code, monospace',
+                boxShadow: 'inset 0 0 20px rgba(0,0,0,0.2)'
+              }}><code>{code}</code></pre>
+            )
+          }
+          return <span key={i} style={{ whiteSpace: 'pre-wrap' }}>{part}</span>
+        })}
+      </>
+    )
   }
 
   return (
-    <div className="chat-container" style={{ position: 'relative', display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
-
-      {}
+    <div className="chat-container">
       {showHistory && (
         <div style={{
           position: 'fixed', inset: 0, zIndex: 9999,
@@ -209,9 +244,9 @@ const ChatPanel: React.FC = () => {
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
           }}>
             <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '16px', fontWeight: 700, color: '#a78bfa' }}>🕒 Riwayat (database/conversations-web)</span>
+              <span style={{ fontSize: '16px', fontWeight: 700, color: '#a78bfa' }}>🕒 Riwayat</span>
               <div style={{ display: 'flex', gap: '10px' }}>
-                <button onClick={startNewChat} title="Chat Baru" style={{
+                <button onClick={startNewChat} style={{
                   background: 'var(--accent-primary)', border: 'none', color: '#fff',
                   borderRadius: '6px', padding: '6px 12px', fontSize: '13px', cursor: 'pointer',
                   fontWeight: 600
@@ -260,9 +295,8 @@ const ChatPanel: React.FC = () => {
         </div>
       )}
 
-      {}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}>
-        <div className="chat-messages" style={{ flex: 1, overflowY: 'auto', padding: '16px' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, width: '100%' }}>
+        <div className="chat-messages">
           {messages.length === 0 && (
             <div className="chat-welcome">
               <h2>Dardcor Agent</h2>
@@ -292,7 +326,6 @@ const ChatPanel: React.FC = () => {
             </div>
           ))}
 
-          {}
           {isTyping && (
             <div className="message assistant">
               <div className="message-avatar"><div className="avatar-img" /></div>
@@ -335,12 +368,39 @@ const ChatPanel: React.FC = () => {
           </div>
         </div>
       </div>
+
+      <style dangerouslySetInnerHTML={{ __html: `
+        .chat-container { height: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative; }
+        .chat-messages { 
+          flex: 1; overflow-y: scroll !important; padding: 20px 40px 20px 20px; 
+          display: flex; flex-direction: column; gap: 20px;
+          scrollbar-gutter: stable;
+        }
+        .chat-messages::-webkit-scrollbar { width: 8px !important; }
+        .chat-messages::-webkit-scrollbar-track { background: transparent !important; }
+        .chat-messages::-webkit-scrollbar-thumb { 
+          background: var(--accent-primary) !important; 
+          border-radius: 10px !important;
+          border: 2px solid var(--bg-primary) !important;
+        }
+        .chat-input-container { padding: 20px; max-width: 1000px; margin: 0 auto; width: 100%; }
+        .chat-input-wrapper { 
+          display: flex; align-items: center; background: var(--bg-tertiary); 
+          border: 1.5px solid var(--border-subtle); border-radius: 20px; padding: 8px 12px;
+          gap: 10px;
+        }
+        .chat-input { flex: 1; background: transparent; border: none; color: white; resize: none; font-size: 14px; }
+        .chat-send-btn { 
+          background: var(--accent-primary); color: white; border: none; 
+          width: 36px; height: 36px; border-radius: 50%; cursor: pointer;
+          display: flex; align-items: center; justify-content: center;
+          transition: var(--transition-fast);
+        }
+        .chat-send-btn:hover:not(:disabled) { transform: scale(1.05); box-shadow: 0 0 15px var(--accent-glow-sm); }
+        .chat-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+      `}} />
     </div>
   )
 }
 
 export default ChatPanel
-
-
-
-

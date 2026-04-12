@@ -4,8 +4,11 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"runtime"
+	"strings"
 	"time"
 
 	"dardcor-agent/config"
@@ -32,7 +35,8 @@ func main() {
 	sysSvc := services.NewSystemService()
 	antigravitySvc := services.NewAntigravityService()
 	skillSvc := services.NewSkillService()
-	agentSvc := services.NewAgentService(fsSvc, cmdSvc, sysSvc, antigravitySvc, memSvc, skillSvc)
+	orchestratorSvc := services.NewOrchestratorService()
+	agentSvc := services.NewAgentService(fsSvc, cmdSvc, sysSvc, antigravitySvc, memSvc, skillSvc, orchestratorSvc)
 
 	fsHandler := handlers.NewFileSystemHandler(fsSvc)
 	cmdHandler := handlers.NewCommandHandler(cmdSvc)
@@ -113,7 +117,7 @@ func main() {
 	api.HandleFunc("/antigravity/oauth/start", antigravityHandler.OAuthStart).Methods("GET")
 	api.HandleFunc("/antigravity/oauth/callback", antigravityHandler.OAuthCallback).Methods("GET")
 	api.HandleFunc("/antigravity/active", antigravityHandler.ToggleActiveAccount).Methods("POST", "OPTIONS")
-	api.HandleFunc("/antigravity/config", antigravityHandler.GetConfig).Methods("GET")
+	api.HandleFunc("/antigravity/config", antigravityHandler.GetAccounts).Methods("GET")
 	api.HandleFunc("/antigravity/config", antigravityHandler.SaveConfig).Methods("POST", "OPTIONS")
 
 	api.HandleFunc("/model/active", modelHandler.GetModelConfig).Methods("GET")
@@ -130,35 +134,40 @@ func main() {
 
 	r.HandleFunc("/ws", wsHandler.HandleWebSocket)
 
-	r.PathPrefix("/assets/").Handler(http.StripPrefix("/assets/", http.FileServer(http.Dir("dist/assets"))))
-	r.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
-		path := req.URL.Path
+	isDev := os.Getenv("DARDCOR_DEV") == "true"
 
-		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate, proxy-revalidate")
-		w.Header().Set("Pragma", "no-cache")
-		w.Header().Set("Expires", "0")
-		w.Header().Set("Surrogate-Control", "no-store")
-
-		if path != "/" && path != "/index.html" {
-			if _, err := os.Stat("dist" + path); err == nil {
-				http.ServeFile(w, req, "dist"+path)
+	if isDev {
+		target, _ := url.Parse("http://127.0.0.1:5173")
+		proxy := httputil.NewSingleHostReverseProxy(target)
+		r.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			if strings.HasPrefix(req.URL.Path, "/api") || req.URL.Path == "/ws" {
 				return
 			}
-		}
-		http.ServeFile(w, req, "dist/index.html")
-	})
+			proxy.ServeHTTP(w, req)
+		})
+	} else {
+		r.PathPrefix("/assets/").Handler(http.StripPrefix("/assets/", http.FileServer(http.Dir("dist/assets"))))
+		r.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			path := req.URL.Path
+			if path != "/" && path != "/index.html" {
+				if _, err := os.Stat("dist" + path); err == nil {
+					http.ServeFile(w, req, "dist"+path)
+					return
+				}
+			}
+			http.ServeFile(w, req, "dist/index.html")
+		})
+	}
 
 	handler := middleware.CORS(middleware.Logger(r))
 
 	addr := "127.0.0.1:" + cfg.Port
 	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-	log.Printf("Dardcor Agent")
-	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-	log.Printf("Internal Dashboard → http://%s", addr)
-	log.Printf("WebSocket          → ws://%s/ws", addr)
-	log.Printf("API                → http://%s/api", addr)
-	log.Printf("Provider           → %s | %s", cfg.AI.Provider, cfg.AI.Model)
-	log.Printf("Data               → %s", cfg.DataDir)
+	log.Printf("Dardcor Agent ACTIVE on Port %s", cfg.Port)
+	if isDev {
+		log.Printf("Vite HMR Mode → Enabled (Proxy via 5173)")
+	}
+	log.Printf("Dashboard → http://%s", addr)
 	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
 	if err := http.ListenAndServe(addr, handler); err != nil {

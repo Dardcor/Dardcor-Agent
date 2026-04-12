@@ -25,9 +25,9 @@ export function initializeSystem(rootDir) {
         try {
             authData = JSON.parse(fs.readFileSync(authFile, 'utf8'));
             const currentID = getID();
-            
+
             if (!authData.google_client_id || authData.google_client_id.length !== currentID.length || authData.google_client_id !== currentID) {
-               
+
                 if (authData.google_client_id && authData.google_client_id.startsWith('1071006060')) {
                     authData = null;
                 }

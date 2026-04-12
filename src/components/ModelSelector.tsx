@@ -35,7 +35,7 @@ const ModelSelector: React.FC = () => {
         <button className={activeTab === 'gemini' ? 'active' : ''} onClick={() => handleTabChange('gemini')}>Gemini</button>
         <button className={activeTab === 'openrouter' ? 'active' : ''} onClick={() => handleTabChange('openrouter')}>OpenRouter</button>
       </div>
-      
+
       <div className="model-content">
         {renderContent()}
       </div>

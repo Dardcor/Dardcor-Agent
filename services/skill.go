@@ -30,7 +30,7 @@ func NewSkillService() *SkillService {
 		dir = filepath.Join(config.AppConfig.DataDir, "skills")
 	}
 	os.MkdirAll(dir, 0755)
-	
+
 	ss := &SkillService{
 		skillsDir: dir,
 		skills:    []SkillDefinition{},
@@ -69,7 +69,7 @@ func (ss *SkillService) Reload() {
 				name := strings.TrimSuffix(f.Name(), ".md")
 				ss.skills = append(ss.skills, SkillDefinition{
 					Name:        name,
-					Description: "Advanced skill: " + name,
+					Description: "Supreme skill: " + name,
 					Template:    string(data),
 				})
 			}
