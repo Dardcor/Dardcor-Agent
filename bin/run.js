@@ -56,7 +56,7 @@ export async function run() {
     if (devMode) {
       inf(`${C.yellow}Development Mode Detected (Real-time UI Enabled)${C.reset}`);
       killPort5173();
-      spawn('npm', ['run', 'dev'], {
+      spawn('npm run dev', {
         cwd: rootDir,
         stdio: 'ignore',
         shell: true,
@@ -75,7 +75,7 @@ export async function run() {
     }
 
     inf('Igniting Engine...');
-    const backend = spawn('go', ['run', 'main.go'], {
+    const backend = spawn('go run main.go', {
       cwd: rootDir,
       stdio: 'inherit',
       shell: true,

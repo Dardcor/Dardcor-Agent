@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import wsService from '../services/websocket'
+import ThinkingConsole from './ThinkingConsole'
 
 interface Message {
   role: 'user' | 'assistant' | 'system'
@@ -181,36 +182,11 @@ const ChatPanel: React.FC = () => {
   }
 
   const renderContent = (content: string) => {
-    const thinkingMatch = content.match(/^> \[Thinking\]\n([\s\S]*?)\n\n/);
-    let thinkingPrompt = '';
-    let mainContent = content;
-
-    if (thinkingMatch) {
-      thinkingPrompt = thinkingMatch[1];
-      mainContent = content.replace(thinkingMatch[0], '');
-    }
-
-    const parts = mainContent.split(/(```[\s\S]*?```)/g);
+    const parts = content.split(/(```[\s\S]*?```)/g);
     
     return (
       <>
-        {thinkingPrompt && (
-          <div style={{
-            background: 'rgba(124,58,237,0.05)',
-            borderLeft: '3px solid #7c3aed',
-            padding: '10px 14px',
-            marginBottom: '15px',
-            borderRadius: '0 8px 8px 0',
-            fontSize: '13px',
-            color: 'rgba(255,255,255,0.7)',
-            fontStyle: 'italic',
-            lineHeight: '1.5',
-            fontFamily: 'system-ui'
-          }}>
-            <div style={{ fontSize: '10px', fontWeight: 800, color: '#a78bfa', textTransform: 'uppercase', marginBottom: '4px', letterSpacing: '0.5px' }}>Strategic Thought</div>
-            {thinkingPrompt}
-          </div>
-        )}
+        <ThinkingConsole content={content} />
         {parts.map((part, i) => {
           if (part.startsWith('```')) {
             const code = part.replace(/^```[^\n]*\n?/, '').replace(/```$/, '')
@@ -223,7 +199,11 @@ const ChatPanel: React.FC = () => {
               }}><code>{code}</code></pre>
             )
           }
-          return <span key={i} style={{ whiteSpace: 'pre-wrap' }}>{part}</span>
+
+          const cleanText = part.replace(/\[THOUGHT\][\s\S]*?(\[PLAN\]|\[ACTION\]|$)/i, '$1').trim();
+          if (!cleanText) return null;
+
+          return <span key={i} style={{ whiteSpace: 'pre-wrap' }}>{cleanText}</span>
         })}
       </>
     )

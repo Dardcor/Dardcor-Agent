@@ -177,6 +177,7 @@ export const antigravityAPI = {
     }),
 }
 
-
-
-
+export const egoAPI = {
+  getState: () => fetchAPI<any>('/ego/state'),
+  getDreams: (count = 10) => fetchAPI<string[]>(`/ego/dreams?count=${count}`),
+}

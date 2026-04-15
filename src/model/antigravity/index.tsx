@@ -334,74 +334,72 @@ const AntigravityView: React.FC = () => {
 
       {}
       <div className="dashboard-top-bar">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1 }}>
-          <div className="search-box">
-            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-            <input
-              type="text"
-              placeholder="Search email..."
-              value={searchQuery}
-              onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1) }}
-            />
-          </div>
-
-          <div className="filter-group">
-            {(['ALL', 'PRO', 'ULTRA', 'FREE'] as const).map(t => (
-              <button key={t} className={filterType === t ? 'active' : ''} onClick={() => { setFilterType(t); setCurrentPage(1) }}>
-                {t} <span>{counts[t] || 0}</span>
-              </button>
-            ))}
-          </div>
-
-          <div style={{ padding: '0 10px', height: '32px', display: 'flex', alignItems: 'center', background: 'rgba(124,58,237,0.05)', borderRadius: '8px', border: '1px solid rgba(124,58,237,0.15)' }}>
-            <span style={{ fontSize: '11px', color: '#a78bfa', fontWeight: 600, marginRight: '8px' }}>Chat Model:</span>
-            <select
-              value={agConfig.selected_model}
-              onChange={(e) => saveConfig({ selected_model: e.target.value })}
-              style={{
-                background: 'none', border: 'none', color: '#fff', fontSize: '11px', fontWeight: 700, outline: 'none', cursor: 'pointer', maxWidth: '140px'
-              }}
-            >
-              <option value="" style={{ background: '#0d0920' }}>Auto-resolve</option>
-              {Array.from(new Set(accounts.flatMap(a => a.quotas || []).map(q => q.name))).sort().map(name => {
-                const q = accounts.flatMap(a => a.quotas || []).find(curr => curr.name === name)
-                return <option key={name} value={(q as any).key || ''} style={{ background: '#0d0920' }}>{name}</option>
-              })}
-            </select>
-          </div>
-
-          <div style={{ padding: '0 10px', height: '32px', display: 'flex', alignItems: 'center', background: 'rgba(16,185,129,0.05)', borderRadius: '8px', border: '1px solid rgba(16,185,129,0.15)' }}>
-            <span style={{ fontSize: '11px', color: '#10b981', fontWeight: 600, marginRight: '8px' }}>Thinking:</span>
-            <input
-              type="range" min="0" max="32000" step="1000"
-              value={agConfig.thinking_budget || 0}
-              onChange={(e) => saveConfig({ thinking_budget: parseInt(e.target.value) })}
-              style={{ width: '60px', height: '4px', cursor: 'pointer', accentColor: '#10b981' }}
-            />
-            <span style={{ fontSize: '10px', color: '#fff', marginLeft: '6px', width: '25px' }}>{Math.floor((agConfig.thinking_budget || 0)/1000)}k</span>
-          </div>
-
-          <div style={{ padding: '0 10px', height: '32px', display: 'flex', alignItems: 'center', background: 'rgba(59,130,246,0.05)', borderRadius: '8px', border: '1px solid rgba(59,130,246,0.15)' }}>
-            <span style={{ fontSize: '11px', color: '#60a5fa', fontWeight: 600, marginRight: '8px' }}>Temp:</span>
-            <input
-              type="range" min="0" max="1" step="0.1"
-              value={agConfig.temperature || 0.7}
-              onChange={(e) => saveConfig({ temperature: parseFloat(e.target.value) })}
-              style={{ width: '40px', height: '4px', cursor: 'pointer', accentColor: '#60a5fa' }}
-            />
-            <span style={{ fontSize: '10px', color: '#fff', marginLeft: '6px' }}>{agConfig.temperature || 0.7}</span>
-          </div>
-
-          {savingConfig && <div style={{ marginLeft: '6px' }} className="typing-dots small"><span /></div>}
+        <div className="search-box">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input
+            type="text"
+            placeholder="Search email..."
+            value={searchQuery}
+            onChange={e => { setSearchQuery(e.target.value); setCurrentPage(1) }}
+          />
         </div>
+
+        <div className="filter-group">
+          {(['ALL', 'PRO', 'ULTRA', 'FREE'] as const).map(t => (
+            <button key={t} className={filterType === t ? 'active' : ''} onClick={() => { setFilterType(t); setCurrentPage(1) }} style={{ padding: '6px 10px' }}>
+              {t} <span style={{ fontSize: '10px' }}>{counts[t] || 0}</span>
+            </button>
+          ))}
+        </div>
+
+        <div style={{ padding: '0 8px', height: '32px', display: 'flex', alignItems: 'center', background: 'rgba(124,58,237,0.05)', borderRadius: '8px', border: '1px solid rgba(124,58,237,0.15)', flexShrink: 0 }}>
+          <span style={{ fontSize: '10px', color: '#a78bfa', fontWeight: 700, marginRight: '6px' }}>Model:</span>
+          <select
+            value={agConfig.selected_model}
+            onChange={(e) => saveConfig({ selected_model: e.target.value })}
+            style={{
+              background: 'none', border: 'none', color: '#fff', fontSize: '11px', fontWeight: 700, outline: 'none', cursor: 'pointer', maxWidth: '100px'
+            }}
+          >
+            <option value="" style={{ background: '#0d0920' }}>Auto</option>
+            {Array.from(new Set(accounts.flatMap(a => a.quotas || []).map(q => q.name))).sort().map(name => {
+              const q = accounts.flatMap(a => a.quotas || []).find(curr => curr.name === name)
+              return <option key={name} value={(q as any).key || ''} style={{ background: '#0d0920' }}>{name}</option>
+            })}
+          </select>
+        </div>
+
+        <div style={{ padding: '0 8px', height: '32px', display: 'flex', alignItems: 'center', background: 'rgba(16,185,129,0.05)', borderRadius: '8px', border: '1px solid rgba(16,185,129,0.15)', flexShrink: 0 }}>
+          <span style={{ fontSize: '10px', color: '#10b981', fontWeight: 700, marginRight: '6px' }}>Think:</span>
+          <input
+            type="range" min="0" max="32000" step="1000"
+            value={agConfig.thinking_budget || 0}
+            onChange={(e) => saveConfig({ thinking_budget: parseInt(e.target.value) })}
+            style={{ width: '50px', height: '4px', cursor: 'pointer', accentColor: '#10b981' }}
+          />
+          <span style={{ fontSize: '10px', color: '#fff', marginLeft: '6px', width: '22px' }}>{Math.floor((agConfig.thinking_budget || 0)/1000)}k</span>
+        </div>
+
+        <div style={{ padding: '0 8px', height: '32px', display: 'flex', alignItems: 'center', background: 'rgba(59,130,246,0.05)', borderRadius: '8px', border: '1px solid rgba(59,130,246,0.15)', flexShrink: 0 }}>
+          <span style={{ fontSize: '10px', color: '#60a5fa', fontWeight: 700, marginRight: '6px' }}>Temp:</span>
+          <input
+            type="range" min="0" max="1" step="0.1"
+            value={agConfig.temperature || 0.7}
+            onChange={(e) => saveConfig({ temperature: parseFloat(e.target.value) })}
+            style={{ width: '40px', height: '4px', cursor: 'pointer', accentColor: '#60a5fa' }}
+          />
+          <span style={{ fontSize: '10px', color: '#fff', marginLeft: '6px' }}>{agConfig.temperature || 0.7}</span>
+        </div>
+
+        {savingConfig && <div style={{ marginLeft: '4px' }} className="typing-dots small"><span /></div>}
 
         <div className="action-row">
           <button
             className="btn-add"
             onClick={() => { window.location.href = `http://${window.location.host}/api/antigravity/oauth/start` }}
-            style={{ background: 'linear-gradient(135deg, #5b21b6, #7c3aed)', color: '#fff', border: 'none', borderRadius: '8px', padding: '8px 16px', fontSize: '13px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px', boxShadow: '0 0 14px rgba(124,58,237,0.3)' }}
+            style={{ background: 'linear-gradient(135deg, #5b21b6, #7c3aed)', color: '#fff', border: 'none', borderRadius: '8px', padding: '7px 12px', fontSize: '12px', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '5px', boxShadow: '0 0 14px rgba(124,58,237,0.3)', flexShrink: 0 }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 5M5 12h14"/></svg>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5"><path d="M12 5v14M5 12h14"/></svg>
             Add Account
           </button>
 
@@ -409,45 +407,45 @@ const AntigravityView: React.FC = () => {
             className="btn-refresh"
             onClick={handleRefreshAll}
             disabled={isRefreshingAny || filteredAccounts.length === 0}
-            style={{ display: 'flex', alignItems: 'center', gap: '6px' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 12px', fontSize: '12px', flexShrink: 0 }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ animation: isRefreshingAny ? 'spin 1s linear infinite' : 'none' }}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ animation: isRefreshingAny ? 'spin 1s linear infinite' : 'none' }}>
               <path d="M4 4h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
             </svg>
-            {isRefreshingAny ? 'Refreshing...' : 'Refresh All'}
+            {isRefreshingAny ? '...' : 'Refresh'}
           </button>
 
-          <button className="btn-warmup" onClick={handleRefreshAll} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <button className="btn-warmup" onClick={handleRefreshAll} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '7px 12px', fontSize: '12px', flexShrink: 0 }}>
             <span>🔥</span> Warmup
           </button>
 
-          <div className="toggle-group" onClick={() => setShowAllQuotas(!showAllQuotas)} style={{ cursor: 'pointer' }}>
-            <span>Quotas</span>
+          <div className="toggle-group" onClick={() => setShowAllQuotas(!showAllQuotas)} style={{ cursor: 'pointer', gap: '6px' }}>
+            <span style={{ fontSize: '11px' }}>Quotas</span>
             <div style={{
-              width: '36px', height: '20px', borderRadius: '10px',
+              width: '32px', height: '18px', borderRadius: '9px',
               background: showAllQuotas ? '#7c3aed' : '#374151',
               position: 'relative', transition: 'all 0.2s', flexShrink: 0
             }}>
               <div style={{
-                width: '16px', height: '16px', borderRadius: '50%', background: 'white',
+                width: '14px', height: '14px', borderRadius: '50%', background: 'white',
                 position: 'absolute', top: '2px',
-                left: showAllQuotas ? '18px' : '2px',
+                left: showAllQuotas ? '16px' : '2px',
                 transition: 'all 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
               }}></div>
             </div>
           </div>
 
           <input type="file" ref={fileInputRef} onChange={handleImport} accept=".json" style={{ display: 'none' }} />
-          <button className="btn-icon" onClick={() => fileInputRef.current?.click()} title="Import">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4"/></svg>
+          <button className="btn-icon" onClick={() => fileInputRef.current?.click()} title="Import" style={{ padding: '8px' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4"/></svg>
           </button>
-          <button className="btn-icon" onClick={handleExport} title="Export">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4"/></svg>
+          <button className="btn-icon" onClick={handleExport} title="Export" style={{ padding: '8px' }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4"/></svg>
           </button>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(167,139,250,0.08)', padding: '4px 10px', borderRadius: '6px', border: '1px solid rgba(167,139,250,0.15)' }}>
-            <span style={{ fontSize: '10px', color: '#a78bfa', fontWeight: 600 }}>ID:</span>
-            <span style={{ fontSize: '10px', color: '#fff', opacity: 0.8 }}>Automatic</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(167,139,250,0.08)', padding: '4px 8px', borderRadius: '6px', border: '1px solid rgba(167,139,250,0.15)', flexShrink: 0 }}>
+            <span style={{ fontSize: '9px', color: '#a78bfa', fontWeight: 700 }}>ID:</span>
+            <span style={{ fontSize: '9px', color: '#fff', opacity: 0.8 }}>Auto</span>
             <button
               className="btn-icon"
               onClick={() => {
@@ -458,9 +456,9 @@ const AntigravityView: React.FC = () => {
                 saveConfig({ ...agConfig, google_client_id: clientID, google_client_secret: clientSecret });
               }}
               title="Override Google OAuth Identity"
-              style={{ color: '#a78bfa', marginLeft: '4px', padding: '0', background: 'none' }}
+              style={{ color: '#a78bfa', marginLeft: '2px', padding: '0', background: 'none', border: 'none' }}
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
           </div>
         </div>

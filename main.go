@@ -34,9 +34,12 @@ func main() {
 	cmdSvc := services.NewCommandService()
 	sysSvc := services.NewSystemService()
 	antigravitySvc := services.NewAntigravityService()
+	egoSvc := services.NewEgoService()
+	dreamSvc := services.NewDreamService(fsSvc, egoSvc)
+	dreamSvc.StartDreaming()
 	skillSvc := services.NewSkillService()
 	orchestratorSvc := services.NewOrchestratorService()
-	agentSvc := services.NewAgentService(fsSvc, cmdSvc, sysSvc, antigravitySvc, memSvc, skillSvc, orchestratorSvc)
+	agentSvc := services.NewAgentService(fsSvc, cmdSvc, sysSvc, antigravitySvc, memSvc, skillSvc, orchestratorSvc, egoSvc)
 
 	fsHandler := handlers.NewFileSystemHandler(fsSvc)
 	cmdHandler := handlers.NewCommandHandler(cmdSvc)
@@ -131,6 +134,9 @@ func main() {
 
 	api.HandleFunc("/workspace/config", modelHandler.GetWorkspaceConfig).Methods("GET")
 	api.HandleFunc("/workspace/config", modelHandler.SaveWorkspaceConfig).Methods("POST", "OPTIONS")
+	egoHandler := handlers.NewEgoHandler(egoSvc, dreamSvc)
+	api.HandleFunc("/ego/state", egoHandler.GetState).Methods("GET")
+	api.HandleFunc("/ego/dreams", egoHandler.GetDreams).Methods("GET")
 
 	r.HandleFunc("/ws", wsHandler.HandleWebSocket)
 

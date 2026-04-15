@@ -9,6 +9,7 @@ import ModelSelector from './components/ModelSelector'
 import ToolsPanel from './components/ToolsPanel'
 import SkillsPanel from './components/SkillsPanel'
 import wsService from './services/websocket'
+import SentienceMonitor from './components/SentienceMonitor'
 
 const App: React.FC = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
@@ -107,6 +108,7 @@ const App: React.FC = () => {
               <button className="hamburger-btn" onClick={() => setIsSidebarOpen(true)}>☰</button>
             )}
             <h2 style={{ textTransform: 'capitalize' }}>{activeTab === 'system' ? 'System Monitor' : activeTab}</h2>
+            <SentienceMonitor />
           </div>
 
           <div className="header-actions">
