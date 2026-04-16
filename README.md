@@ -5,6 +5,7 @@
 <br/>
 <img src="public/dardcor.png" width="120" height="auto" alt="Dardcor Logo" />
 <br/>
+
 [![NPM edition](https://img.shields.io/npm/v/dardcor-agent?color=%232d0055&label=npm&style=for-the-badge&logo=npm&logoColor=d4b8ff&labelColor=1a0033)](https://www.npmjs.com/package/dardcor-agent)
 [![License: MIT](https://img.shields.io/badge/License-MIT-1a0033?style=for-the-badge&labelColor=0d0017&color=2d0055)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-Required-2d0055?style=for-the-badge&logo=node.js&logoColor=d4b8ff&labelColor=1a0033)](https://nodejs.org)
