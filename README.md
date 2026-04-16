@@ -3,7 +3,8 @@
 <img src="https://capsule-render.vercel.app/api?type=waving&color=0:0d0017,40:1a0033,80:2d0055,100:3d006e&height=240&section=header&text=DARDCOR%20AGENT&fontSize=72&fontColor=d4b8ff&animation=fadeIn&fontAlignY=42&desc=The%20AI%20That%20Doesn%27t%20Just%20Talk%20%E2%80%94%20It%20Acts.&descAlignY=64&descSize=22&fontStyle=bold" width="100%"/>
 
 <br/>
-
+<img src="public/dardcor.png" width="120" height="auto" alt="Dardcor Logo" />
+<br/>
 [![NPM edition](https://img.shields.io/npm/v/dardcor-agent?color=%232d0055&label=npm&style=for-the-badge&logo=npm&logoColor=d4b8ff&labelColor=1a0033)](https://www.npmjs.com/package/dardcor-agent)
 [![License: MIT](https://img.shields.io/badge/License-MIT-1a0033?style=for-the-badge&labelColor=0d0017&color=2d0055)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-Required-2d0055?style=for-the-badge&logo=node.js&logoColor=d4b8ff&labelColor=1a0033)](https://nodejs.org)
