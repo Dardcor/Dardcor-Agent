@@ -35,7 +35,6 @@ const SentienceMonitor: React.FC = () => {
       const state = await egoAPI.getState();
       setEgo(state);
     } catch {
-      // silent
     }
   };
 
@@ -44,7 +43,6 @@ const SentienceMonitor: React.FC = () => {
       const d = await egoAPI.getDreams(5);
       setDreams(d || []);
     } catch {
-      // silent
     }
   };
 

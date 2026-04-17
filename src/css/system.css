@@ -1,0 +1,199 @@
+.system-dashboard {
+    flex: 1;
+    padding: 30px;
+    overflow-y: auto;
+    background: var(--bg-primary);
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+}
+
+.dashboard-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: var(--radius-lg);
+    transition: var(--transition);
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+    display: flex;
+    flex-direction: column;
+}
+
+.dashboard-card:hover {
+    border-color: rgba(124, 58, 237, 0.35);
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md), 0 0 20px var(--accent-glow-lg);
+}
+
+.dashboard-card.highlight {
+    border-color: rgba(124, 58, 237, 0.4);
+    background: linear-gradient(145deg, #0d0b1a, #130a2a);
+}
+
+.dashboard-card.span-full {
+    grid-column: span 2;
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 24px;
+}
+
+.card-icon {
+    font-size: 24px;
+    background: rgba(124, 58, 237, 0.1);
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    border: 1px solid rgba(124, 58, 237, 0.25);
+    box-shadow: inset 0 0 12px rgba(124, 58, 237, 0.05);
+}
+
+.card-title-group h3 {
+    font-size: 16px;
+    font-weight: 800;
+    color: #fff;
+    margin-bottom: 3px;
+    letter-spacing: 0.3px;
+}
+
+.card-subtitle {
+    font-size: 11px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-weight: 600;
+}
+
+.data-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 18px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.data-row span {
+    color: var(--text-dim);
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.data-row b {
+    color: #e2e8f0;
+    font-size: 13.5px;
+    font-weight: 600;
+    font-family: var(--font-mono);
+    text-align: right;
+}
+
+.resource-stat {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 0 18px 18px;
+}
+
+.stat-info {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+}
+
+.stat-info span {
+    color: var(--text-dim);
+}
+
+.stat-info b {
+    color: var(--accent-light);
+}
+
+.mini-progress {
+    height: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.mini-progress .fill {
+    height: 100%;
+    background: var(--grad-premium);
+    width: 0;
+    transition: width 0.5s ease;
+    border-radius: 10px;
+}
+
+.dashboard-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border-card);
+    background: rgba(124, 58, 237, 0.05);
+}
+
+.table-wrap {
+    overflow-x: auto;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    border: 1px solid rgba(124, 58, 237, 0.1);
+}
+
+.proc-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.proc-table th {
+    text-align: left;
+    padding: 12px 16px;
+    color: var(--text-dim);
+    font-size: 11px;
+    text-transform: uppercase;
+    border-bottom: 1px solid rgba(124, 58, 237, 0.2);
+    background: rgba(124, 58, 237, 0.05);
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+.proc-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    font-size: 13px;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+}
+
+.progress-bar-fill {
+    height: 100%;
+    border-radius: 10px;
+    background: var(--grad-premium);
+    transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 0 8px var(--accent-glow-sm);
+}
+
+.process-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+}
+
+.process-kill-btn {
+    padding: 3px 10px;
+    border-radius: var(--radius-sm);
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.25);
+    color: #f87171;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}

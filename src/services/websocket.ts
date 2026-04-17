@@ -1,4 +1,4 @@
-import type { WSMessage } from '../types'
+import type { WSMessage, AgentTurnEvent, ToolExecutionEvent } from '../types'
 
 type MessageHandler = (message: WSMessage) => void
 
@@ -11,6 +11,7 @@ class WebSocketService {
   private url: string
   private isConnecting = false
   private pingInterval: ReturnType<typeof setInterval> | null = null
+  public isAgentTyping: boolean = false
 
   constructor() {
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
@@ -46,6 +47,11 @@ class WebSocketService {
         this.ws.onmessage = (event) => {
           try {
             const message: WSMessage = JSON.parse(event.data)
+            if (message.type === 'typing') {
+              this.isAgentTyping = (message.payload as any)?.typing === true
+            } else if (message.type === 'agent_response' || message.type === 'error') {
+              this.isAgentTyping = false
+            }
             this.emit(message.type, message)
             this.emit('*', message)
           } catch { }
@@ -174,6 +180,10 @@ class WebSocketService {
     this.send('get_conversations', {})
   }
 
+  createConversation(title?: string) {
+    this.send('create_conversation', { title })
+  }
+
   getConversation(id: string) {
     this.send('get_conversation', { id })
   }
@@ -184,6 +194,23 @@ class WebSocketService {
 
   renameConversation(id: string, title: string) {
     this.send('rename_conversation', { id, title })
+  }
+
+  onAgentTurn(handler: (payload: AgentTurnEvent) => void): () => void {
+    return this.on('agent_turn', (msg) => handler(msg.payload as AgentTurnEvent))
+  }
+
+  onToolProgress(handler: (payload: ToolExecutionEvent) => void): () => void {
+    const unsubStart = this.on('tool_start', (msg) => handler({ ...(msg.payload as ToolExecutionEvent), status: 'start' }))
+    const unsubEnd = this.on('tool_end', (msg) => handler({ ...(msg.payload as ToolExecutionEvent), status: 'end' }))
+    return () => {
+      unsubStart()
+      unsubEnd()
+    }
+  }
+
+  onAgentStatus(handler: (payload: any) => void): () => void {
+    return this.on('agent_status', (msg) => handler(msg.payload))
   }
 }
 

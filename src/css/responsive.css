@@ -1,0 +1,29 @@
+@media (max-width: 768px) {
+    .sidebar {
+        display: none;
+    }
+
+    .sidebar.is-open {
+        display: flex;
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 500;
+        width: var(--sidebar-width) !important;
+    }
+
+    .quick-actions {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .sentience-monitor {
+        display: none;
+        /* Hide in mobile to save space */
+    }
+}

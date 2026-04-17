@@ -25,13 +25,25 @@ func CORS(next http.Handler) http.Handler {
 
 func Logger(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		start := time.Now()
-		next.ServeHTTP(w, r)
+		// Silent mode: Only log important actions (like POST) or errors.
+		// Ignore noisy asset requests and internal polling.
 
-		if strings.HasPrefix(r.URL.Path, "/api/system") {
+		isAsset := strings.Contains(r.URL.Path, ".") || strings.HasPrefix(r.URL.Path, "/@") || strings.HasPrefix(r.URL.Path, "/src/")
+		isInternal := strings.HasPrefix(r.URL.Path, "/api/ego") || strings.HasPrefix(r.URL.Path, "/api/system") || r.URL.Path == "/health"
+
+		if isAsset || isInternal {
+			next.ServeHTTP(w, r)
 			return
 		}
 
-		log.Printf("%s %s %s", r.Method, r.URL.Path, time.Since(start))
+		// Only log non-GET requests (commands, settings changes) to keep terminal clean
+		if r.Method != "GET" {
+			start := time.Now()
+			next.ServeHTTP(w, r)
+			log.Printf("%s %s %s", r.Method, r.URL.Path, time.Since(start))
+			return
+		}
+
+		next.ServeHTTP(w, r)
 	})
 }

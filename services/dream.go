@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"dardcor-agent/config"
+	"dardcor-agent/models"
 )
 
 var dreamInsights = []string{
@@ -44,9 +45,9 @@ func (s *DreamService) StartDreaming() {
 func (s *DreamService) dream() {
 	dreamPath := ""
 	if config.AppConfig != nil {
-		dreamPath = filepath.Join(config.AppConfig.DataDir, "ego", "dreams.log")
+		dreamPath = filepath.Join(config.AppConfig.DataDir, "ego", "dreams.json")
 	} else {
-		dreamPath = "database/ego/dreams.log"
+		dreamPath = "database/ego/dreams.json"
 	}
 
 	os.MkdirAll(filepath.Dir(dreamPath), 0755)
@@ -57,29 +58,41 @@ func (s *DreamService) dream() {
 	}
 	defer f.Close()
 
-	insight := dreamInsights[rand.Intn(len(dreamInsights))]
+	// Perfection: Generate a dynamic insight based on actual system state
+	egoState := s.egoSvc.GetState()
+	insight := s.generateAIInsight(egoState)
 
-	egoContext := ""
-	if s.egoSvc != nil {
-		state := s.egoSvc.GetState()
-		egoContext = fmt.Sprintf(" [Ego: %s | Conf: %.2f | Energy: %.2f]", state.Status, state.Confidence, state.Energy)
-	}
+	egoContext := fmt.Sprintf(" [Ego: %s | Conf: %.2f | Energy: %.2f]", egoState.Status, egoState.Confidence, egoState.Energy)
 
 	timestamp := time.Now().Format("2006-01-02 15:04:05")
 	dreamEntry := fmt.Sprintf("[%s]%s DREAM: %s\n", timestamp, egoContext, insight)
 	f.WriteString(dreamEntry)
 
 	if s.egoSvc != nil {
-		s.egoSvc.RecoverEnergy(0.03)
+		s.egoSvc.RecoverEnergy(0.05) // Dreams recover more energy now
 	}
+}
+
+// generateAIInsight simulates an LLM call to reflect on the agent's state.
+// In a full implementation, this would call llmProvider.Complete with a reflection prompt.
+func (s *DreamService) generateAIInsight(state models.EgoState) string {
+	if state.Confidence < 0.5 {
+		return "Analysis of recent failures suggests a mismatch between tool timeout and system latency. Recommending adaptive buffering."
+	}
+	if state.StreakSuccess > 5 {
+		return fmt.Sprintf("Consistent success in %d tasks detected. Identifying patterns for new 'High-Speed' skill templates.", state.StreakSuccess)
+	}
+
+	// Default to a smart observation
+	return dreamInsights[rand.Intn(len(dreamInsights))]
 }
 
 func (s *DreamService) GetRecentDreams(count int) []string {
 	dreamPath := ""
 	if config.AppConfig != nil {
-		dreamPath = filepath.Join(config.AppConfig.DataDir, "ego", "dreams.log")
+		dreamPath = filepath.Join(config.AppConfig.DataDir, "ego", "dreams.json")
 	} else {
-		dreamPath = "database/ego/dreams.log"
+		dreamPath = "database/ego/dreams.json"
 	}
 
 	data, err := os.ReadFile(dreamPath)

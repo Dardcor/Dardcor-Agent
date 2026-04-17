@@ -7,6 +7,7 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
@@ -27,6 +28,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize config: %v", err)
 	}
+
 	storage.Init()
 
 	memSvc := services.NewMemoryService(cfg.DataDir)
@@ -39,7 +41,11 @@ func main() {
 	dreamSvc.StartDreaming()
 	skillSvc := services.NewSkillService()
 	orchestratorSvc := services.NewOrchestratorService()
-	agentSvc := services.NewAgentService(fsSvc, cmdSvc, sysSvc, antigravitySvc, memSvc, skillSvc, orchestratorSvc, egoSvc)
+	reflectSvc := services.NewReflectionService(egoSvc, orchestratorSvc)
+	browserSvc := services.NewBrowserService()
+	visionSvc := services.NewVisionService()
+	autoSvc := services.NewAutomationService()
+	agentSvc := services.NewAgentService(fsSvc, cmdSvc, sysSvc, antigravitySvc, memSvc, skillSvc, orchestratorSvc, egoSvc, reflectSvc, browserSvc, visionSvc, autoSvc)
 
 	fsHandler := handlers.NewFileSystemHandler(fsSvc)
 	cmdHandler := handlers.NewCommandHandler(cmdSvc)
@@ -138,6 +144,9 @@ func main() {
 	api.HandleFunc("/ego/state", egoHandler.GetState).Methods("GET")
 	api.HandleFunc("/ego/dreams", egoHandler.GetDreams).Methods("GET")
 
+	storagePath := filepath.Join(cfg.DataDir, "storage")
+	r.PathPrefix("/storage/").Handler(http.StripPrefix("/storage/", http.FileServer(http.Dir(storagePath))))
+
 	r.HandleFunc("/ws", wsHandler.HandleWebSocket)
 
 	isDev := os.Getenv("DARDCOR_DEV") == "true"
@@ -167,14 +176,9 @@ func main() {
 
 	handler := middleware.CORS(middleware.Logger(r))
 
+	isDev = os.Getenv("DARDCOR_DEV") == "true"
+
 	addr := "127.0.0.1:" + cfg.Port
-	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-	log.Printf("Dardcor Agent ACTIVE on Port %s", cfg.Port)
-	if isDev {
-		log.Printf("Vite HMR Mode → Enabled (Proxy via 5173)")
-	}
-	log.Printf("Dashboard → http://%s", addr)
-	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
 	if err := http.ListenAndServe(addr, handler); err != nil {
 		log.Fatalf("Server failed: %v", err)

@@ -1,0 +1,138 @@
+.file-explorer {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #05040d;
+    overflow: hidden;
+}
+
+.explorer-controls {
+    display: flex;
+    gap: 8px;
+    padding-right: 15px;
+    border-right: 1px solid rgba(124, 58, 237, 0.15);
+}
+
+.drive-selector {
+    display: flex;
+    gap: 6px;
+    padding: 0 15px;
+}
+
+.drive-pill {
+    background: rgba(124, 58, 237, 0.1);
+    border: 1px solid rgba(124, 58, 237, 0.2);
+    border-radius: 6px;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    cursor: pointer;
+}
+
+.drive-pill:hover {
+    background: rgba(124, 58, 237, 0.2);
+    border-color: var(--accent-primary);
+}
+
+.path-display {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow: hidden;
+}
+
+.path-label {
+    color: var(--text-dim);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.path-text {
+    color: var(--accent-light);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.file-grid-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+}
+
+.file-grid-header {
+    display: grid;
+    grid-template-columns: 2fr 100px 150px;
+    padding: 10px 25px;
+    background: rgba(124, 58, 237, 0.03);
+    border-bottom: 1px solid rgba(124, 58, 237, 0.1);
+    color: var(--text-dim);
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.file-list-detailed {
+    flex: 1;
+    overflow-y: auto;
+}
+
+.file-row {
+    display: grid;
+    grid-template-columns: 2fr 100px 150px;
+    padding: 12px 25px;
+    border-bottom: 1px solid rgba(124, 58, 237, 0.05);
+    cursor: pointer;
+    transition: var(--transition-fast);
+    align-items: center;
+}
+
+.file-row:hover {
+    background: rgba(124, 58, 237, 0.08);
+}
+
+.file-row .col-name {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.file-row .file-icon {
+    font-size: 18px;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3));
+}
+
+.file-row .file-name {
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.file-row .col-size {
+    color: var(--text-muted);
+    font-size: 12px;
+    font-family: var(--font-mono);
+}
+
+.file-row .col-date {
+    color: var(--text-dim);
+    font-size: 12px;
+}
+
+.loading-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(5, 4, 13, 0.7);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+}

@@ -1,0 +1,125 @@
+.workspace-container {
+    padding: 24px;
+    overflow-y: auto;
+    align-items: center;
+}
+
+.workspace-card {
+    width: 100%;
+    max-width: 680px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-card);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+}
+
+.workspace-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 24px 28px;
+    border-bottom: 1px solid var(--border-card);
+    background: rgba(124, 58, 237, 0.05);
+}
+
+.workspace-icon {
+    font-size: 28px;
+    flex-shrink: 0;
+}
+
+.workspace-title h2 {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text-primary);
+    letter-spacing: -0.3px;
+    margin-bottom: 5px;
+}
+
+.workspace-title p {
+    font-size: 13px;
+    color: var(--text-muted);
+    line-height: 1.55;
+}
+
+.workspace-form {
+    padding: 24px 28px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.form-group label {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+}
+
+.input-with-button {
+    display: flex;
+    gap: 10px;
+}
+
+.input-with-button input {
+    flex: 1;
+    padding: 11px 14px;
+    background: var(--bg-input);
+    border: 1.5px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    color: var(--text-primary);
+    font-size: 13.5px;
+    font-family: var(--font-mono);
+    transition: var(--transition-fast);
+}
+
+.input-with-button input:focus {
+    border-color: var(--accent-primary);
+    box-shadow: 0 0 0 3px var(--accent-glow-lg);
+}
+
+.save-btn {
+    padding: 11px 20px;
+    border-radius: var(--radius-md);
+    background: #3b0764;
+    /* Dark Purple */
+    border: 1px solid rgba(124, 58, 237, 0.3);
+    color: #e2e8f0;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: var(--transition-fast);
+    white-space: nowrap;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+
+.save-btn:hover {
+    background: #4c1d95;
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(124, 58, 237, 0.2);
+}
+
+.open-btn {
+    padding: 11px 20px;
+    border-radius: var(--radius-md);
+    background: #1e1b4b;
+    /* Even Darker Navy/Purple */
+    border: 1px solid rgba(124, 58, 237, 0.2);
+    color: #c4b5fd;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: var(--transition-fast);
+    white-space: nowrap;
+}
+
+.open-btn:hover {
+    background: #2e1065;
+    border-color: var(--accent-primary);
+    color: #fff;
+    transform: translateY(-1px);
+}

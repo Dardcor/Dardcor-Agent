@@ -102,9 +102,9 @@ func (s *EgoService) RecordTaskResult(success bool) {
 		s.state.StreakFailed = 0
 		s.state.LastError = ""
 
-		bonus := 0.03 + (float64(s.state.StreakSuccess) * 0.01)
+		bonus := 0.02 + math.Log1p(float64(s.state.StreakSuccess))*0.01
 		s.state.Confidence = clamp(s.state.Confidence+bonus, 0.05, 1.0)
-		s.state.Energy = clamp(s.state.Energy-0.02, 0.0, 1.0)
+		s.state.Energy = clamp(s.state.Energy-0.015, 0.0, 1.0)
 
 		s.state.Status = s.resolveSuccessStatus()
 		s.state.LastMood = s.resolveSuccessMood()
@@ -113,9 +113,9 @@ func (s *EgoService) RecordTaskResult(success bool) {
 		s.state.StreakFailed++
 		s.state.StreakSuccess = 0
 
-		penalty := 0.05 + (float64(s.state.StreakFailed) * 0.02)
+		penalty := 0.05 * math.Pow(1.5, float64(s.state.StreakFailed-1))
 		s.state.Confidence = clamp(s.state.Confidence-penalty, 0.05, 1.0)
-		s.state.Energy = clamp(s.state.Energy-0.05, 0.0, 1.0)
+		s.state.Energy = clamp(s.state.Energy-0.04, 0.0, 1.0)
 
 		s.state.Status = s.resolveFailureStatus()
 		s.state.LastMood = s.resolveFailureMood()
@@ -132,6 +132,18 @@ func (s *EgoService) RecordError(errMsg string) {
 	s.state.UpdatedAt = time.Now()
 	s.mu.Unlock()
 	s.Save()
+}
+
+func (s *EgoService) GetSuggestedTemperature() float64 {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.state.Confidence > 0.8 {
+		return 0.7
+	} else if s.state.Confidence > 0.5 {
+		return 0.4
+	}
+	return 0.1
 }
 
 func (s *EgoService) resolveSuccessStatus() string {

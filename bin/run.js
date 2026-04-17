@@ -36,11 +36,11 @@ function killPort25000() {
 }
 
 function killPort5173() {
-    try {
-      if (process.platform === 'win32') {
-        execSync(`for /f "tokens=5" %p in ('netstat -ano ^| findstr :5173 ^| findstr LISTENING') do taskkill /F /PID %p /T >nul 2>&1`, { timeout: 3000, shell: true });
-      }
-    } catch { }
+  try {
+    if (process.platform === 'win32') {
+      execSync(`for /f "tokens=5" %p in ('netstat -ano ^| findstr :5173 ^| findstr LISTENING') do taskkill /F /PID %p /T >nul 2>&1`, { timeout: 3000, shell: true });
+    }
+  } catch { }
 }
 
 export async function run() {
@@ -75,10 +75,9 @@ export async function run() {
     }
 
     inf('Igniting Engine...');
-    const backend = spawn('go run main.go', {
+    const backend = spawn('go', ['run', 'main.go'], {
       cwd: rootDir,
       stdio: 'inherit',
-      shell: true,
       env: { ...process.env, GOMAXPROCS: '' + os.cpus().length }
     });
 
@@ -101,12 +100,23 @@ export async function run() {
     process.on('SIGINT', () => { cleanup(); process.exit(); });
     process.on('SIGTERM', () => { cleanup(); process.exit(); });
 
-    setTimeout(() => {
-      try {
-        const openCmd = process.platform === 'win32' ? `start "" "${devUrl}"` : `open "${devUrl}"`;
-        exec(openCmd);
-      } catch { }
-    }, devMode ? 6000 : 3000);
+    const openDashboard = async () => {
+      let attempts = 0;
+      const maxAttempts = 30;
+      while (attempts < maxAttempts) {
+        try {
+          const response = await fetch(`http://127.0.0.1:${port}/health`);
+          if (response.ok) {
+            const openCmd = process.platform === 'win32' ? `start "" "${devUrl}"` : `open "${devUrl}"`;
+            exec(openCmd);
+            return;
+          }
+        } catch (e) { }
+        attempts++;
+        await new Promise(r => setTimeout(r, 1000));
+      }
+    };
+    openDashboard();
 
     console.log(`\n${C.purple}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${C.reset}`);
     console.log(`${C.purple}  Status     →${C.reset} ${C.green}${C.bold}DARDCOR ENGINE ACTIVE${C.reset}`);
@@ -115,7 +125,7 @@ export async function run() {
     console.log(`${C.reset}  Press ${C.bold}Ctrl+C${C.reset} to stop the engine\n`);
 
     process.stdin.resume();
-    await new Promise(() => {});
+    await new Promise(() => { });
   } catch (err) {
     errLog(`Runtime Error: ${err.message}`);
     process.exit(1);

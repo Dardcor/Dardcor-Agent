@@ -52,19 +52,22 @@ const App: React.FC = () => {
             <button className="close-sidebar-btn" onClick={() => setIsSidebarOpen(false)}>×</button>
           </div>
         </div>
-        
+
         <div className="sidebar-separator"></div>
 
         <div className="sidebar-action-group">
           <button className="action-btn history-btn" onClick={() => {
-            if (location.pathname !== '/chat') navigate('/chat')
-            setTimeout(() => document.dispatchEvent(new CustomEvent('toggle-history')), 50)
+            if (!location.pathname.startsWith('/chat')) {
+              navigate('/chat')
+              setTimeout(() => document.dispatchEvent(new CustomEvent('toggle-history')), 150)
+            } else {
+              document.dispatchEvent(new CustomEvent('toggle-history'))
+            }
           }}>
             <span>🕒</span> Riwayat
           </button>
           <button className="action-btn new-chat-btn" onClick={() => {
-            if (location.pathname !== '/chat') navigate('/chat')
-            setTimeout(() => document.dispatchEvent(new CustomEvent('new-chat')), 50)
+            document.dispatchEvent(new CustomEvent('new-chat'))
           }}>
             <span>+</span> Baru
           </button>
@@ -72,14 +75,14 @@ const App: React.FC = () => {
 
         <nav className="sidebar-nav">
           {[
-            { id: 'chat',        path: localStorage.getItem('last_conv_id') ? `/chat/${localStorage.getItem('last_conv_id')}` : '/chat', label: 'Agent Chat', icon: '💬' },
-            { id: 'model',       path: '/model',         label: 'Model Settings', icon: '🤖' },
-            { id: 'tools',       path: '/tools',         label: 'Tools',           icon: '🛠️' },
-            { id: 'skills',      path: '/skills',        label: 'Skills',          icon: '🧠' },
-            { id: 'explorer',    path: '/file-explorer', label: 'File Explorer',  icon: '📂' },
-            { id: 'terminal',    path: '/terminal',      label: 'Terminal',       icon: '💻' },
-            { id: 'system',      path: '/monitor',       label: 'System Monitor', icon: '📊' },
-            { id: 'workspace',   path: '/workspace',     label: 'Workspace',      icon: '🏗️' },
+            { id: 'chat', path: '/chat', label: 'Agent Chat', icon: '💬' },
+            { id: 'model', path: '/model', label: 'Model Settings', icon: '🤖' },
+            { id: 'tools', path: '/tools', label: 'Tools', icon: '🛠️' },
+            { id: 'skills', path: '/skills', label: 'Skills', icon: '🧠' },
+            { id: 'explorer', path: '/file-explorer', label: 'File Explorer', icon: '📂' },
+            { id: 'terminal', path: '/terminal', label: 'Terminal', icon: '💻' },
+            { id: 'system', path: '/monitor', label: 'System Monitor', icon: '📊' },
+            { id: 'workspace', path: '/workspace', label: 'Workspace', icon: '🏗️' },
           ].map(item => (
             <Link
               key={item.id}
@@ -100,7 +103,7 @@ const App: React.FC = () => {
           </div>
         </div>
       </aside>
-      
+
       <main className="main-content">
         <header className="main-header">
           <div className="header-title">
@@ -112,13 +115,13 @@ const App: React.FC = () => {
           </div>
 
           <div className="header-actions">
-            <Link 
+            <Link
               to="/chat"
               className={`header-btn ${activeTab === 'chat' ? 'active' : ''}`}
             >
               Chat
             </Link>
-            <Link 
+            <Link
               to="/terminal"
               className={`header-btn ${activeTab === 'terminal' ? 'active' : ''}`}
             >
@@ -126,7 +129,7 @@ const App: React.FC = () => {
             </Link>
           </div>
         </header>
-        
+
         <div className="tab-content">
           <Routes>
             <Route path="/" element={<Navigate to="/chat" replace />} />

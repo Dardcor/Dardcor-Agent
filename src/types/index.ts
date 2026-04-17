@@ -164,6 +164,37 @@ export interface Notification {
   duration?: number;
 }
 
+export interface AgentTurnEvent {
+  conversation_id: string;
+  message_id: string;
+  content: string;
+  is_final: boolean;
+}
 
+export interface ToolExecutionEvent {
+  conversation_id: string;
+  message_id: string;
+  tool_name: string;
+  status: 'start' | 'end';
+  result?: unknown;
+}
 
+export interface SkillConfig {
+  id: string;
+  name: string;
+  description: string;
+  category?: string;
+  enabled?: boolean;
+  tags?: string[];
+}
+
+export interface ToolConfig {
+  id: string;
+  name: string;
+  description: string;
+  mcp?: boolean;
+  last_used?: string;
+  usage_count?: number;
+  category?: string;
+}
 

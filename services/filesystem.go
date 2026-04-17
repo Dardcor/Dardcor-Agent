@@ -514,4 +514,3 @@ func (fs *FileSystemService) walkTree(sb *strings.Builder, dir, prefix string, d
 	}
 	return nil
 }
-

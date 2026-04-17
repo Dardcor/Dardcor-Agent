@@ -34,28 +34,70 @@ const Workspace: React.FC = () => {
         }
       })
       .catch(() => {
-         setWorkspacePath('C:\\Dardcor-Workspace')
+        setWorkspacePath('C:\\Dardcor-Workspace')
       })
   }, [])
 
-  const saveToBackend = (path: string) => {
-    fetch('/api/workspace/config', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path: path.trim() })
-    }).catch(err => console.error('Failed to sync workspace to backend:', err))
+  const saveToBackend = async (path: string) => {
+    try {
+      const res = await fetch('/api/workspace/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: path.trim() })
+      })
+      return res.ok
+    } catch (err) {
+      console.error('Failed to sync workspace to backend:', err)
+      return false
+    }
   }
 
-  const handleSaveWorkspace = (e: React.FormEvent) => {
+  const handleSaveWorkspace = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (workspacePath.trim()) {
-      localStorage.setItem('dardcor_workspace_path', workspacePath.trim())
-      saveToBackend(workspacePath.trim())
-      setWsStatus('success')
-      setTimeout(() => setWsStatus('idle'), 3000)
+    const trimmedPath = workspacePath.trim()
+    if (trimmedPath) {
+      // Create folder if it doesn't exist
+      try {
+        await fetch('/api/files/mkdir', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: trimmedPath })
+        })
+      } catch (e) { console.error(e) }
+
+      const success = await saveToBackend(trimmedPath)
+      if (success) {
+        localStorage.setItem('dardcor_workspace_path', trimmedPath)
+        setWsStatus('success')
+        setTimeout(() => setWsStatus('idle'), 3000)
+      } else {
+        setWsStatus('error')
+        setTimeout(() => setWsStatus('idle'), 3000)
+      }
     } else {
       setWsStatus('error')
+      setTimeout(() => setWsStatus('idle'), 3000)
     }
+  }
+
+  const handleOpenWorkspace = () => {
+    if (!workspacePath.trim()) return
+
+    let path = workspacePath.trim().replace(/\//g, '\\')
+
+    // Remove trailing \ for better explorer compatibility
+    if (path.length > 3 && path.endsWith('\\')) path = path.slice(0, -1)
+    if (/^[a-zA-Z]:$/.test(path)) path += '\\'
+
+    const cmd = window.navigator.platform.includes('Win')
+      ? `explorer "${path}"`
+      : `open "${path}"`
+
+    fetch('/api/command', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ command: cmd })
+    })
   }
 
   return (
@@ -82,6 +124,7 @@ const Workspace: React.FC = () => {
                 spellCheck={false}
               />
               <button type="submit" className="save-btn" id="save-workspace-btn">Save</button>
+              <button type="button" className="open-btn" onClick={handleOpenWorkspace}>Open</button>
             </div>
             <p className="hint">
               💡 Local path for terminal and explorer.

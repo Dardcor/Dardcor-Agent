@@ -8,7 +8,9 @@ interface TerminalLog {
 }
 
 const Terminal: React.FC = () => {
-  const [logs, setLogs] = useState<TerminalLog[]>([])
+  const [logs, setLogs] = useState<TerminalLog[]>([
+    { type: 'output', text: `  ██████╗  █████╗ ██████╗ ██████╗  ██████╗ ██████╗ ██████╗ \n  ██╔══██╗██╔══██╗██╔══██╗██╔══██╗██╔════╝██╔═══██╗██╔══██╗\n  ██║  ██║███████║██████╔╝██║  ██║██║     ██║   ██║██████╔╝\n  ██║  ██║██╔══██║██╔══██╗██║  ██║██║     ██║   ██║██╔══██╗\n  ██████╔╝██║  ██║██║  ██║██████╔╝╚██████╗╚██████╔╝██║  ██║\n  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═════╝  ╚═════╝ ╚═════╝ ╚═╝  ╚═╝\n  DARDCOR AGENT — Superior Autonomous System\n  → DARDCOR\n\n[i] Loading Core Modules...\n[i] Establishing Secure Tunnel...\n[i] Engine Synchronized.\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n  Status     → DARDCOR ENGINE ACTIVE\n  Interface  → Dashboard: http://127.0.0.1:25000\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` }
+  ])
   const [input, setInput] = useState('')
   const [isExecuting, setIsExecuting] = useState(false)
   const [activeCommandId, setActiveCommandId] = useState<string | null>(null)
@@ -21,7 +23,7 @@ const Terminal: React.FC = () => {
 
     const unsubOutput = wsService.on('command_output', (msg: any) => {
       if (msg.payload.command_id) {
-         setActiveCommandId(msg.payload.command_id)
+        setActiveCommandId(msg.payload.command_id)
       }
       setLogs(prev => [...prev, {
         type: msg.payload.is_error ? 'error' : 'output',
@@ -39,16 +41,16 @@ const Terminal: React.FC = () => {
     })
 
     const unsubError = wsService.on('error', (msg: any) => {
-       if (isExecuting) {
-          setIsExecuting(false)
-          setLogs(prev => [...prev, { type: 'error', text: `System Error: ${msg.payload.error}` }])
-       }
+      if (isExecuting) {
+        setIsExecuting(false)
+        setLogs(prev => [...prev, { type: 'error', text: `System Error: ${msg.payload.error}` }])
+      }
     })
 
     return () => {
-       unsubOutput()
-       unsubComplete()
-       unsubError()
+      unsubOutput()
+      unsubComplete()
+      unsubError()
     }
   }, [isExecuting])
 
@@ -66,18 +68,18 @@ const Terminal: React.FC = () => {
     setActiveCommandId(null)
 
     wsService.send('execute_command', {
-       command: cmd,
-       shell: activeShell
+      command: cmd,
+      shell: activeShell
     })
     setInput('')
   }
 
   const handleStop = () => {
-     if (!isExecuting || !activeCommandId) return
-     wsService.send('kill_command', { id: activeCommandId })
-     setIsExecuting(false)
-     setActiveCommandId(null)
-     setLogs(prev => [...prev, { type: 'info', text: '\n[Process terminated by user]' }])
+    if (!isExecuting || !activeCommandId) return
+    wsService.send('kill_command', { id: activeCommandId })
+    setIsExecuting(false)
+    setActiveCommandId(null)
+    setLogs(prev => [...prev, { type: 'info', text: '\n[Process terminated by user]' }])
   }
 
   const clearLogs = () => setLogs([])
@@ -89,51 +91,51 @@ const Terminal: React.FC = () => {
           <span>DARDCOR TERMINAL</span>
         </div>
         <div className="terminal-actions">
-           <select
-             className="shell-selector"
-             value={activeShell}
-             onChange={(e) => setActiveShell(e.target.value)}
-             disabled={isExecuting}
-           >
-              <option value="powershell">PowerShell</option>
-              <option value="cmd">CMD</option>
-              <option value="bash">Bash</option>
-              <option value="sh">Sh</option>
-              <option value="zsh">Zsh</option>
-           </select>
-           {isExecuting && (
-              <button className="terminal-action-btn stop" onClick={handleStop}>Stop</button>
-           )}
-           <button className="terminal-action-btn" onClick={clearLogs}>Clear</button>
+          <select
+            className="shell-selector"
+            value={activeShell}
+            onChange={(e) => setActiveShell(e.target.value)}
+            disabled={isExecuting}
+          >
+            <option value="powershell">PowerShell</option>
+            <option value="cmd">CMD</option>
+            <option value="bash">Bash</option>
+            <option value="sh">Sh</option>
+            <option value="zsh">Zsh</option>
+          </select>
+          {isExecuting && (
+            <button className="terminal-action-btn stop" onClick={handleStop}>Stop</button>
+          )}
+          <button className="terminal-action-btn" onClick={clearLogs}>Clear</button>
         </div>
       </div>
 
       <div className="terminal-body" onClick={() => document.getElementById('term-input')?.focus()}>
         <div className="terminal-history">
-           {logs.map((log, i) => (
-              <div key={i} className={`terminal-line ${log.type}`}>
-                 {log.type === 'command' && (
-                    <span className="terminal-prompt">
-                       <span className="prompt-shell">[{log.shell}]</span>
-                       <span className="prompt-symbol">▶</span>
-                    </span>
-                 )}
-                 <span className="terminal-text">{log.text}</span>
-              </div>
-           ))}
-           {isExecuting && (
-              <div className="terminal-line info">
-                 <span className="terminal-spinner">⠋</span>
-                 <span className="terminal-text">Executing...</span>
-              </div>
-           )}
-           <div ref={terminalEndRef} />
+          {logs.map((log, i) => (
+            <div key={i} className={`terminal-line ${log.type}`}>
+              {log.type === 'command' && (
+                <span className="terminal-prompt">
+                  <span className="prompt-shell">[{log.shell}]</span>
+                  <span className="prompt-symbol">▶</span>
+                </span>
+              )}
+              <span className="terminal-text">{log.text}</span>
+            </div>
+          ))}
+          {isExecuting && (
+            <div className="terminal-line info">
+              <span className="terminal-spinner">⠋</span>
+              <span className="terminal-text">Executing...</span>
+            </div>
+          )}
+          <div ref={terminalEndRef} />
         </div>
 
         <form className="terminal-input-row" onSubmit={handleRun}>
           <span className="terminal-prompt">
-             <span className="prompt-shell">[{activeShell}]</span>
-             <span className="prompt-symbol">▶</span>
+            <span className="prompt-shell">[{activeShell}]</span>
+            <span className="prompt-symbol">▶</span>
           </span>
           <input
             id="term-input"

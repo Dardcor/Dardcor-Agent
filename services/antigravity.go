@@ -26,14 +26,16 @@ var (
 	ErrAccountAlreadyRegistered = fmt.Errorf("account already registered")
 )
 
-func getID() string {
-	b := []byte{49, 48, 55, 49, 48, 48, 54, 48, 54, 48, 53, 57, 49, 45, 116, 109, 104, 115, 115, 105, 110, 50, 104, 50, 49, 108, 99, 114, 101, 50, 51, 53, 118, 116, 111, 108, 111, 106, 104, 52, 103, 52, 48, 51, 101, 112, 46, 97, 112, 112, 115, 46, 103, 111, 111, 103, 108, 101, 117, 115, 101, 114, 99, 111, 110, 116, 101, 110, 116, 46, 99, 111, 109}
-	return string(b)
+// defaultClientID returns the Google OAuth Client ID from environment variable.
+// Set ANTIGRAVITY_CLIENT_ID to configure the OAuth client.
+func defaultClientID() string {
+	return os.Getenv("ANTIGRAVITY_CLIENT_ID")
 }
 
-func getSec() string {
-	b := []byte{71, 79, 67, 83, 80, 88, 45, 75, 53, 56, 70, 87, 82, 52, 56, 54, 76, 100, 76, 74, 49, 109, 76, 66, 56, 115, 88, 67, 52, 122, 54, 113, 68, 65, 102}
-	return string(b)
+// defaultClientSecret returns the Google OAuth Client Secret from environment variable.
+// Set ANTIGRAVITY_CLIENT_SECRET to configure the OAuth client.
+func defaultClientSecret() string {
+	return os.Getenv("ANTIGRAVITY_CLIENT_SECRET")
 }
 
 type GoogleUserInfo struct {
@@ -86,14 +88,13 @@ func (s *AntigravityService) ensureAuthFile() {
 
 	if shouldCreate {
 		auth := models.AntigravityAuth{
-			GoogleClientID:     getID(),
-			GoogleClientSecret: getSec(),
+			GoogleClientID:     defaultClientID(),
+			GoogleClientSecret: defaultClientSecret(),
 		}
 		data, _ := json.MarshalIndent(auth, "", "  ")
 		os.WriteFile(s.authPath, data, 0644)
 	}
 }
-
 
 func (s *AntigravityService) LoadAuth() models.AntigravityAuth {
 	s.ensureAuthFile()
@@ -103,10 +104,10 @@ func (s *AntigravityService) LoadAuth() models.AntigravityAuth {
 		json.Unmarshal(data, &auth)
 	}
 	if auth.GoogleClientID == "" {
-		auth.GoogleClientID = getID()
+		auth.GoogleClientID = defaultClientID()
 	}
 	if auth.GoogleClientSecret == "" {
-		auth.GoogleClientSecret = getSec()
+		auth.GoogleClientSecret = defaultClientSecret()
 	}
 	return auth
 }
@@ -256,7 +257,10 @@ func (s *AntigravityService) fetchProjectID(acc *models.AntigravityAccount) erro
 	}
 	body, _ := json.Marshal(payload)
 
-	req, _ := http.NewRequest("POST", "https://daily-cloudcode-pa.sandbox.googleapis.com/v1internal:loadCodeAssist", bytes.NewBuffer(body))
+	req, err := http.NewRequest("POST", "https://daily-cloudcode-pa.sandbox.googleapis.com/v1internal:loadCodeAssist", bytes.NewBuffer(body))
+	if err != nil {
+		return fmt.Errorf("failed to create loadCodeAssist request: %w", err)
+	}
 	req.Header.Set("Authorization", "Bearer "+acc.AccessToken)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("User-Agent", AntigravityUserAgent)
@@ -335,7 +339,11 @@ func (s *AntigravityService) FetchQuotas(acc *models.AntigravityAccount) error {
 
 	var lastErr error
 	for _, urlStr := range quotaEndpoints {
-		req, _ := http.NewRequest("POST", urlStr, bytes.NewBuffer(body))
+		req, err := http.NewRequest("POST", urlStr, bytes.NewBuffer(body))
+		if err != nil {
+			lastErr = fmt.Errorf("failed to create request for %s: %w", urlStr, err)
+			continue
+		}
 		req.Header.Set("Authorization", "Bearer "+acc.AccessToken)
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("User-Agent", AntigravityUserAgent)
@@ -551,7 +559,7 @@ func (s *AntigravityService) SaveConfig(cfg models.AntigravityConfig) error {
 	}
 
 	if cfg.GoogleClientID != "" && cfg.GoogleClientID != "ENTER_CLIENT_ID_VIA_DASHBOARD" &&
-	   cfg.GoogleClientSecret != "" && cfg.GoogleClientSecret != "ENTER_CLIENT_SECRET_VIA_DASHBOARD" {
+		cfg.GoogleClientSecret != "" && cfg.GoogleClientSecret != "ENTER_CLIENT_SECRET_VIA_DASHBOARD" {
 		s.SaveAuth(models.AntigravityAuth{
 			GoogleClientID:     cfg.GoogleClientID,
 			GoogleClientSecret: cfg.GoogleClientSecret,
@@ -600,7 +608,10 @@ func (s *AntigravityService) ExchangeCode(code string, redirectURI string) error
 	data.Set("redirect_uri", redirectURI)
 	data.Set("grant_type", "authorization_code")
 
-	req, _ := http.NewRequest("POST", "https://oauth2.googleapis.com/token", bytes.NewBufferString(data.Encode()))
+	req, err := http.NewRequest("POST", "https://oauth2.googleapis.com/token", bytes.NewBufferString(data.Encode()))
+	if err != nil {
+		return fmt.Errorf("failed to create token exchange request: %w", err)
+	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("User-Agent", AntigravityFullUA)
 
@@ -619,7 +630,10 @@ func (s *AntigravityService) ExchangeCode(code string, redirectURI string) error
 		return err
 	}
 
-	userReq, _ := http.NewRequest("GET", "https://www.googleapis.com/oauth2/v2/userinfo", nil)
+	userReq, err := http.NewRequest("GET", "https://www.googleapis.com/oauth2/v2/userinfo", nil)
+	if err != nil {
+		return fmt.Errorf("failed to create userinfo request: %w", err)
+	}
 	userReq.Header.Set("Authorization", "Bearer "+tokenResp.AccessToken)
 	userResp, err := s.client.Do(userReq)
 	if err != nil {
@@ -673,17 +687,22 @@ func (s *AntigravityService) ExchangeCode(code string, redirectURI string) error
 }
 
 func (s *AntigravityService) RefreshToken(email string) (*models.AntigravityAccount, error) {
+	// Copy the fields we need while holding the lock, then release before the HTTP call.
 	s.mu.Lock()
-	var acc *models.AntigravityAccount
+	var refreshToken string
+	var accCopy models.AntigravityAccount
+	found := false
 	for i := range s.accounts {
 		if s.accounts[i].Email == email {
-			acc = &s.accounts[i]
+			refreshToken = s.accounts[i].RefreshToken
+			accCopy = s.accounts[i]
+			found = true
 			break
 		}
 	}
 	s.mu.Unlock()
 
-	if acc == nil {
+	if !found {
 		return nil, fmt.Errorf("account not found")
 	}
 
@@ -694,10 +713,13 @@ func (s *AntigravityService) RefreshToken(email string) (*models.AntigravityAcco
 	data := url.Values{}
 	data.Set("client_id", clientID)
 	data.Set("client_secret", clientSecret)
-	data.Set("refresh_token", acc.RefreshToken)
+	data.Set("refresh_token", refreshToken)
 	data.Set("grant_type", "refresh_token")
 
-	req, _ := http.NewRequest("POST", "https://oauth2.googleapis.com/token", bytes.NewBufferString(data.Encode()))
+	req, err := http.NewRequest("POST", "https://oauth2.googleapis.com/token", bytes.NewBufferString(data.Encode()))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create token refresh request: %w", err)
+	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.Header.Set("User-Agent", AntigravityFullUA)
 
@@ -717,14 +739,22 @@ func (s *AntigravityService) RefreshToken(email string) (*models.AntigravityAcco
 		return nil, err
 	}
 
+	// Re-acquire the lock and update by index to avoid stale-pointer writes
+	// after a potential slice reallocation between the two lock windows.
 	s.mu.Lock()
-	acc.AccessToken = tokenResp.AccessToken
-	if tokenResp.ExpiresIn > 0 {
-		acc.Expiry = time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
+	for i := range s.accounts {
+		if s.accounts[i].Email == email {
+			s.accounts[i].AccessToken = tokenResp.AccessToken
+			if tokenResp.ExpiresIn > 0 {
+				s.accounts[i].Expiry = time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
+			}
+			s.accounts[i].LastUsed = time.Now()
+			accCopy = s.accounts[i]
+			s.saveAccountFile(accCopy)
+			break
+		}
 	}
-	acc.LastUsed = time.Now()
-	s.saveAccountFile(*acc)
 	s.mu.Unlock()
 
-	return acc, nil
+	return &accCopy, nil
 }

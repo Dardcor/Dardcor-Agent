@@ -14,10 +14,30 @@ const getSec = () => {
 export function initializeSystem(rootDir) {
     const databaseDir = path.join(rootDir, 'database');
     const antigravityDir = path.join(databaseDir, 'model', 'antigravity');
+    const memoryDir = path.join(databaseDir, 'memory');
+    const skillDir = path.join(databaseDir, 'skill');
     const authFile = path.join(antigravityDir, 'auth.json');
+    const memoryFile = path.join(memoryDir, 'MEMORY.md');
+    const skillFile = path.join(skillDir, 'SKILL.md');
 
     if (!fs.existsSync(antigravityDir)) {
         fs.mkdirSync(antigravityDir, { recursive: true });
+    }
+    
+    if (!fs.existsSync(memoryDir)) {
+        fs.mkdirSync(memoryDir, { recursive: true });
+    }
+    
+    if (!fs.existsSync(skillDir)) {
+        fs.mkdirSync(skillDir, { recursive: true });
+    }
+    
+    if (!fs.existsSync(memoryFile)) {
+        fs.writeFileSync(memoryFile, '# Memory\\n', 'utf8');
+    }
+    
+    if (!fs.existsSync(skillFile)) {
+        fs.writeFileSync(skillFile, '# Skill\\n', 'utf8');
     }
 
     let authData = null;

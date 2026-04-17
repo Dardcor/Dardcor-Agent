@@ -47,7 +47,7 @@ func (s *JSONStore) LoadConversation(id string, source string) (*models.Conversa
 	path := filepath.Join(dir, id+".json")
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("conversation not found: %w", err)
+		return nil, fmt.Errorf("conversation not found")
 	}
 
 	var conv models.Conversation
@@ -106,13 +106,28 @@ func (s *JSONStore) DeleteConversation(id string, source string) error {
 }
 
 func (s *JSONStore) RenameConversation(id string, newTitle string, source string) error {
-	conv, err := s.LoadConversation(id, source)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	dir := config.AppConfig.GetConversationsDir(source)
+	path := filepath.Join(dir, id+".json")
+	data, err := os.ReadFile(path)
 	if err != nil {
-		return err
+		return fmt.Errorf("conversation not found: %w", err)
+	}
+
+	var conv models.Conversation
+	if err := json.Unmarshal(data, &conv); err != nil {
+		return fmt.Errorf("failed to parse conversation: %w", err)
 	}
 
 	conv.Title = newTitle
-	return s.SaveConversation(conv, source)
+	conv.UpdatedAt = time.Now()
+	out, err := json.MarshalIndent(&conv, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal conversation: %w", err)
+	}
+	return os.WriteFile(path, out, 0644)
 }
 
 func (s *JSONStore) CreateConversation(title string, source string) (*models.Conversation, error) {
@@ -131,17 +146,38 @@ func (s *JSONStore) CreateConversation(title string, source string) (*models.Con
 	return conv, nil
 }
 
-func (s *JSONStore) AddMessage(convID string, msg models.Message, source string) error {
-	conv, err := s.LoadConversation(convID, source)
+// addMessageLocked performs the read-modify-write atomically.
+// Caller MUST hold s.mu (write lock) before calling.
+func (s *JSONStore) addMessageLocked(convID string, msg models.Message, source string) error {
+	dir := config.AppConfig.GetConversationsDir(source)
+	path := filepath.Join(dir, convID+".json")
+
+	data, err := os.ReadFile(path)
 	if err != nil {
-		return err
+		return fmt.Errorf("conversation not found")
+	}
+
+	var conv models.Conversation
+	if err := json.Unmarshal(data, &conv); err != nil {
+		return fmt.Errorf("failed to parse conversation: %w", err)
 	}
 
 	msg.ID = uuid.New().String()
 	msg.Timestamp = time.Now()
 	conv.Messages = append(conv.Messages, msg)
+	conv.UpdatedAt = time.Now()
 
-	return s.SaveConversation(conv, source)
+	out, err := json.MarshalIndent(&conv, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal conversation: %w", err)
+	}
+	return os.WriteFile(path, out, 0644)
+}
+
+func (s *JSONStore) AddMessage(convID string, msg models.Message, source string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.addMessageLocked(convID, msg, source)
 }
 
 func (s *JSONStore) SaveCommandHistory(cmd models.CommandResponse) error {

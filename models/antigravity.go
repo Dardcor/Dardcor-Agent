@@ -49,7 +49,6 @@ type ModelQuota struct {
 	Color      string `json:"color,omitempty"`
 }
 
-
 type AntigravityAuth struct {
 	GoogleClientID     string `json:"google_client_id"`
 	GoogleClientSecret string `json:"google_client_secret"`
