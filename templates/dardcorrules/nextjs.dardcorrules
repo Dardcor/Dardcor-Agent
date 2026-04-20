@@ -1,0 +1,28 @@
+## Project Identity
+name: "Next.js App"
+description: "Next.js application with TypeScript"
+version: "1.0.0"
+
+## Tech Stack
+- Framework: Next.js 14+ (App Router)
+- Language: TypeScript (strict mode)
+- Styling: Tailwind CSS
+- Package Manager: pnpm
+
+## Coding Style
+- Use functional components with hooks
+- Prefer named exports over default exports
+- Use absolute imports with @/ prefix
+- Use `const` by default, `let` when rebinding needed, never `var`
+
+## Naming Conventions
+- Files: kebab-case (user-profile.tsx)
+- Components: PascalCase (UserProfile)
+- Functions: camelCase (getUserById)
+- Constants: UPPER_SNAKE_CASE
+
+## Constraints
+- NEVER commit .env files or hardcode secrets
+- NEVER use `any` type — use `unknown` and narrow
+- Always run lint after code changes
+- All API routes must have input validation

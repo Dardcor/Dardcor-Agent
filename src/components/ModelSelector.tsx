@@ -3,19 +3,26 @@ import { useParams, useNavigate } from 'react-router-dom'
 import AntigravityView from '../model/antigravity'
 import GeminiView from '../model/gemini'
 import OpenRouterView from '../model/openrouter'
+import NvidiaView from '../model/nvidia'
+import AnthropicView from '../model/anthropic'
+import OpenAIView from '../model/openai'
+import DeepSeekView from '../model/deepseek'
+
+type ProviderType = 'antigravity' | 'gemini' | 'openrouter' | 'nvidia' | 'anthropic' | 'openai' | 'deepseek';
 
 const ModelSelector: React.FC = () => {
   const { provider } = useParams<{ provider: string }>()
   const navigate = useNavigate()
-  const [activeTab, setActiveTab] = useState<'antigravity' | 'gemini' | 'openrouter'>('antigravity')
+  const [activeTab, setActiveTab] = useState<ProviderType>('antigravity')
 
   useEffect(() => {
-    if (provider === 'gemini' || provider === 'openrouter' || provider === 'antigravity') {
-      setActiveTab(provider as any)
+    const validProviders: ProviderType[] = ['antigravity', 'gemini', 'openrouter', 'nvidia', 'anthropic', 'openai', 'deepseek'];
+    if (provider && validProviders.includes(provider as ProviderType)) {
+      setActiveTab(provider as ProviderType)
     }
   }, [provider])
 
-  const handleTabChange = (tab: 'antigravity' | 'gemini' | 'openrouter') => {
+  const handleTabChange = (tab: ProviderType) => {
     setActiveTab(tab)
     navigate(`/model/${tab}`)
   }
@@ -25,6 +32,10 @@ const ModelSelector: React.FC = () => {
       case 'antigravity': return <AntigravityView />
       case 'gemini':      return <GeminiView />
       case 'openrouter':  return <OpenRouterView />
+      case 'nvidia':      return <NvidiaView />
+      case 'anthropic':   return <AnthropicView />
+      case 'openai':      return <OpenAIView />
+      case 'deepseek':    return <DeepSeekView />
     }
   }
 
@@ -34,6 +45,10 @@ const ModelSelector: React.FC = () => {
         <button className={activeTab === 'antigravity' ? 'active' : ''} onClick={() => handleTabChange('antigravity')}>Antigravity</button>
         <button className={activeTab === 'gemini' ? 'active' : ''} onClick={() => handleTabChange('gemini')}>Gemini</button>
         <button className={activeTab === 'openrouter' ? 'active' : ''} onClick={() => handleTabChange('openrouter')}>OpenRouter</button>
+        <button className={activeTab === 'nvidia' ? 'active' : ''} onClick={() => handleTabChange('nvidia')}>NVIDIA</button>
+        <button className={activeTab === 'anthropic' ? 'active' : ''} onClick={() => handleTabChange('anthropic')}>Anthropic</button>
+        <button className={activeTab === 'openai' ? 'active' : ''} onClick={() => handleTabChange('openai')}>OpenAI</button>
+        <button className={activeTab === 'deepseek' ? 'active' : ''} onClick={() => handleTabChange('deepseek')}>DeepSeek</button>
       </div>
 
       <div className="model-content">

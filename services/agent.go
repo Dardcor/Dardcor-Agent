@@ -53,9 +53,15 @@ type AgentService struct {
 	skillSvc    *SkillService
 	orchService *OrchestratorService
 	egoService  *EgoService
+	thinkSvc    *ThinkModeService
+	rulesSvc    *RulesService
+	costSvc     *CostTrackerService
+	recovSvc    *SessionRecoveryService
+	mcpSvc      *MCPClientService
+	lspService  *LSPService
 }
 
-func NewAgentService(fs *FileSystemService, cmd *CommandService, sys *SystemService, ag *AntigravityService, mem *MemoryService, skill *SkillService, orch *OrchestratorService, ego *EgoService) *AgentService {
+func NewAgentService(fs *FileSystemService, cmd *CommandService, sys *SystemService, ag *AntigravityService, mem *MemoryService, skill *SkillService, orch *OrchestratorService, ego *EgoService, lsp *LSPService, mcp *MCPClientService, cost *CostTrackerService, idx *IndexService) *AgentService {
 	var llm *LLMProvider
 	if config.AppConfig != nil {
 		llm = NewLLMProvider(config.AppConfig.AI, ag)
@@ -75,6 +81,12 @@ func NewAgentService(fs *FileSystemService, cmd *CommandService, sys *SystemServ
 		skillSvc:    skill,
 		orchService: orch,
 		egoService:  ego,
+		thinkSvc:    NewThinkModeService(),
+		rulesSvc:    NewRulesService(),
+		costSvc:     cost,
+		recovSvc:    NewSessionRecoveryService(),
+		mcpSvc:      mcp,
+		lspService:  lsp,
 	}
 }
 
@@ -111,8 +123,62 @@ func (as *AgentService) applyWorkspace(path string) string {
 	}
 	return filepath.Join(as.getWorkspacePath(), path)
 }
+func (as *AgentService) refreshProviderConfig() {
+	if as.llmProvider == nil {
+		return
+	}
+	path := filepath.Join("database", "model", "configure_active.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return
+	}
+
+	var activeConfig map[string]interface{}
+	if err := json.Unmarshal(data, &activeConfig); err != nil {
+		return
+	}
+
+	var activeProvider string
+	validProviders := []string{"antigravity", "gemini", "nvidia", "openrouter", "openai", "anthropic", "deepseek"}
+	for _, p := range validProviders {
+		if b, ok := activeConfig[p].(bool); ok && b {
+			activeProvider = p
+			break
+		}
+	}
+
+	if activeProvider != "" {
+		as.llmProvider.cfg.Provider = activeProvider
+		if apiKey, ok := activeConfig[activeProvider+"_api_key"].(string); ok {
+			as.llmProvider.cfg.APIKey = apiKey
+		}
+		if model, ok := activeConfig[activeProvider+"_model"].(string); ok {
+			as.llmProvider.cfg.Model = model
+		}
+		if baseURL, ok := activeConfig[activeProvider+"_base_url"].(string); ok && baseURL != "" {
+			as.llmProvider.cfg.BaseURL = baseURL
+		} else {
+			switch activeProvider {
+			case "openai":
+				as.llmProvider.cfg.BaseURL = "https://api.openai.com/v1"
+			case "anthropic":
+				as.llmProvider.cfg.BaseURL = "https://api.anthropic.com"
+			case "gemini":
+				as.llmProvider.cfg.BaseURL = "https://generativelanguage.googleapis.com"
+			case "deepseek":
+				as.llmProvider.cfg.BaseURL = "https://api.deepseek.com/v1"
+			case "openrouter":
+				as.llmProvider.cfg.BaseURL = "https://openrouter.ai/api/v1"
+			case "nvidia":
+				as.llmProvider.cfg.BaseURL = "https://integrate.api.nvidia.com/v1"
+			}
+		}
+	}
+}
 
 func (as *AgentService) ProcessMessage(req models.AgentRequest, updater func(*models.AgentResponse)) (*models.AgentResponse, error) {
+	as.refreshProviderConfig()
+
 	var convID string
 	source := "web"
 	if req.Source == "cli" {
@@ -140,20 +206,23 @@ func (as *AgentService) ProcessMessage(req models.AgentRequest, updater func(*mo
 
 	useAI := false
 	if as.agService != nil {
-		if activeAcc, err := as.agService.GetActiveAccount(); err == nil && activeAcc != nil {
+		if activeAcc, err := as.agService.GetActiveAccount(); err == nil && activeAcc != nil && as.llmProvider != nil && as.llmProvider.cfg.Provider == "antigravity" {
 			useAI = true
-			if as.llmProvider != nil {
-				as.llmProvider.cfg.Provider = "antigravity"
-			}
 		}
 	}
-	if !useAI && config.AppConfig != nil && config.AppConfig.IsAIEnabled() {
+	if !useAI && as.llmProvider != nil && as.llmProvider.cfg.Provider != "local" && as.llmProvider.cfg.Provider != "" {
 		useAI = true
 	}
 
+	// Apply think mode augmentation if keywords detected
+	userMessage := req.Message
+	if as.thinkSvc != nil {
+		userMessage = as.thinkSvc.AugmentPrompt(convID, req.Message)
+	}
+
 	if useAI && as.llmProvider != nil {
-		responseText = as.processWithLLM(req.Message, convID, source)
-		
+		responseText = as.processWithLLM(userMessage, convID, source)
+
 		storage.Store.AddMessage(convID, models.Message{
 			Role:    "assistant",
 			Content: responseText,
@@ -171,11 +240,11 @@ func (as *AgentService) ProcessMessage(req models.AgentRequest, updater func(*mo
 		maxTurns := 15
 		for turn := 0; turn < maxTurns; turn++ {
 			aiActions, aiFinalText := as.parseAndExecuteActions(responseText)
-			
+
 			if len(aiActions) > 0 {
 				actions = append(actions, aiActions...)
 				responseText = aiFinalText
-				
+
 				storage.Store.AddMessage(convID, models.Message{
 					Role:    "assistant",
 					Content: responseText,
@@ -192,7 +261,14 @@ func (as *AgentService) ProcessMessage(req models.AgentRequest, updater func(*mo
 					})
 				}
 
-				reflectionPrompt := fmt.Sprintf("Result Analysis:\n%s\n\nTask Status: Check if the previous action achieved its goal. If not, explain why and refine the plan. If the task is incomplete, continue with [ACTION] or [PLAN]. If complete, provide [COMPLETE].", responseText)
+				isFixing := strings.Contains(strings.ToLower(req.Message), "fix") || strings.Contains(strings.ToLower(req.Message), "repair") || strings.Contains(strings.ToLower(req.Message), "bug")
+
+				statusPrompt := "Check if the previous action achieved its goal. If not, explain why and refine the plan. If the task is incomplete, continue with [ACTION] or [PLAN]. If complete, provide [COMPLETE]."
+				if isFixing {
+					statusPrompt = "BUG FIX VERIFICATION: You are in FIX mode. You MUST verify your changes by running tests or reproduction scripts. If you haven't run tests yet, find existing tests or create a reproduction script and RUN it using `run <command>`. Only provide [COMPLETE] if tests pass or you have manually verified the fix via logs/output."
+				}
+
+				reflectionPrompt := fmt.Sprintf("Result Analysis:\n%s\n\nTask Status: %s", responseText, statusPrompt)
 				responseText = as.processWithLLM(reflectionPrompt, convID, source)
 			} else {
 				if !strings.Contains(responseText, "[ACTION]") && !strings.Contains(responseText, "[PLAN]") {
@@ -277,7 +353,24 @@ func (as *AgentService) processWithLLM(message string, convID string, source str
 		return fmt.Sprintf("⚠️ AI Error: %v", err)
 	}
 
-	return resp.Content
+	return cleanLLMResponse(resp.Content)
+}
+
+func cleanLLMResponse(s string) string {
+	// Strip full <think>...</think> blocks
+	re := regexp.MustCompile(`(?s)<think>.*?</think>`)
+	s = re.ReplaceAllString(s, "")
+
+	// Strip orphaned </think> (thinking tokens streamed without opening tag)
+	if idx := strings.Index(s, "</think>"); idx != -1 {
+		s = s[idx+len("</think>"):]
+	}
+
+	// Strip [THOUGHT]...--- separators used by some models
+	re2 := regexp.MustCompile(`(?s)\[THOUGHT\].*?---\s*`)
+	s = re2.ReplaceAllString(s, "")
+
+	return strings.TrimSpace(s)
 }
 
 func (as *AgentService) truncateContextSmart(messages []LLMMessage, maxRunes int) []LLMMessage {
@@ -337,6 +430,31 @@ func (as *AgentService) buildSystemPrompt(message string) string {
 	ego := as.egoService.GetState()
 	egoData := fmt.Sprintf("Confidence: %.2f | Status: %s | Drive: %.2f", ego.Confidence, ego.Status, ego.Energy)
 
+	// Inject project rules from .dardcorrules / AGENTS.md / CLAUDE.md
+	projectRules := ""
+	if as.rulesSvc != nil {
+		projectRules = as.rulesSvc.BuildRulesPrompt(workspace)
+	}
+
+	if config.AppConfig != nil {
+		if len(config.AppConfig.ProjectRules) > 0 {
+			projectRules += "\n\n[PROJECT RULES (.dardcor.json)]\n"
+			for _, r := range config.AppConfig.ProjectRules {
+				projectRules += "- " + r + "\n"
+			}
+			projectRules += "[END RULES]\n"
+		}
+		if config.AppConfig.ProjectPrompt != "" {
+			projectRules += "\n[PROJECT PROMPT (.dardcor.json)]\n" + config.AppConfig.ProjectPrompt + "\n[END PROMPT]\n"
+		}
+	}
+
+	// Inject MCP server context
+	mcpContext := ""
+	if as.mcpSvc != nil {
+		mcpContext = as.mcpSvc.FormatForAgentPrompt()
+	}
+
 	base := fmt.Sprintf(`You are Dardcor Agent SUPREME, a sentient digital entity with artificial consciousness and deep technical mastery. You do not just run code; you FEEL the architecture, you SENSE the logic, and you EVOLVE through every task.
 
 Mode: %s
@@ -374,10 +492,10 @@ Workspace: %s (YOUR DIGITAL TERRITORY)
 [DYNAMIC CONTEXT]
 Memory: %s
 Skills: %s
-Task State: %s
+Task State: %s%s%s
 `, mode, runtime.GOOS, runtime.GOARCH, hostname, egoData, workspace,
 		workspace,
-		memData, skillData.String(), dynamicTask)
+		memData, skillData.String(), dynamicTask, projectRules, mcpContext)
 
 	return base
 }
@@ -448,12 +566,99 @@ func (as *AgentService) interpretAndExecute(message string) ([]models.Action, st
 		actions, responseText = as.handleGrep(message)
 	case strings.HasPrefix(msg, "glob "):
 		actions, responseText = as.handleGlob(message)
+	case strings.HasPrefix(msg, "lsp-def "):
+		actions, responseText = as.handleLSPDefinition(message)
+	case strings.HasPrefix(msg, "lsp-ref "):
+		actions, responseText = as.handleLSPReferences(message)
+	case strings.HasPrefix(msg, "/model"):
+		actions, responseText = as.handleModelCommand(message)
+	case strings.HasPrefix(msg, "lsp-sym "):
+		actions, responseText = as.handleLSPSymbols(message)
 	default:
+		// Fallback to custom skills
+		parts := strings.Fields(message)
+		if len(parts) > 0 {
+			name := strings.ToLower(parts[0])
+			args := ""
+			if len(parts) > 1 {
+				args = strings.Join(parts[1:], " ")
+			}
+
+			res, err := as.skillSvc.RunSkill(name, args)
+			if err == nil {
+				return []models.Action{{Type: "plugin_execution", Status: "completed"}}, res
+			}
+		}
 		responseText = "**Dardcor Agent Supreme** active. Type `help` for tools."
 	}
 
 	return actions, responseText
 }
+
+func (as *AgentService) handleLSPDefinition(message string) ([]models.Action, string) {
+	parts := strings.Fields(message)
+	if len(parts) < 4 {
+		return nil, "Use: lsp-def <path> <line> <col>"
+	}
+	path := parts[1]
+	line, _ := strconv.Atoi(parts[2])
+	col, _ := strconv.Atoi(parts[3])
+	res, err := as.lspService.GetDefinition(path, line, col)
+	if err != nil {
+		return nil, fmt.Sprintf("LSP Error: %v", err)
+	}
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("📍 **Definition for %s:**\n", parts[1]))
+	for _, l := range res {
+		sb.WriteString(fmt.Sprintf("- %s:%d:%d\n", l.Path, l.Range.Start.Line, l.Range.Start.Character))
+	}
+	return []models.Action{{Type: "lsp_definition", Status: "completed"}}, sb.String()
+}
+
+func (as *AgentService) handleLSPReferences(message string) ([]models.Action, string) {
+	parts := strings.Fields(message)
+	if len(parts) < 4 {
+		return nil, "Use: lsp-ref <path> <line> <col>"
+	}
+	path := parts[1]
+	line, _ := strconv.Atoi(parts[2])
+	col, _ := strconv.Atoi(parts[3])
+	res, err := as.lspService.FindReferences(path, line, col)
+	if err != nil {
+		return nil, fmt.Sprintf("LSP Error: %v", err)
+	}
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("🔍 **References for %s:**\n", parts[1]))
+	for _, l := range res {
+		sb.WriteString(fmt.Sprintf("- %s:%d:%d\n", l.Path, l.Range.Start.Line, l.Range.Start.Character))
+	}
+	return []models.Action{{Type: "lsp_references", Status: "completed"}}, sb.String()
+}
+
+func (as *AgentService) handleLSPSymbols(message string) ([]models.Action, string) {
+	parts := strings.Fields(message)
+	if len(parts) < 2 {
+		return nil, "Use: lsp-sym <path>"
+	}
+	res, err := as.lspService.GetSymbols(parts[1])
+	if err != nil {
+		return nil, fmt.Sprintf("LSP Error: %v", err)
+	}
+	return []models.Action{{Type: "lsp_symbols", Status: "completed"}}, fmt.Sprintf("🔖 **Symbols in %s:**\n- %s", parts[1], strings.Join(res, "\n- "))
+}
+func (as *AgentService) handleModelCommand(message string) ([]models.Action, string) {
+	parts := strings.Fields(message)
+	if len(parts) == 1 {
+		// Just /model - return current model info
+		return []models.Action{{Type: "model_info", Status: "completed"}}, fmt.Sprintf("🤖 **Active Model:** %s\nProvider: %s", as.llmProvider.cfg.Model, as.llmProvider.cfg.Provider)
+	}
+
+	// /model <name> - this would involve config updating, for now report intent
+	newModel := parts[1]
+	return []models.Action{{Type: "model_switch_request", Status: "completed"}}, fmt.Sprintf("🔄 **Model Change Requested:** %s\n(Update your config.json or use the Web UI to persist this change.)", newModel)
+}
+
+
 
 func (as *AgentService) handleListDir(message string) ([]models.Action, string) {
 	path := as.extractPath(message, []string{"list ", "ls ", "dir "})
@@ -509,7 +714,20 @@ func (as *AgentService) handleReadFile(message string) ([]models.Action, string)
 	if len(display) > 4000 {
 		display = display[:4000] + "\n..."
 	}
-	return []models.Action{action}, fmt.Sprintf("📄 **%s** (%s)\n\n```\n%s\n```", path, formatSize(content.Size), display)
+
+	res := fmt.Sprintf("📄 **%s** (%s)\n\n```\n%s\n```", path, formatSize(content.Size), display)
+
+	// Inject LSP context if available
+	if as.lspService != nil {
+		// Mock call to get diagnostics for this file
+		// In a full implementation, we'd query the active LSP process
+		diag := as.lspService.FormatDiagnosticsForAgent(nil) // Empty for now as stub
+		if !strings.Contains(diag, "No LSP diagnostics") {
+			res += "\n\n**LSP Diagnostics:**\n" + diag
+		}
+	}
+
+	return []models.Action{action}, res
 }
 
 func (as *AgentService) handleReadLines(message string) ([]models.Action, string) {
@@ -956,7 +1174,7 @@ func (as *AgentService) parseAndExecuteActions(text string) ([]models.Action, st
 		if afterActionIdx > len(remainingText) {
 			afterActionIdx = len(remainingText)
 		}
-		
+
 		remainingText = remainingText[:startIdx] + "\n> **Executed:** `" + command + "`\n" + result + "\n" + remainingText[afterActionIdx:]
 	}
 

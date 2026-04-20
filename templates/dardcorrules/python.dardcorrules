@@ -1,0 +1,23 @@
+## Project Identity
+name: "Python Project"
+description: "Python application"
+version: "1.0.0"
+
+## Tech Stack
+- Language: Python 3.12+
+- Package Manager: uv / pip
+- Testing: pytest
+- Linting: ruff
+
+## Coding Style
+- Follow PEP 8
+- Use type hints everywhere
+- Use dataclasses or Pydantic models
+- Prefer pathlib over os.path
+- Use async/await for I/O operations
+
+## Constraints
+- NEVER hardcode secrets
+- Always use virtual environments
+- Write docstrings for all public functions
+- Use type hints on all function signatures

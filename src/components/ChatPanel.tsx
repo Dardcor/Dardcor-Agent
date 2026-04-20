@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import wsService from '../services/websocket'
 import ThinkingConsole from './ThinkingConsole'
+import { getAllModels, SuggestionModel } from '../services/modelSuggestions'
 
 interface Message {
   role: 'user' | 'assistant' | 'system'
@@ -29,7 +30,14 @@ const ChatPanel: React.FC = () => {
   const [showHistory, setShowHistory] = useState(false)
   const [conversations, setConversations] = useState<ConversationSummary[]>([])
   const [loadingHistory, setLoadingHistory] = useState(false)
+  
+  // Model Modal State
+  const [showModelPopup, setShowModelPopup] = useState(false)
+  const [modelSearch, setModelSearch] = useState('')
+  const allAvailableModels = useMemo(() => getAllModels(), [])
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
 
   const startNewChat = useCallback(() => {
     setMessages([])
@@ -101,284 +109,263 @@ const ChatPanel: React.FC = () => {
       setMessages(loaded)
     })
 
-    const handleExternalToggle = () => setShowHistory(prev => !prev)
-    const handleNewChat = () => startNewChat()
-
-    document.addEventListener('toggle-history', handleExternalToggle)
-    document.addEventListener('new-chat', handleNewChat)
-
-    if (id && isConnected) {
-      wsService.getConversation(id)
-      localStorage.setItem('last_conv_id', id)
-    }
-
-    setIsConnected(wsService.isConnected)
-
     return () => {
-      unsubConn(); unsubResp(); unsubTyping()
-      unsubError(); unsubConvList(); unsubConvDetail()
-      document.removeEventListener('toggle-history', handleExternalToggle)
-      document.removeEventListener('new-chat', handleNewChat)
+      unsubConn(); unsubResp(); unsubTyping(); unsubError(); unsubConvList(); unsubConvDetail()
     }
-  }, [startNewChat, id, isConnected, navigate])
+  }, [navigate])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isTyping])
 
-  useEffect(() => {
-    if (showHistory) {
-      setLoadingHistory(true)
-      wsService.getConversations()
-    }
-  }, [showHistory])
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const val = e.target.value
+    setInput(val)
 
-  const handleSubmit = (e?: React.FormEvent) => {
-    e?.preventDefault()
-    if (!input.trim() || !isConnected || isTyping) return
-
-    let processedInput = input
-    if (input.toLowerCase().startsWith('ultrawork ') || input.toLowerCase().startsWith('ulw ')) {
-      const task = input.replace(/^(ultrawork|ulw)\s+/i, '')
-      processedInput = `[ULTRAWORK MODE] ${task}`
+    // Trigger Popup if they type /model
+    if (val === '/model' || val === '/model ') {
+      setShowModelPopup(true)
+      setInput('') // clear input automatically
     }
-    if (agentMode === 'plan') {
-      processedInput = `[READ-ONLY ANALYSIS MODE] ${processedInput}`
+  }
+
+  const selectModel = (modelId: string) => {
+    wsService.send('agent_request', {
+        content: `/model ${modelId}`,
+        mode: agentMode
+    })
+    setShowModelPopup(false)
+    setModelSearch('')
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleSubmit()
+    } else if (e.key === 'Tab') {
+      e.preventDefault()
+      setAgentMode(prev => prev === 'build' ? 'plan' : 'build')
+    }
+  }
+
+  const handleSubmit = () => {
+    if (!input.trim() || !isConnected) return
+
+    if (input.trim() === '/model') {
+       setShowModelPopup(true)
+       setInput('')
+       return
     }
 
-    const newMessage: Message = {
+    const userMessage: Message = {
       role: 'user',
       content: input,
       timestamp: new Date().toLocaleTimeString(),
       mode: agentMode,
     }
-    setMessages(prev => [...prev, newMessage])
-    wsService.send('agent_message', {
-      message: processedInput,
+
+    setMessages(prev => [...prev, userMessage])
+    setIsTyping(true)
+
+    wsService.send('agent_request', {
+      content: input,
+      mode: agentMode,
       conversation_id: conversationId,
     })
+
     setInput('')
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit() }
-    if (e.key === 'Tab') { e.preventDefault(); setAgentMode(m => m === 'build' ? 'plan' : 'build') }
-  }
+  const filteredModels = allAvailableModels.filter(m => 
+    m.id.toLowerCase().includes(modelSearch.toLowerCase()) || 
+    m.name.toLowerCase().includes(modelSearch.toLowerCase()) || 
+    m.provider.toLowerCase().includes(modelSearch.toLowerCase())
+  )
 
-  const loadConversation = (id: string) => {
-    setConversationId(id)
-    localStorage.setItem('last_conv_id', id)
-    navigate(`/chat/${id}`)
-    wsService.getConversation(id)
-  }
-
-  const formatDate = (iso: string) => {
-    try {
-      const d = new Date(iso)
-      const today = new Date()
-      if (d.toDateString() === today.toDateString()) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      return d.toLocaleDateString([], { day: '2-digit', month: 'short' })
-    } catch { return '' }
-  }
-
-  const renderContent = (content: string) => {
-    const parts = content.split(/(```[\s\S]*?```)/g);
-    
-    return (
-      <>
-        <ThinkingConsole content={content} />
-        {parts.map((part, i) => {
-          if (part.startsWith('```')) {
-            const code = part.replace(/^```[^\n]*\n?/, '').replace(/```$/, '')
-            return (
-              <pre key={i} style={{
-                background: 'rgba(0,0,0,0.5)', padding: '15px', borderRadius: '10px',
-                overflowX: 'auto', fontSize: '12px', margin: '12px 0',
-                border: '1px solid rgba(124,58,237,0.15)', fontFamily: 'Fira Code, monospace',
-                boxShadow: 'inset 0 0 20px rgba(0,0,0,0.2)'
-              }}><code>{code}</code></pre>
-            )
-          }
-
-          const cleanText = part.replace(/\[THOUGHT\][\s\S]*?(\[PLAN\]|\[ACTION\]|$)/i, '$1').trim();
-          if (!cleanText) return null;
-
-          return <span key={i} style={{ whiteSpace: 'pre-wrap' }}>{cleanText}</span>
-        })}
-      </>
-    )
-  }
+  const lastAssistantMessage = messages.slice().reverse().find(m => m.role === 'assistant')?.content || ''
 
   return (
-    <div className="chat-container">
-      {showHistory && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 9999,
-          background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center'
-        }}>
-          <div style={{
-            width: '600px', height: '70vh', background: 'var(--bg-secondary)',
-            border: '1px solid var(--border-subtle)', borderRadius: '12px',
-            display: 'flex', flexDirection: 'column',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
-          }}>
-            <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: '16px', fontWeight: 700, color: '#a78bfa' }}>🕒 Riwayat</span>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button onClick={startNewChat} style={{
-                  background: 'var(--accent-primary)', border: 'none', color: '#fff',
-                  borderRadius: '6px', padding: '6px 12px', fontSize: '13px', cursor: 'pointer',
-                  fontWeight: 600
-                }}>+ Baru</button>
-                <button onClick={() => setShowHistory(false)} style={{
-                  background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '24px', lineHeight: 1
-                }}>×</button>
+    <div className="flex flex-col h-full bg-[#0a0a0a] text-white overflow-hidden relative">
+      {}
+      <div className="border-b border-white/5 bg-black/20 px-6 py-3 flex items-center justify-between backdrop-blur-md">
+        <div className="flex items-center gap-3">
+          <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse"></div>
+          <h2 className="text-sm font-semibold tracking-wider text-purple-100/80">DARDCOR AGENT</h2>
+          <div className="px-2 py-0.5 rounded border border-white/10 text-[10px] font-bold text-white/40">
+            {agentMode.toUpperCase()} MODE
+          </div>
+        </div>
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => {
+              setLoadingHistory(true)
+              wsService.send('get_conversations', {})
+              setShowHistory(true)
+            }}
+            className="text-[11px] font-bold text-white/40 hover:text-white/80 transition-colors uppercase tracking-widest"
+          >
+            History
+          </button>
+          <button 
+            onClick={startNewChat}
+            className="text-[11px] font-bold text-purple-400 hover:text-purple-300 transition-colors uppercase tracking-widest"
+          >
+            New Chat
+          </button>
+        </div>
+      </div>
+
+      {}
+      <div className="flex-1 overflow-y-auto px-6 py-8 space-y-8 scroll-smooth custom-scrollbar">
+        {messages.length === 0 && !isTyping && (
+          <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-20">
+            <div className="w-12 h-12 rounded-2xl border-2 border-white/20 flex items-center justify-center">
+              <span className="text-2xl">⚡</span>
+            </div>
+            <p className="text-sm font-medium">Ready for input.</p>
+          </div>
+        )}
+        
+        {messages.map((msg, i) => (
+          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-fade-in`}>
+            <div className={`max-w-[85%] group`}>
+              <div className="flex items-center gap-2 mb-2 opacity-30 group-hover:opacity-100 transition-opacity">
+                <span className="text-[10px] font-bold uppercase tracking-tighter">{msg.role}</span>
+                <span className="text-[10px]">{msg.timestamp}</span>
+              </div>
+              <div className={`
+                px-5 py-3 rounded-2xl text-[14px] leading-relaxed whitespace-pre-wrap
+                ${msg.role === 'user' 
+                  ? 'bg-purple-600/10 border border-purple-500/20 text-purple-50' 
+                  : 'bg-white/5 border border-white/5 text-white/90'}
+              `}>
+                {msg.content}
               </div>
             </div>
+          </div>
+        ))}
+        {isTyping && <ThinkingConsole content={lastAssistantMessage} isStreaming={true} />}
+        <div ref={messagesEndRef} />
+      </div>
 
-            <div style={{ flex: 1, overflowY: 'auto', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      {}
+      <div className="p-6 bg-black/40 border-t border-white/5 backdrop-blur-xl relative">
+        <div className="relative group max-w-5xl mx-auto">
+          <textarea
+            ref={inputRef}
+            rows={1}
+            value={input}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+            placeholder="Ask anything... (type /model for model popup)"
+            className="
+              w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 
+              text-sm focus:outline-none focus:border-purple-500/50 transition-all
+              placeholder:text-white/20 resize-none overflow-hidden
+            "
+          />
+          <div className="absolute right-4 bottom-4 flex items-center gap-3">
+            <div className="text-[10px] font-bold text-white/10 group-focus-within:text-white/30 transition-colors uppercase tracking-widest">
+              {agentMode} mode
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {}
+      {showModelPopup && (
+        <div className="absolute inset-0 z-[200] animate-fade-in flex items-center justify-center p-6 bg-black/80 backdrop-blur-md">
+          <div className="w-full max-w-lg bg-[#0f0f0f] border border-white/20 rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[80%] relative">
+            
+            <div className="p-6 border-b border-white/5 bg-white/5">
+              <h3 className="text-sm font-bold uppercase tracking-widest text-white/80 mb-4">Select AI Model</h3>
+              <input 
+                autoFocus
+                type="text"
+                placeholder="Search models... (e.g., gpt, claude)"
+                value={modelSearch}
+                onChange={e => setModelSearch(e.target.value)}
+                className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-purple-500/50 transition-all placeholder:text-white/30"
+              />
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+              {filteredModels.length === 0 ? (
+                <div className="h-40 flex items-center justify-center text-white/20 text-sm">No models found.</div>
+              ) : (
+                <div className="grid gap-2">
+                  {filteredModels.map(m => (
+                    <button
+                      key={m.id}
+                      onClick={() => selectModel(m.id)}
+                      className="p-4 flex items-center justify-between rounded-xl bg-white/5 border border-transparent hover:border-purple-500/50 hover:bg-white/10 text-left transition-all group"
+                    >
+                      <div className="flex flex-col">
+                        <span className="text-[14px] font-medium text-white/90 group-hover:text-purple-300">
+                          {m.name}
+                        </span>
+                        <span className="text-[10px] text-white/30 font-mono tracking-tighter mt-1">{m.id}</span>
+                      </div>
+                      <span className="text-[9px] px-2 py-1 rounded border border-white/10 text-white/40 group-hover:border-purple-500/30 group-hover:text-purple-400 uppercase tracking-widest">
+                        {m.provider}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button 
+              onClick={() => setShowModelPopup(false)}
+              className="absolute top-4 right-4 w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center text-white/40 hover:text-white transition-colors"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
+      {}
+      {showHistory && (
+        <div className="absolute inset-0 z-[100] animate-fade-in flex items-center justify-center p-6 bg-black/60 backdrop-blur-md">
+          <div className="w-full max-w-2xl bg-[#0f0f0f] border border-white/10 rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[80%]">
+            <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/5">
+              <h3 className="text-sm font-bold uppercase tracking-widest text-white/60">Session History</h3>
+              <button 
+                onClick={() => setShowHistory(false)}
+                className="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
               {loadingHistory ? (
-                <div style={{ display: 'flex', justifyContent: 'center', padding: '40px' }}>
-                  <div className="typing-dots"><span /><span /><span /></div>
+                <div className="h-40 flex items-center justify-center">
+                  <div className="typing-dots"><span></span><span></span><span></span></div>
                 </div>
               ) : conversations.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px', color: '#64748b', fontSize: '14px' }}>
-                  Belum ada riwayat percakapan.
-                </div>
+                <div className="h-40 flex items-center justify-center text-white/20 text-sm">No history found.</div>
               ) : (
-                conversations.map(conv => (
-                  <div
-                    key={conv.id}
-                    onClick={() => loadConversation(conv.id)}
-                    style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      background: conversationId === conv.id ? 'rgba(124,58,237,0.15)' : 'var(--bg-tertiary)',
-                      border: conversationId === conv.id ? '1px solid var(--accent-primary)' : '1px solid var(--border-subtle)',
-                      borderRadius: '8px', padding: '12px 16px', cursor: 'pointer',
-                      transition: 'all 0.2s',
-                    }}
-                  >
-                    <div style={{ flex: 1, overflow: 'hidden' }}>
-                      <div style={{ fontSize: '14px', color: conversationId === conv.id ? '#c4b5fd' : '#f8fafc', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {conv.title || 'Percakapan'}
-                      </div>
-                      <div style={{ fontSize: '12px', color: '#64748b', marginTop: '4px' }}>
-                        {formatDate(conv.updated_at)}
-                      </div>
-                    </div>
-                  </div>
-                ))
+                <div className="grid gap-2">
+                  {conversations.map(conv => (
+                    <button
+                      key={conv.id}
+                      onClick={() => {
+                        wsService.send('get_conversation', { id: conv.id })
+                        navigate(`/chat/${conv.id}`)
+                      }}
+                      className="p-4 rounded-2xl bg-white/5 border border-white/0 hover:border-white/10 hover:bg-white/10 text-left transition-all group"
+                    >
+                      <div className="text-sm font-medium mb-1 group-hover:text-purple-400 transition-colors">{conv.title || 'Untitled Session'}</div>
+                      <div className="text-[10px] text-white/30">{new Date(conv.updated_at).toLocaleString()}</div>
+                    </button>
+                  ))}
+                </div>
               )}
             </div>
           </div>
         </div>
       )}
-
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, width: '100%' }}>
-        <div className="chat-messages">
-          {messages.length === 0 && (
-            <div className="chat-welcome">
-              <h2>Dardcor Agent</h2>
-              <p>Ready in <strong>{agentMode.toUpperCase()}</strong> mode.</p>
-              <div className="mode-explain">
-                {agentMode === 'build' ?
-                  '🛠️ BUILD: I can execute commands and modify files.' :
-                  '📄 PLAN: I only analyze and give suggestions.'}
-              </div>
-            </div>
-          )}
-
-          {messages.map((msg, i) => (
-            <div key={i} className={`message ${msg.role}`}>
-              <div className="message-avatar">
-                {msg.role === 'assistant' ? <div className="avatar-img" /> : 'U'}
-              </div>
-              <div className="message-body">
-                <div className="message-meta">
-                  <span className="message-sender">{msg.role === 'assistant' ? 'Dardcor Agent' : 'You'}</span>
-                  <span className="message-time">{msg.timestamp}</span>
-                </div>
-                <div className="message-content">
-                  {renderContent(msg.content)}
-                </div>
-              </div>
-            </div>
-          ))}
-
-          {isTyping && (
-            <div className="message assistant">
-              <div className="message-avatar"><div className="avatar-img" /></div>
-              <div className="message-body">
-                <div className="message-meta">
-                  <span className="message-sender">Dardcor Agent</span>
-                </div>
-                <div className="message-content">
-                  <div className="typing-dots"><span /><span /><span /></div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div ref={messagesEndRef} />
-        </div>
-
-        <div className="chat-input-container">
-          <form className="chat-input-wrapper" onSubmit={handleSubmit}>
-            <textarea
-              className="chat-input"
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={agentMode === 'build' ? 'Ask anything (BUILD mode)...' : 'Ask for analysis (PLAN mode)...'}
-              rows={1}
-              disabled={isTyping}
-            />
-            <button className="chat-send-btn" type="submit" disabled={!input.trim() || !isConnected || isTyping}>
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <line x1="22" y1="2" x2="11" y2="13" />
-                <polygon points="22 2 15 22 11 13 2 9 22 2" />
-              </svg>
-            </button>
-          </form>
-          <div className="chat-input-hint">
-            Tab to switch mode • {agentMode.toUpperCase()} MODE
-            {!isConnected && <span style={{ color: '#ef4444', marginLeft: '10px' }}>⚠ Disconnected</span>}
-            {input.toLowerCase().startsWith('ulw') && <span style={{ color: 'var(--accent-primary)', marginLeft: '10px' }}>⚡ ULTRAWORK</span>}
-          </div>
-        </div>
-      </div>
-
-      <style dangerouslySetInnerHTML={{ __html: `
-        .chat-container { height: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative; }
-        .chat-messages { 
-          flex: 1; overflow-y: scroll !important; padding: 20px 40px 20px 20px; 
-          display: flex; flex-direction: column; gap: 20px;
-          scrollbar-gutter: stable;
-        }
-        .chat-messages::-webkit-scrollbar { width: 8px !important; }
-        .chat-messages::-webkit-scrollbar-track { background: transparent !important; }
-        .chat-messages::-webkit-scrollbar-thumb { 
-          background: var(--accent-primary) !important; 
-          border-radius: 10px !important;
-          border: 2px solid var(--bg-primary) !important;
-        }
-        .chat-input-container { padding: 20px; max-width: 1000px; margin: 0 auto; width: 100%; }
-        .chat-input-wrapper { 
-          display: flex; align-items: center; background: var(--bg-tertiary); 
-          border: 1.5px solid var(--border-subtle); border-radius: 20px; padding: 8px 12px;
-          gap: 10px;
-        }
-        .chat-input { flex: 1; background: transparent; border: none; color: white; resize: none; font-size: 14px; }
-        .chat-send-btn { 
-          background: var(--accent-primary); color: white; border: none; 
-          width: 36px; height: 36px; border-radius: 50%; cursor: pointer;
-          display: flex; align-items: center; justify-content: center;
-          transition: var(--transition-fast);
-        }
-        .chat-send-btn:hover:not(:disabled) { transform: scale(1.05); box-shadow: 0 0 15px var(--accent-glow-sm); }
-        .chat-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-      `}} />
     </div>
   )
 }

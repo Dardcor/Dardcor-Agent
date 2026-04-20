@@ -121,6 +121,8 @@ func (wsh *WebSocketHandler) handleMessage(client *WSClient, msg models.WSMessag
 		wsh.handleRenameConversation(client, msg)
 	case "kill_command":
 		wsh.handleKillCommand(client, msg)
+	case "delete_conversation":
+		wsh.handleDeleteConversation(client, msg)
 	case "ping":
 		wsh.sendToClient(client, models.WSMessage{
 			Type:    "pong",

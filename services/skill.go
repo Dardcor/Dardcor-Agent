@@ -2,9 +2,12 @@ package services
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 
@@ -83,6 +86,47 @@ func (ss *SkillService) GetSkills() []SkillDefinition {
 	return ss.skills
 }
 
+func (ss *SkillService) RunSkill(name string, args string) (string, error) {
+	ss.mu.RLock()
+	var skill *SkillDefinition
+	for _, s := range ss.skills {
+		if s.Name == name {
+			skill = &s
+			break
+		}
+	}
+	ss.mu.RUnlock()
+
+	if skill == nil {
+		return "", fmt.Errorf("skill not found: %s", name)
+	}
+
+	if skill.Command == "" {
+		return "", fmt.Errorf("skill %s is documentation-only and cannot be executed", name)
+	}
+
+	cmdStr := skill.Command
+	if args != "" {
+		if strings.Contains(cmdStr, "$1") {
+			cmdStr = strings.Replace(cmdStr, "$1", args, -1)
+		} else {
+			cmdStr += " " + args
+		}
+	}
+
+	out, err := exec.Command("sh", "-c", cmdStr).CombinedOutput()
+	if err != nil {
+		if runtime.GOOS == "windows" {
+			out, err = exec.Command("cmd", "/c", cmdStr).CombinedOutput()
+		}
+	}
+
+	if err != nil {
+		return string(out), fmt.Errorf("skill execution failed: %v", err)
+	}
+	return string(out), nil
+}
+
 func (ss *SkillService) getDefaultSkills() []SkillDefinition {
 	return []SkillDefinition{
 		{"list_directory", "List files in a directory", "list <path>", ""},
@@ -106,4 +150,3 @@ func (ss *SkillService) getDefaultSkills() []SkillDefinition {
 		{"remember", "Store long-term memory", "remember <key> <value>", ""},
 	}
 }
-

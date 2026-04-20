@@ -1,12 +1,16 @@
 package main
 
 import (
+	"embed"
 	"encoding/json"
+	"io/fs"
 	"log"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"os/exec"
 	"runtime"
 	"strings"
 	"time"
@@ -20,6 +24,9 @@ import (
 	"github.com/gorilla/mux"
 )
 
+//go:embed dist/*
+var distFS embed.FS
+
 var startTime = time.Now()
 
 func main() {
@@ -27,6 +34,37 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize config: %v", err)
 	}
+
+	// ─── CLI Routing ─────────────────────────────────────────────────────────
+	args := os.Args[1:]
+	isRunCmd := len(args) > 0 && args[0] == "run"
+
+	if !isRunCmd {
+		// Only start background engine if no other instance is on this port
+		if !isPortInUse(cfg.Port) {
+			go startServer(cfg)
+			// Settle time for port binding
+			time.Sleep(600 * time.Millisecond)
+		}
+
+		// Run Node CLI
+		nodeArgs := append([]string{"cli.js"}, args...)
+		cmd := exec.Command("node", nodeArgs...)
+		cmd.Stdout, cmd.Stderr, cmd.Stdin = os.Stdout, os.Stderr, os.Stdin
+		if err := cmd.Run(); err != nil {
+			if exitErr, ok := err.(*exec.ExitError); ok {
+				os.Exit(exitErr.ExitCode())
+			}
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
+
+	// ─── Direct Server Mode (dardcor run) ───────────────────────────────────
+	startServer(cfg)
+}
+
+func startServer(cfg *config.Config) {
 	storage.Init()
 
 	memSvc := services.NewMemoryService(cfg.DataDir)
@@ -39,19 +77,27 @@ func main() {
 	dreamSvc.StartDreaming()
 	skillSvc := services.NewSkillService()
 	orchestratorSvc := services.NewOrchestratorService()
-	agentSvc := services.NewAgentService(fsSvc, cmdSvc, sysSvc, antigravitySvc, memSvc, skillSvc, orchestratorSvc, egoSvc)
+
+	costSvc := services.NewCostTrackerService()
+	idxSvc := services.NewIndexService()
+	lspSvc := services.NewLSPService()
+	mcpSvc := services.NewMCPClientService()
+
+	agentSvc := services.NewAgentService(fsSvc, cmdSvc, sysSvc, antigravitySvc, memSvc, skillSvc, orchestratorSvc, egoSvc, lspSvc, mcpSvc, costSvc, idxSvc)
+
+	bgAgentSvc := services.NewBackgroundAgentService(agentSvc)
 
 	fsHandler := handlers.NewFileSystemHandler(fsSvc)
 	cmdHandler := handlers.NewCommandHandler(cmdSvc)
 	sysHandler := handlers.NewSystemHandler(sysSvc)
 	agentHandler := handlers.NewAgentHandler(agentSvc)
 	wsHandler := handlers.NewWebSocketHandler(agentSvc, cmdSvc)
-
 	antigravityHandler := handlers.NewAntigravityHandler(antigravitySvc)
 	modelHandler := handlers.NewModelHandler()
+	bgHandler := handlers.NewBackgroundHandler(bgAgentSvc)
+	statsHandler := handlers.NewStatsHandler(costSvc, idxSvc, lspSvc, mcpSvc)
 
 	r := mux.NewRouter()
-
 	api := r.PathPrefix("/api").Subrouter()
 	api.HandleFunc("/agent", agentHandler.ProcessMessage).Methods("POST", "OPTIONS")
 
@@ -66,7 +112,6 @@ func main() {
 	}).Methods("GET")
 
 	api.HandleFunc("/system", sysHandler.GetSystemInfo).Methods("GET")
-
 	api.HandleFunc("/provider", func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		hostname, _ := os.Hostname()
@@ -86,9 +131,7 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		skills := skillSvc.GetSkills()
 		json.NewEncoder(w).Encode(map[string]interface{}{
-			"success": true,
-			"data":    skills,
-			"count":   len(skills),
+			"success": true, "data": skills, "count": len(skills),
 		})
 	}).Methods("GET")
 
@@ -138,10 +181,36 @@ func main() {
 	api.HandleFunc("/ego/state", egoHandler.GetState).Methods("GET")
 	api.HandleFunc("/ego/dreams", egoHandler.GetDreams).Methods("GET")
 
+	api.HandleFunc("/background/submit", bgHandler.Submit).Methods("POST", "OPTIONS")
+	api.HandleFunc("/background/task", bgHandler.GetTask).Methods("GET")
+	api.HandleFunc("/background/tasks", bgHandler.ListTasks).Methods("GET")
+	api.HandleFunc("/background/cancel", bgHandler.CancelTask).Methods("POST", "OPTIONS")
+	api.HandleFunc("/background/purge", bgHandler.PurgeCompleted).Methods("POST", "OPTIONS")
+
+	api.HandleFunc("/stats", statsHandler.GetStats).Methods("GET")
+	api.HandleFunc("/stats/reset", statsHandler.ResetStats).Methods("POST", "OPTIONS")
+
+	api.HandleFunc("/index/status", statsHandler.GetIndexStatus).Methods("GET")
+	api.HandleFunc("/index/build", statsHandler.BuildIndex).Methods("POST", "OPTIONS")
+	api.HandleFunc("/index/search", statsHandler.SearchIndex).Methods("GET")
+
+	api.HandleFunc("/lsp/status", statsHandler.GetLSPStatus).Methods("GET")
+
+	api.HandleFunc("/mcp/servers", statsHandler.GetMCPServers).Methods("GET")
+	api.HandleFunc("/mcp/servers", statsHandler.AddMCPServer).Methods("POST", "OPTIONS")
+	api.HandleFunc("/mcp/servers", statsHandler.RemoveMCPServer).Methods("DELETE")
+
+	api.HandleFunc("/conversations", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		convs, _ := storage.Store.ListConversations("web")
+		cliConvs, _ := storage.Store.ListConversations("cli")
+		all := append(convs, cliConvs...)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "data": all, "count": len(all)})
+	}).Methods("GET")
+
 	r.HandleFunc("/ws", wsHandler.HandleWebSocket)
 
 	isDev := os.Getenv("DARDCOR_DEV") == "true"
-
 	if isDev {
 		target, _ := url.Parse("http://127.0.0.1:5173")
 		proxy := httputil.NewSingleHostReverseProxy(target)
@@ -152,31 +221,42 @@ func main() {
 			proxy.ServeHTTP(w, req)
 		})
 	} else {
-		r.PathPrefix("/assets/").Handler(http.StripPrefix("/assets/", http.FileServer(http.Dir("dist/assets"))))
+		subFS, _ := fs.Sub(distFS, "dist")
+		staticHandler := http.FileServer(http.FS(subFS))
+		r.PathPrefix("/assets/").Handler(staticHandler)
 		r.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 			path := req.URL.Path
+			cleanPath := strings.TrimPrefix(path, "/")
 			if path != "/" && path != "/index.html" {
-				if _, err := os.Stat("dist" + path); err == nil {
-					http.ServeFile(w, req, "dist"+path)
+				if _, err := fs.Stat(subFS, cleanPath); err == nil {
+					staticHandler.ServeHTTP(w, req)
 					return
 				}
 			}
-			http.ServeFile(w, req, "dist/index.html")
+			indexData, _ := fs.ReadFile(subFS, "index.html")
+			w.Header().Set("Content-Type", "text/html")
+			w.Write(indexData)
 		})
 	}
 
+	addr := "127.0.0.1:" + cfg.Port
 	handler := middleware.CORS(middleware.Logger(r))
 
-	addr := "127.0.0.1:" + cfg.Port
+	log.SetOutput(os.Stderr)
 	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-	log.Printf("Dardcor Agent ACTIVE on Port %s", cfg.Port)
-	if isDev {
-		log.Printf("Vite HMR Mode → Enabled (Proxy via 5173)")
-	}
-	log.Printf("Dashboard → http://%s", addr)
+	log.Printf("Dardcor Agent active on Port %s", cfg.Port)
 	log.Printf("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
 	if err := http.ListenAndServe(addr, handler); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
+}
+
+func isPortInUse(port string) bool {
+	conn, err := net.DialTimeout("tcp", "127.0.0.1:"+port, 200*time.Millisecond)
+	if err != nil {
+		return false
+	}
+	conn.Close()
+	return true
 }

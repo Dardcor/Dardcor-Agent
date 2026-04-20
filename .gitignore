@@ -1,13 +1,21 @@
 # Dependencies
 node_modules/
+vendor/
 
 # Build output
 dist/
+build/
+bin/cli_agent.exe
+bin/*.exe
 *.exe
+*.bin
+dardcor.exe
 
-# IDE
+# IDEs
 .vscode/
 .idea/
+*.swp
+*.swo
 
 # OS
 .DS_Store
@@ -16,16 +24,21 @@ desktop.ini
 
 # Go
 *.test
+*.out
+debug
+debug.test
 
-# Data (local storage and logs)
+# Data & Logs
 database/
-
-*.exe
-*.bin
+storage/
+llm_debug.log
+*.log
+.dardcor.json
 
 # Environment
 .env
 .env.local
+.env.*.local
 
-
-
+# Vite/TS
+*.tsbuildinfo

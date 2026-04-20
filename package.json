@@ -52,6 +52,8 @@
     "models/",
     "services/",
     "storage/",
+    "templates/",
+    "themes/",
     "go.mod",
     "go.sum",
     "main.go",

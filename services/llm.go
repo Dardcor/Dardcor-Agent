@@ -1,6 +1,7 @@
 package services
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -66,7 +67,7 @@ func NewLLMProvider(cfg config.AIConfig, agSvc *AntigravityService) *LLMProvider
 	return &LLMProvider{
 		cfg: cfg,
 		client: &http.Client{
-			Timeout: 120 * time.Second,
+			Timeout: 300 * time.Second,
 		},
 		agSvc: agSvc,
 	}
@@ -102,20 +103,34 @@ func (p *LLMProvider) callOpenAICompat(systemPrompt string, messages []LLMMessag
 		})
 	}
 
-	payload := map[string]interface{}{
-		"model":       p.cfg.Model,
-		"messages":    allMsgs,
-		"max_tokens":  p.cfg.MaxTokens,
-		"temperature": p.cfg.Temperature,
+	maxTokens := p.cfg.MaxTokens
+	if maxTokens == 0 {
+		maxTokens = 8192
+	}
+	temp := p.cfg.Temperature
+	if temp == 0 {
+		temp = 1.0
 	}
 
-	bodyBytes, _ := json.Marshal(payload)
 	baseURL := p.cfg.BaseURL
 	if baseURL == "" {
 		baseURL = "https://api.openai.com/v1"
 	}
 
-	req, _ := http.NewRequest("POST", baseURL+"/chat/completions", bytes.NewBuffer(bodyBytes))
+	useStream := p.cfg.Provider == "nvidia"
+
+	payload := map[string]interface{}{
+		"model":       p.cfg.Model,
+		"messages":    allMsgs,
+		"max_tokens":  maxTokens,
+		"temperature": temp,
+		"top_p":       0.95,
+		"stream":      useStream,
+	}
+
+	bodyBytes, _ := json.Marshal(payload)
+	fullURL := baseURL + "/chat/completions"
+	req, _ := http.NewRequest("POST", fullURL, bytes.NewBuffer(bodyBytes))
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+p.cfg.APIKey)
 	if p.cfg.Provider == "openrouter" {
@@ -124,14 +139,21 @@ func (p *LLMProvider) callOpenAICompat(systemPrompt string, messages []LLMMessag
 	}
 
 	resp, err := p.client.Do(req)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, fmt.Errorf("connection error: %w", err)
+	}
 	defer resp.Body.Close()
 
-	respBytes, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
+		respBytes, _ := io.ReadAll(resp.Body)
 		return nil, fmt.Errorf("API error %d: %s", resp.StatusCode, string(respBytes))
 	}
 
+	if useStream {
+		return p.parseSSEStream(resp.Body, start)
+	}
+
+	respBytes, _ := io.ReadAll(resp.Body)
 	var result openAIResponseBody
 	json.Unmarshal(respBytes, &result)
 	if len(result.Choices) == 0 {
@@ -143,6 +165,56 @@ func (p *LLMProvider) callOpenAICompat(systemPrompt string, messages []LLMMessag
 		Model:    result.Model,
 		Provider: p.cfg.Provider,
 		Tokens:   result.Usage.TotalTokens,
+		Duration: time.Since(start).Milliseconds(),
+	}, nil
+}
+
+func (p *LLMProvider) parseSSEStream(body io.Reader, start time.Time) (*LLMResponse, error) {
+	var sb strings.Builder
+	var modelName string
+
+	scanner := bufio.NewScanner(body)
+	scanner.Buffer(make([]byte, 1024*1024), 1024*1024)
+	for scanner.Scan() {
+		line := strings.TrimRight(scanner.Text(), "\r")
+		if !strings.HasPrefix(line, "data: ") {
+			continue
+		}
+		data := strings.TrimPrefix(line, "data: ")
+		if data == "[DONE]" {
+			break
+		}
+		var chunk struct {
+			Model   string `json:"model"`
+			Choices []struct {
+				Delta struct {
+					Content string `json:"content"`
+				} `json:"delta"`
+			} `json:"choices"`
+		}
+		if err := json.Unmarshal([]byte(data), &chunk); err != nil {
+			continue
+		}
+		if chunk.Model != "" {
+			modelName = chunk.Model
+		}
+		if len(chunk.Choices) > 0 {
+			sb.WriteString(chunk.Choices[0].Delta.Content)
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("stream read error: %w", err)
+	}
+
+	content := sb.String()
+	if content == "" {
+		return nil, fmt.Errorf("empty stream response")
+	}
+
+	return &LLMResponse{
+		Content:  content,
+		Model:    modelName,
+		Provider: p.cfg.Provider,
 		Duration: time.Since(start).Milliseconds(),
 	}, nil
 }
