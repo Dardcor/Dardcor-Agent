@@ -5,8 +5,6 @@ import (
 	"sync"
 )
 
-// ThinkModeService detects "think" keywords in prompts and augments
-// them with deep reasoning instructions — inspired by oh-my-openagent.
 type ThinkModeService struct {
 	mu       sync.RWMutex
 	sessions map[string]*ThinkModeState
@@ -38,7 +36,6 @@ func (t *ThinkModeService) DetectThinkKeyword(prompt string) bool {
 	return false
 }
 
-// AugmentPrompt injects deep-reasoning instructions when think mode is active.
 func (t *ThinkModeService) AugmentPrompt(sessionID, prompt string) string {
 	if !t.DetectThinkKeyword(prompt) {
 		return prompt

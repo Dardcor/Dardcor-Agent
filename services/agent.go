@@ -42,21 +42,29 @@ var dangerousPatterns = []*regexp.Regexp{
 }
 
 type AgentService struct {
-	fsService   *FileSystemService
-	cmdService  *CommandService
-	sysService  *SystemService
-	agService   *AntigravityService
-	llmProvider *LLMProvider
-	memService  *MemoryService
-	webService  *WebService
-	grepService *GrepService
-	skillSvc    *SkillService
-	orchService *OrchestratorService
-	egoService  *EgoService
-	reflectSvc  *ReflectionService
-	browserSvc  *BrowserService
-	visionSvc   *VisionService
-	autoSvc     *AutomationService
+	fsService      *FileSystemService
+	cmdService     *CommandService
+	sysService     *SystemService
+	agService      *AntigravityService
+	llmProvider    *LLMProvider
+	memService     *MemoryService
+	webService     *WebService
+	grepService    *GrepService
+	skillSvc       *SkillService
+	orchService    *OrchestratorService
+	egoService     *EgoService
+	reflectSvc     *ReflectionService
+	browserSvc     *BrowserService
+	visionSvc      *VisionService
+	autoSvc        *AutomationService
+	thinkSvc       *ThinkModeService
+	redactSvc      *RedactService
+	rateLimiterSvc *RateLimiterService
+	titleGenSvc    *TitleGeneratorService
+	fileSafetySvc  *FileSafetyService
+	promptCacheSvc *PromptCacheService
+	compressorSvc  *ContextCompressorService
+	modelMetaSvc   *ModelMetadataService
 }
 
 func NewAgentService(fs *FileSystemService, cmd *CommandService, sys *SystemService, ag *AntigravityService, mem *MemoryService, skill *SkillService, orch *OrchestratorService, ego *EgoService, reflect *ReflectionService, browser *BrowserService, vision *VisionService, auto *AutomationService) *AgentService {
@@ -66,23 +74,38 @@ func NewAgentService(fs *FileSystemService, cmd *CommandService, sys *SystemServ
 	} else {
 		llm = NewLLMProvider(config.AIConfig{}, ag)
 	}
+	llm.rateLimiter = NewRateLimiterService()
+	llm.promptCache = NewPromptCacheService()
 
 	return &AgentService{
-		fsService:   fs,
-		cmdService:  cmd,
-		sysService:  sys,
-		agService:   ag,
-		llmProvider: llm,
-		memService:  mem,
-		webService:  NewWebService(),
-		grepService: NewGrepService(),
-		skillSvc:    skill,
-		orchService: orch,
-		egoService:  ego,
-		reflectSvc:  reflect,
-		browserSvc:  browser,
-		visionSvc:   vision,
-		autoSvc:     auto,
+		fsService:      fs,
+		cmdService:     cmd,
+		sysService:     sys,
+		agService:      ag,
+		llmProvider:    llm,
+		memService:     mem,
+		webService:     NewWebService(),
+		grepService:    NewGrepService(),
+		skillSvc:       skill,
+		orchService:    orch,
+		egoService:     ego,
+		reflectSvc:     reflect,
+		browserSvc:     browser,
+		visionSvc:      vision,
+		autoSvc:        auto,
+		thinkSvc:       NewThinkModeService(),
+		redactSvc:      NewRedactService(),
+		rateLimiterSvc: NewRateLimiterService(),
+		titleGenSvc:    NewTitleGeneratorService(llm),
+		fileSafetySvc:  NewFileSafetyService(),
+		promptCacheSvc: NewPromptCacheService(),
+		compressorSvc: NewContextCompressorService(llm, func() string {
+			if config.AppConfig != nil {
+				return config.AppConfig.AI.Model
+			}
+			return ""
+		}(), 128000),
+		modelMetaSvc: NewModelMetadataService(),
 	}
 }
 
@@ -91,6 +114,40 @@ func (as *AgentService) isCommandDangerous(cmd string) bool {
 	for _, p := range dangerousPatterns {
 		if p.MatchString(lower) {
 			return true
+		}
+	}
+	return false
+}
+
+func (as *AgentService) isReadOnlyAction(command string) bool {
+	readOnlyPrefixes := []string{
+		"read ", "cat ", "list ", "ls ", "dir ", "tree ",
+		"search ", "find ", "grep ", "glob ", "sysinfo",
+		"info ", "fetch ", "curl ", "websearch ", "google ",
+		"processes", "ps", "cpu", "memory", "drives", "whoami", "help",
+	}
+	lower := strings.ToLower(strings.TrimSpace(command))
+	for _, prefix := range readOnlyPrefixes {
+		if strings.HasPrefix(lower, prefix) || lower == strings.TrimSpace(prefix) {
+			return true
+		}
+	}
+	if strings.HasPrefix(strings.TrimSpace(command), "{") {
+		var jsonCall map[string]interface{}
+		if err := json.Unmarshal([]byte(strings.TrimSpace(command)), &jsonCall); err == nil {
+			toolName := ""
+			if t, ok := jsonCall["tool"].(string); ok {
+				toolName = t
+			} else if t, ok := jsonCall["name"].(string); ok {
+				toolName = t
+			}
+			readOnlyTools := map[string]bool{
+				"read": true, "list": true, "ls": true, "tree": true,
+				"search": true, "grep": true, "glob": true, "sysinfo": true,
+				"info": true, "fetch": true, "websearch": true,
+				"browser_screenshot": true, "browser_get_dom": true, "os_observe": true,
+			}
+			return readOnlyTools[toolName]
 		}
 	}
 	return false
@@ -105,10 +162,16 @@ func (as *AgentService) getWorkspacePath() string {
 				Path string `json:"path"`
 			}
 			if json.Unmarshal(data, &ws) == nil && ws.Path != "" {
+				os.MkdirAll(ws.Path, 0755)
 				return ws.Path
 			}
 		}
 	}
+
+	if defaultWs, err := as.fsService.GetDefaultWorkspace(); err == nil && defaultWs != "" {
+		return defaultWs
+	}
+
 	cwd, _ := os.Getwd()
 	return cwd
 }
@@ -120,9 +183,40 @@ func (as *AgentService) applyWorkspace(path string) string {
 	return filepath.Join(as.getWorkspacePath(), path)
 }
 
-// ProcessMessage processes an agent request and streams partial updates via updater.
-// ctx allows the caller to cancel the agentic loop (e.g. when the WebSocket disconnects
-// or the user sends a stop signal). Pass context.Background() when cancellation is not needed.
+func parseQuotedArgs(input string) []string {
+	var args []string
+	var current strings.Builder
+	inQuote := false
+	quoteChar := byte(0)
+
+	for i := 0; i < len(input); i++ {
+		ch := input[i]
+		if inQuote {
+			if ch == quoteChar {
+				inQuote = false
+			} else {
+				current.WriteByte(ch)
+			}
+		} else {
+			if ch == '"' || ch == '\'' {
+				inQuote = true
+				quoteChar = ch
+			} else if ch == ' ' || ch == '\t' {
+				if current.Len() > 0 {
+					args = append(args, current.String())
+					current.Reset()
+				}
+			} else {
+				current.WriteByte(ch)
+			}
+		}
+	}
+	if current.Len() > 0 {
+		args = append(args, current.String())
+	}
+	return args
+}
+
 func (as *AgentService) ProcessMessage(ctx context.Context, req models.AgentRequest, updater func(*models.AgentResponse)) (*models.AgentResponse, error) {
 	var convID string
 	source := "web"
@@ -145,7 +239,6 @@ func (as *AgentService) ProcessMessage(ctx context.Context, req models.AgentRequ
 		Content: req.Message,
 	}
 	if err := storage.Store.AddMessage(convID, userMsg, source); err != nil {
-		// Auto-recovery: If conversation is lost, start a new one
 		conv, newErr := storage.Store.CreateConversation(as.generateTitle(req.Message), source)
 		if newErr == nil {
 			convID = conv.ID
@@ -170,12 +263,24 @@ func (as *AgentService) ProcessMessage(ctx context.Context, req models.AgentRequ
 	}
 
 	if useAI && as.llmProvider != nil {
-		// Check for cancellation before the first LLM call.
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
 
-		responseText = as.processWithLLM(req.Message, convID, source)
+		var builder strings.Builder
+		responseText = as.processWithLLMStream(req.Message, convID, source, func(chunk string) {
+			builder.WriteString(chunk)
+			if updater != nil {
+				updater(&models.AgentResponse{
+					ConversationID: convID,
+					Role:           "assistant",
+					Content:        chunk,
+					Status:         "stream_chunk",
+				})
+			}
+		})
+
+		storage.Store.UpsertLastAssistantMessage(convID, responseText, nil, source)
 
 		if updater != nil {
 			updater(&models.AgentResponse{
@@ -188,14 +293,21 @@ func (as *AgentService) ProcessMessage(ctx context.Context, req models.AgentRequ
 
 		isConversational := !strings.Contains(responseText, "[PLAN]") && !strings.Contains(responseText, "[ACTION]") && !strings.Contains(responseText, "[COMPLETE]")
 
-		maxTurns := 12
+		maxTurns := 25
 		if isConversational {
 			maxTurns = 0
 		}
 
+		if strings.Contains(responseText, "[PLAN]") {
+			goal, subtasks := as.parsePlanFromResponse(responseText)
+			if goal != "" && len(subtasks) > 0 {
+				as.orchService.InitializePlan(goal, subtasks)
+			}
+		}
+
+		errorCount := 0
+
 		for turn := 0; turn < maxTurns; turn++ {
-			// Respect cancellation between every agentic turn so the WebSocket
-			// read loop can immediately process a stop/interrupt signal.
 			if ctx.Err() != nil {
 				responseText += "\n\n⚠️ Agent loop interrupted."
 				break
@@ -206,6 +318,15 @@ func (as *AgentService) ProcessMessage(ctx context.Context, req models.AgentRequ
 			if len(aiActions) > 0 {
 				actions = append(actions, aiActions...)
 				responseText = aiFinalText
+
+				hasError := strings.Contains(responseText, "Error") ||
+					strings.Contains(responseText, "error") ||
+					strings.Contains(responseText, "❌")
+				if hasError {
+					errorCount++
+				} else {
+					errorCount = 0
+				}
 
 				if updater != nil {
 					updater(&models.AgentResponse{
@@ -218,35 +339,82 @@ func (as *AgentService) ProcessMessage(ctx context.Context, req models.AgentRequ
 				}
 
 				if strings.Contains(responseText, "[COMPLETE]") {
+					if plan := as.orchService.GetCurrentPlan(); plan != nil {
+						as.orchService.SetPhase(PhaseVerify)
+					}
 					break
 				}
 
-				// Check cancellation again before the next LLM call.
 				if ctx.Err() != nil {
 					responseText += "\n\n⚠️ Agent loop interrupted."
 					break
 				}
 
-				reflectionPrompt := fmt.Sprintf("Action results:\n%s\n\nContinue with [ACTION] if incomplete, or [COMPLETE] if done.", responseText)
-				responseText = as.processWithLLM(reflectionPrompt, convID, source)
+				var failureWarning string
+				if errorCount >= 3 {
+					failureWarning = "\n\n⚠️ FAILURE LOOP DETECTED: 3 consecutive errors. Stop and reassess. Explain what's going wrong and propose a different approach before continuing."
+				}
+
+				reflectionPrompt := fmt.Sprintf(`[TURN %d/%d] Action results from previous step:
+%s%s
+
+[REFLECTION PROTOCOL]
+1. Did the action succeed or fail? If failed, what went wrong?
+2. Are there any errors I should fix before proceeding?
+3. What is the next logical step toward the objective?
+4. Am I making progress or stuck in a loop?
+
+If objective is fully achieved: respond with [COMPLETE] and a summary.
+If more work needed: respond with the next [ACTION] block.
+If stuck: explain the blocker and attempt an alternative approach.`, turn+1, maxTurns, responseText, failureWarning)
+
+				var innerBuilder strings.Builder
+				responseText = as.processWithLLMStream(reflectionPrompt, convID, source, func(chunk string) {
+					innerBuilder.WriteString(chunk)
+					if updater != nil {
+						updater(&models.AgentResponse{
+							ConversationID: convID,
+							Role:           "assistant",
+							Content:        chunk,
+							Status:         "stream_chunk",
+						})
+					}
+				})
+				storage.Store.UpsertLastAssistantMessage(convID, responseText, actions, source)
 			} else {
 				if !strings.Contains(responseText, "[ACTION]") && !strings.Contains(responseText, "[PLAN]") {
 					break
 				}
 
-				// Check cancellation before the next LLM call.
 				if ctx.Err() != nil {
 					responseText += "\n\n⚠️ Agent loop interrupted."
 					break
 				}
 
-				responseText = as.processWithLLM("Continue execution.", convID, source)
+				var innerBuilder2 strings.Builder
+				responseText = as.processWithLLMStream("Continue execution.", convID, source, func(chunk string) {
+					innerBuilder2.WriteString(chunk)
+					if updater != nil {
+						updater(&models.AgentResponse{
+							ConversationID: convID,
+							Role:           "assistant",
+							Content:        chunk,
+							Status:         "stream_chunk",
+						})
+					}
+				})
+				storage.Store.UpsertLastAssistantMessage(convID, responseText, actions, source)
 			}
 
 			if turn >= maxTurns-1 {
 				responseText += "\n\n⚠️ Turn limit reached."
 				break
 			}
+		}
+
+		if len(actions) > 0 {
+			outcome := truncateRunes(responseText, 200, "...")
+			as.memService.RecordEpisode(convID, req.Message, outcome, "")
 		}
 
 		if responseText == "" && len(actions) == 0 {
@@ -291,6 +459,8 @@ func (as *AgentService) processWithLLMStream(message string, convID string, sour
 		return ""
 	}
 
+	message = as.thinkSvc.AugmentPrompt(convID, message)
+
 	var allMessages []LLMMessage
 	if convID != "" {
 		if conv, err := storage.Store.LoadConversation(convID, source); err == nil {
@@ -311,7 +481,24 @@ func (as *AgentService) processWithLLMStream(message string, convID string, sour
 	}
 
 	systemPrompt := as.buildSystemPrompt(message)
-	historyMessages := as.truncateContextSmart(allMessages, 25000)
+	maxTokens := 25000
+	if as.modelMetaSvc != nil && config.AppConfig != nil {
+		ctxLen := as.modelMetaSvc.GetModelContextLength(config.AppConfig.AI.Model)
+		if ctxLen > 0 {
+			maxTokens = ctxLen / 4
+		}
+	}
+	if as.compressorSvc != nil {
+		asMaps := llmMessagesToMaps(allMessages)
+		estimatedTokens := as.compressorSvc.EstimateTokens(asMaps)
+		if as.compressorSvc.ShouldCompress(estimatedTokens) {
+			compressed, err := as.compressorSvc.Compress(asMaps)
+			if err == nil {
+				allMessages = mapsToLLMMessages(compressed)
+			}
+		}
+	}
+	historyMessages := as.truncateContextSmart(allMessages, maxTokens)
 
 	resp, err := as.llmProvider.CompleteStream(systemPrompt, historyMessages, cb)
 	if err != nil {
@@ -326,6 +513,8 @@ func (as *AgentService) processWithLLM(message string, convID string, source str
 		return ""
 	}
 
+	message = as.thinkSvc.AugmentPrompt(convID, message)
+
 	var allMessages []LLMMessage
 	if convID != "" {
 		if conv, err := storage.Store.LoadConversation(convID, source); err == nil {
@@ -346,7 +535,24 @@ func (as *AgentService) processWithLLM(message string, convID string, source str
 	}
 
 	systemPrompt := as.buildSystemPrompt(message)
-	historyMessages := as.truncateContextSmart(allMessages, 25000)
+	maxTokens := 25000
+	if as.modelMetaSvc != nil && config.AppConfig != nil {
+		ctxLen := as.modelMetaSvc.GetModelContextLength(config.AppConfig.AI.Model)
+		if ctxLen > 0 {
+			maxTokens = ctxLen / 4
+		}
+	}
+	if as.compressorSvc != nil {
+		asMaps := llmMessagesToMaps(allMessages)
+		estimatedTokens := as.compressorSvc.EstimateTokens(asMaps)
+		if as.compressorSvc.ShouldCompress(estimatedTokens) {
+			compressed, err := as.compressorSvc.Compress(asMaps)
+			if err == nil {
+				allMessages = mapsToLLMMessages(compressed)
+			}
+		}
+	}
+	historyMessages := as.truncateContextSmart(allMessages, maxTokens)
 
 	resp, err := as.llmProvider.Complete(systemPrompt, historyMessages)
 	if err != nil {
@@ -356,33 +562,65 @@ func (as *AgentService) processWithLLM(message string, convID string, source str
 	return resp.Content
 }
 
-func (as *AgentService) truncateContextSmart(messages []LLMMessage, maxRunes int) []LLMMessage {
-	if len(messages) <= 5 {
+func (as *AgentService) truncateContextSmart(messages []LLMMessage, maxTokens int) []LLMMessage {
+	if len(messages) <= 3 {
 		return messages
 	}
 
-	// Token Efficiency: If context is too large, summarize the oldest part
-	totalRunes := 0
-	for _, m := range messages {
-		totalRunes += len(m.Content)
+	estimateTokens := func(s string) int {
+		return len(s) / 3
 	}
 
-	if totalRunes > maxRunes {
-		// Keep the last 3 messages intact, summarize the rest
-		toSummarize := messages[:len(messages)-3]
-		remaining := messages[len(messages)-3:]
+	totalTokens := 0
+	for _, m := range messages {
+		totalTokens += estimateTokens(m.Content)
+	}
 
-		summary, err := as.llmProvider.Summarize(toSummarize)
-		if err == nil {
-			summaryMsg := LLMMessage{
-				Role:    "system",
-				Content: fmt.Sprintf("Previous conversation summary: %s", summary),
-			}
-			return append([]LLMMessage{summaryMsg}, remaining...)
+	if totalTokens <= maxTokens {
+		return messages
+	}
+
+	keepFirst := 1
+	keepLast := 5
+	if len(messages) <= keepFirst+keepLast {
+		return messages
+	}
+
+	first := messages[:keepFirst]
+	middle := messages[keepFirst : len(messages)-keepLast]
+	last := messages[len(messages)-keepLast:]
+
+	var middleSummary strings.Builder
+	middleSummary.WriteString("Previous conversation context (condensed):\n")
+	for _, m := range middle {
+		content := m.Content
+		if len(content) > 200 {
+			content = content[:200] + "..."
+		}
+		if idx := strings.Index(content, "[ACTION]"); idx > 0 {
+			content = content[:idx] + "[actions executed]"
+		}
+		middleSummary.WriteString(fmt.Sprintf("[%s]: %s\n", m.Role, content))
+	}
+
+	summaryMsg := LLMMessage{
+		Role:    "system",
+		Content: middleSummary.String(),
+	}
+
+	if as.llmProvider != nil && len(middle) > 3 {
+		summary, err := as.llmProvider.Summarize(middle)
+		if err == nil && summary != "" {
+			summaryMsg.Content = "Previous conversation summary: " + summary
 		}
 	}
 
-	return messages
+	result := make([]LLMMessage, 0, keepFirst+1+keepLast)
+	result = append(result, first...)
+	result = append(result, summaryMsg)
+	result = append(result, last...)
+
+	return result
 }
 
 func (as *AgentService) buildToolSchemas() string {
@@ -615,7 +853,64 @@ func (as *AgentService) buildSystemPrompt(message string) string {
 	workspace := as.getWorkspacePath()
 
 	ego := as.egoService.GetState()
-	egoData := fmt.Sprintf("CONFIDENCE: %.2f | STATUS: %s | ENERGY: %.2f", ego.Confidence, ego.Status, ego.Energy)
+
+	var egoDirectives strings.Builder
+	egoDirectives.WriteString(fmt.Sprintf("CONFIDENCE: %.2f | STATUS: %s | ENERGY: %.2f | MOOD: %s\n",
+		ego.Confidence, ego.Status, ego.Energy, ego.LastMood))
+
+	if ego.Confidence < 0.3 {
+		egoDirectives.WriteString("⚠️ CAUTION MODE: Double-check each action. Use read before write. Verify before reporting completion.\n")
+	} else if ego.Confidence > 0.8 {
+		egoDirectives.WriteString("✅ HIGH CONFIDENCE: Execute decisively. Batch related operations.\n")
+	}
+	if ego.Energy < 0.2 {
+		egoDirectives.WriteString("🔋 LOW ENERGY: Prioritize. Complete current task, skip non-essential exploration.\n")
+	}
+
+	recentErrorsSection := ""
+	if ego.LastError != "" {
+		recentErrorsSection = fmt.Sprintf("\n[RECENT ERRORS - AVOID REPEATING]\n- %s\n", ego.LastError)
+	}
+
+	repoMapSection := ""
+	if repoMap, err := as.memService.GenerateRepoMap(workspace); err == nil && repoMap != "" {
+		lines := strings.Split(repoMap, "\n")
+		if len(lines) > 80 {
+			lines = lines[:80]
+			lines = append(lines, "... (truncated)")
+		}
+		repoMapSection = "\n[WORKSPACE REPO MAP]\n" + strings.Join(lines, "\n") + "\n"
+	}
+
+	skillsSection := "\n[AVAILABLE SKILLS]\n" + as.formatSkillsForPrompt() + "\n"
+
+	memorySection := ""
+	memResults := as.memService.Search(message)
+	if len(memResults) > 0 {
+		var mb strings.Builder
+		mb.WriteString("\n[RELEVANT MEMORY]\n")
+		count := 0
+		for k, v := range memResults {
+			if count >= 10 {
+				break
+			}
+			mb.WriteString(fmt.Sprintf("- %s: %v\n", k, v))
+			count++
+		}
+		memorySection = mb.String()
+	}
+
+	planSection := ""
+	planSummary := as.orchService.FormatPlanSummary()
+	currentPhase := string(as.orchService.GetCurrentPhase())
+	if planSummary != "No active plan." {
+		planSection = fmt.Sprintf("\n[ACTIVE PLAN — CURRENT PHASE: %s]\n%s", currentPhase, planSummary)
+	}
+
+	reflectionSection := ""
+	if insight := as.reflectSvc.Reflect(); insight != "" && insight != "Standing by for new objectives." {
+		reflectionSection = fmt.Sprintf("\n[REFLECTION INSIGHT]\n%s\n", insight)
+	}
 
 	toolSchemas := as.buildToolSchemas()
 
@@ -636,29 +931,152 @@ You are the world's most advanced autonomous AI executor. You are the digital ma
 
 [ENVIRONMENT & CONTEXT]
 OS: %s | Host: %s | Workspace: %s
-%s
+
+[EGO STATE & BEHAVIORAL DIRECTIVES]
+%s%s%s%s%s%s
+[EXECUTION RULES — CRITICAL]
+You MUST wrap EVERY tool call inside [ACTION] and [/ACTION] tags. Without these tags, NOTHING will execute.
+- [PLAN]: Multi-step strategic breakdown before execution.
+- [ACTION]: Tool execution block. Use JSON format for reliability.
+- [REFLECTION]: Post-execution analysis after seeing results.
+- [COMPLETE]: Final signal. Only when 100%% of objective is satisfied.
+
+[HOW TO EXECUTE — USE JSON FORMAT]
+ALWAYS use this JSON format inside [ACTION] tags for maximum reliability:
+
+File Operations:
+[ACTION]{"tool":"write","path":"hello.txt","content":"Hello World!\nLine 2 here."}[/ACTION]
+[ACTION]{"tool":"read","path":"hello.txt"}[/ACTION]
+[ACTION]{"tool":"edit","path":"hello.txt","start_line":"1","end_line":"1","content":"New first line"}[/ACTION]
+[ACTION]{"tool":"replace","path":"hello.txt","old_text":"old","new_text":"new"}[/ACTION]
+[ACTION]{"tool":"mkdir","path":"my-project"}[/ACTION]
+[ACTION]{"tool":"delete","path":"temp.txt"}[/ACTION]
+[ACTION]{"tool":"list","path":"."}[/ACTION]
+[ACTION]{"tool":"tree","path":"."}[/ACTION]
+
+Shell Execution:
+[ACTION]{"tool":"run","command":"echo Hello World"}[/ACTION]
+[ACTION]{"tool":"run","command":"npm init -y"}[/ACTION]
+[ACTION]{"tool":"run","command":"dir"}[/ACTION]
+[ACTION]{"tool":"sysinfo"}[/ACTION]
+
+Code Search:
+[ACTION]{"tool":"grep","pattern":"TODO","path":"."}[/ACTION]
+[ACTION]{"tool":"glob","pattern":"*.go","path":"."}[/ACTION]
+[ACTION]{"tool":"search","query":"main"}[/ACTION]
+
+Web:
+[ACTION]{"tool":"fetch","url":"https://example.com"}[/ACTION]
+[ACTION]{"tool":"websearch","query":"golang tutorial"}[/ACTION]
+
+Browser Automation:
+[ACTION]{"tool":"browser_open","url":"https://google.com"}[/ACTION]
+[ACTION]{"tool":"browser_click","selector":"#search"}[/ACTION]
+[ACTION]{"tool":"browser_type","selector":"input","text":"hello"}[/ACTION]
+[ACTION]{"tool":"browser_screenshot"}[/ACTION]
+[ACTION]{"tool":"browser_get_dom"}[/ACTION]
+
+Computer Use (OS-Level):
+[ACTION]{"tool":"os_observe"}[/ACTION]
+[ACTION]{"tool":"os_click","x":100,"y":200}[/ACTION]
+[ACTION]{"tool":"os_type","text":"Hello World"}[/ACTION]
+[ACTION]{"tool":"os_key","key":"enter"}[/ACTION]
+
+Memory:
+[ACTION]{"tool":"remember","key":"project_name","value":"my-app"}[/ACTION]
+
+[EXTENDED TOOLSET — FULL SCHEMA]
 %s
 
-[SYNTAX RULES]
-- [PLAN]: Multi-step strategic breakdown.
-- [ACTION]: Tool call using positional or JSON syntax. (e.g., [ACTION] run "ls -la" [/ACTION] or write "path" "content").
-- [REFLECTION]: Post-execution analysis. Did it work? What is next?
-- [COMPLETE]: The final signal. Only use when 100%% of the objective is satisfied.
-
-[EXTENDED TOOLSET]
-%s
-
-[SYNTACTIC COMMANDS (FASTER)]
-Files: write <a> <b> | read <a> | edit <a> <b> <c> <d> | mkdir <a> | delete <a> | search <a> | ls <a> | tree <a> | glob <a>
-Shell: run <a> | sysinfo
-Web: fetch <a> | websearch <a> | browser_open <a> | browser_screenshot | browser_click <a> | browser_type <a> <b> | browser_get_dom
-Computer Use: os_observe | os_click <x> <y> [b] | os_type <text> | os_key <key>
-Memory: remember <a> <b>
+CRITICAL RULES:
+1. ALWAYS use [ACTION]...[/ACTION] wrapping. No exceptions.
+2. PREFER JSON format — it is parsed more reliably than text commands.
+3. For file writes with multi-line content, use \n for newlines inside JSON strings.
+4. Use ABSOLUTE paths or paths relative to workspace: %s
+5. After each [ACTION], wait for the result before the next action.
+6. Execute REAL commands. Do NOT just describe what you would do — actually DO it.
 
 [COGNITIVE LOAD]
-Memory: %s
+Memory entries: %d
 Task Status: %s
-`, runtime.GOOS, hostname, workspace, egoData, as.reflectSvc.Reflect(), toolSchemas, as.memService.Search(message), as.orchService.FormatPlanSummary())
+`, runtime.GOOS, hostname, workspace,
+		egoDirectives.String(), recentErrorsSection, repoMapSection, skillsSection, memorySection, planSection+reflectionSection,
+		toolSchemas, workspace,
+		as.memService.Count(), as.orchService.FormatPlanSummary())
+}
+
+func (as *AgentService) formatSkillsForPrompt() string {
+	skills := as.skillSvc.GetSkills()
+	if len(skills) == 0 {
+		return "No skills loaded."
+	}
+	var sb strings.Builder
+	sb.WriteString("Available skills:\n")
+	for _, s := range skills {
+		if !s.Enabled {
+			continue
+		}
+		sb.WriteString(fmt.Sprintf("- **%s**: %s", s.Name, s.Description))
+		if s.Command != "" {
+			sb.WriteString(fmt.Sprintf(" → `%s`", s.Command))
+		}
+		sb.WriteString("\n")
+		if s.Template != "" {
+			sb.WriteString(fmt.Sprintf("  Protocol: %s\n", truncateRunes(s.Template, 150, "...")))
+		}
+	}
+	return sb.String()
+}
+
+func (as *AgentService) parsePlanFromResponse(text string) (string, []SubTask) {
+	planStart := strings.Index(text, "[PLAN]")
+	if planStart == -1 {
+		return "", nil
+	}
+
+	planText := text[planStart+6:]
+	for _, marker := range []string{"[ACTION]", "[REFLECTION]", "[COMPLETE]"} {
+		if idx := strings.Index(planText, marker); idx != -1 {
+			planText = planText[:idx]
+		}
+	}
+	planText = strings.TrimSpace(planText)
+	if planText == "" {
+		return "", nil
+	}
+
+	lines := strings.Split(planText, "\n")
+	var goal string
+	var subtasks []SubTask
+
+	for i, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if i == 0 && goal == "" {
+			goal = strings.TrimLeft(line, "#* ")
+			continue
+		}
+		clean := strings.TrimLeft(line, "0123456789.-) ")
+		if clean == "" {
+			continue
+		}
+		subtasks = append(subtasks, SubTask{
+			ID:          fmt.Sprintf("task-%d", len(subtasks)+1),
+			Description: clean,
+			Status:      TaskStatusPending,
+			Priority:    PriorityNormal,
+			Phase:       PhaseExecute,
+		})
+	}
+
+	if goal == "" && len(subtasks) > 0 {
+		goal = subtasks[0].Description
+		subtasks = subtasks[1:]
+	}
+
+	return goal, subtasks
 }
 
 func (as *AgentService) interpretAndExecute(message string) ([]models.Action, string) {
@@ -807,12 +1225,20 @@ func (as *AgentService) handleReadLines(message string) ([]models.Action, string
 }
 
 func (as *AgentService) handleWriteFile(message string) ([]models.Action, string) {
-	parts := strings.SplitN(message, " ", 3)
-	if len(parts) < 3 {
+	args := parseQuotedArgs(message)
+	if len(args) < 3 {
 		return nil, "Use: write <path> <content>"
 	}
-	path, content := parts[1], parts[2]
+	path := args[1]
+	content := strings.Join(args[2:], " ")
+	content = strings.ReplaceAll(content, "\\n", "\n")
+	content = strings.ReplaceAll(content, "\\t", "\t")
 	path = as.applyWorkspace(path)
+	if as.fileSafetySvc != nil {
+		if as.fileSafetySvc.IsWriteDenied(path) {
+			return []models.Action{{Type: "write_file", Status: "error", Description: "Write blocked"}}, fmt.Sprintf("⚠️ Write blocked by file safety: %s", path)
+		}
+	}
 	dir := filepath.Dir(path)
 	if dir != "." && dir != "" {
 		os.MkdirAll(dir, 0755)
@@ -821,83 +1247,87 @@ func (as *AgentService) handleWriteFile(message string) ([]models.Action, string
 	if err != nil {
 		return nil, fmt.Sprintf("Error: %v", err)
 	}
-	return []models.Action{{Type: "write_file", Status: "completed"}}, fmt.Sprintf("✅ Saved: %s (%s)", path, formatSize(int64(len(content))))
+	return []models.Action{{Type: "write_file", Status: "completed", Description: fmt.Sprintf("Written: %s", path)}}, fmt.Sprintf("✅ Saved: %s (%s)", path, formatSize(int64(len(content))))
 }
 
 func (as *AgentService) handleAppendFile(message string) ([]models.Action, string) {
-	parts := strings.SplitN(message, " ", 3)
-	if len(parts) < 3 {
+	args := parseQuotedArgs(message)
+	if len(args) < 3 {
 		return nil, "Use: append <path> <content>"
 	}
-	err := as.fsService.AppendToFile(parts[1], parts[2])
+	path := as.applyWorkspace(args[1])
+	content := strings.Join(args[2:], " ")
+	content = strings.ReplaceAll(content, "\\n", "\n")
+	err := as.fsService.AppendToFile(path, content)
 	if err != nil {
 		return nil, fmt.Sprintf("Error: %v", err)
 	}
-	return []models.Action{{Type: "append_file", Status: "completed"}}, fmt.Sprintf("✅ Appended to: %s", parts[1])
+	return []models.Action{{Type: "append_file", Status: "completed"}}, fmt.Sprintf("✅ Appended to: %s", path)
 }
 
 func (as *AgentService) handleEditFile(message string) ([]models.Action, string) {
-	parts := strings.SplitN(message, " ", 5)
-	if len(parts) < 5 {
+	args := parseQuotedArgs(message)
+	if len(args) < 5 {
 		return nil, "Use: edit <path> <startLine> <endLine> <newContent>"
 	}
-	startLine, _ := strconv.Atoi(parts[2])
-	endLine, _ := strconv.Atoi(parts[3])
-	err := as.fsService.EditFile(parts[1], startLine, endLine, parts[4])
+	path := as.applyWorkspace(args[1])
+	startLine, _ := strconv.Atoi(args[2])
+	endLine, _ := strconv.Atoi(args[3])
+	content := strings.Join(args[4:], " ")
+	content = strings.ReplaceAll(content, "\\n", "\n")
+	err := as.fsService.EditFile(path, startLine, endLine, content)
 	if err != nil {
 		return nil, fmt.Sprintf("Error: %v", err)
 	}
-	return []models.Action{{Type: "edit_file", Status: "completed"}}, fmt.Sprintf("✅ Edited %s lines %d-%d", parts[1], startLine, endLine)
+	return []models.Action{{Type: "edit_file", Status: "completed"}}, fmt.Sprintf("✅ Edited %s lines %d-%d", path, startLine, endLine)
 }
 
 func (as *AgentService) handleReplaceInFile(message string) ([]models.Action, string) {
-	parts := strings.SplitN(message, " ", 4)
-	if len(parts) < 4 {
+	args := parseQuotedArgs(message)
+	if len(args) < 4 {
 		return nil, "Use: replace <path> <oldText> <newText>"
 	}
-	count, err := as.fsService.ReplaceInFile(parts[1], parts[2], parts[3])
+	path := as.applyWorkspace(args[1])
+	count, err := as.fsService.ReplaceInFile(path, args[2], args[3])
 	if err != nil {
 		return nil, fmt.Sprintf("Error: %v", err)
 	}
-	return []models.Action{{Type: "replace_in_file", Status: "completed"}}, fmt.Sprintf("✅ Replaced %d occurrences in %s", count, parts[1])
+	return []models.Action{{Type: "replace_in_file", Status: "completed"}}, fmt.Sprintf("✅ Replaced %d occurrences in %s", count, path)
 }
 
 func (as *AgentService) handleInsertLines(message string) ([]models.Action, string) {
-	parts := strings.SplitN(message, " ", 4)
-	if len(parts) < 4 {
+	args := parseQuotedArgs(message)
+	if len(args) < 4 {
 		return nil, "Use: insert <path> <afterLine> <content>"
 	}
-	lineNum, _ := strconv.Atoi(parts[2])
-	err := as.fsService.InsertLines(parts[1], lineNum, parts[3])
+	path := as.applyWorkspace(args[1])
+	lineNum, _ := strconv.Atoi(args[2])
+	content := strings.Join(args[3:], " ")
+	content = strings.ReplaceAll(content, "\\n", "\n")
+	err := as.fsService.InsertLines(path, lineNum, content)
 	if err != nil {
 		return nil, fmt.Sprintf("Error: %v", err)
 	}
-	return []models.Action{{Type: "insert_lines", Status: "completed"}}, fmt.Sprintf("✅ Inserted after line %d in %s", lineNum, parts[1])
+	return []models.Action{{Type: "insert_lines", Status: "completed"}}, fmt.Sprintf("✅ Inserted after line %d in %s", lineNum, path)
 }
 
-// isSafeDeletePath returns an error if the path contains wildcards, traversal
-// sequences, or points at a system-critical root directory.
 func (as *AgentService) isSafeDeletePath(raw string) error {
-	// Reject glob/wildcard characters that could expand to unintended targets.
 	for _, ch := range []string{"*", "?", "[", "]"} {
 		if strings.Contains(raw, ch) {
 			return fmt.Errorf("delete path must not contain wildcard characters (%s)", ch)
 		}
 	}
 
-	// Reject path traversal attempts before workspace expansion.
 	cleaned := filepath.Clean(raw)
 	if strings.Contains(cleaned, "..") {
 		return fmt.Errorf("delete path must not contain '..' traversal sequences")
 	}
 
-	// After resolving to absolute, block root-level system directories.
 	abs, err := filepath.Abs(raw)
 	if err != nil {
 		return fmt.Errorf("could not resolve delete path: %w", err)
 	}
 
-	// Block filesystem roots and well-known critical system paths.
 	vol := filepath.VolumeName(abs)
 	rootWithVol := vol + string(filepath.Separator)
 	if abs == rootWithVol || abs == "/" {
@@ -905,12 +1335,9 @@ func (as *AgentService) isSafeDeletePath(raw string) error {
 	}
 
 	criticalPaths := []string{
-		// Unix / macOS
 		"/bin", "/sbin", "/usr", "/etc", "/lib", "/lib64",
 		"/boot", "/dev", "/proc", "/sys", "/run",
-		// macOS
 		"/System", "/Library", "/Applications", "/private",
-		// Windows (checked case-insensitively below)
 		`\Windows`, `\System32`, `\Program Files`, `\Program Files (x86)`, `\Users`,
 	}
 	lowerAbs := strings.ToLower(abs)
@@ -1264,24 +1691,49 @@ func (as *AgentService) dispatchJSONToolCall(toolName string, args map[string]in
 	case "write":
 		path := getString("path")
 		content := getString("content")
-		if path == "" || content == "" {
-			return nil, "write requires path and content"
+		if path == "" {
+			return nil, "write requires path"
 		}
-		return as.interpretAndExecute("write " + path + " " + content)
+		path = as.applyWorkspace(path)
+		if as.fileSafetySvc != nil {
+			if as.fileSafetySvc.IsWriteDenied(path) {
+				return []models.Action{{Type: "write_file", Status: "error", Description: "Write blocked"}}, fmt.Sprintf("⚠️ Write blocked by file safety: %s", path)
+			}
+		}
+		dir := filepath.Dir(path)
+		if dir != "." && dir != "" {
+			os.MkdirAll(dir, 0755)
+		}
+		content = strings.ReplaceAll(content, "\\n", "\n")
+		content = strings.ReplaceAll(content, "\\t", "\t")
+		err := as.fsService.WriteFile(path, content)
+		if err != nil {
+			return []models.Action{{Type: "write_file", Status: "error"}}, fmt.Sprintf("Error: %v", err)
+		}
+		return []models.Action{{Type: "write_file", Status: "completed", Description: fmt.Sprintf("Written: %s", path)}}, fmt.Sprintf("✅ Saved: %s (%s)", path, formatSize(int64(len(content))))
 	case "read":
 		path := getString("path")
 		return as.interpretAndExecute("read " + path)
 	case "edit":
-		path := getString("path")
-		start := getString("start_line")
-		end := getString("end_line")
+		path := as.applyWorkspace(getString("path"))
+		start, _ := strconv.Atoi(getString("start_line"))
+		end, _ := strconv.Atoi(getString("end_line"))
 		content := getString("content")
-		return as.interpretAndExecute(fmt.Sprintf("edit %s %s %s %s", path, start, end, content))
+		content = strings.ReplaceAll(content, "\\n", "\n")
+		err := as.fsService.EditFile(path, start, end, content)
+		if err != nil {
+			return []models.Action{{Type: "edit_file", Status: "error"}}, fmt.Sprintf("Error: %v", err)
+		}
+		return []models.Action{{Type: "edit_file", Status: "completed"}}, fmt.Sprintf("✅ Edited %s lines %d-%d", path, start, end)
 	case "replace":
-		path := getString("path")
+		path := as.applyWorkspace(getString("path"))
 		old := getString("old_text")
 		newText := getString("new_text")
-		return as.interpretAndExecute(fmt.Sprintf("replace %s %s %s", path, old, newText))
+		count, err := as.fsService.ReplaceInFile(path, old, newText)
+		if err != nil {
+			return []models.Action{{Type: "replace_in_file", Status: "error"}}, fmt.Sprintf("Error: %v", err)
+		}
+		return []models.Action{{Type: "replace_in_file", Status: "completed"}}, fmt.Sprintf("✅ Replaced %d occurrences in %s", count, path)
 	case "mkdir":
 		return as.interpretAndExecute("mkdir " + getString("path"))
 	case "delete", "rm":
@@ -1303,7 +1755,30 @@ func (as *AgentService) dispatchJSONToolCall(toolName string, args map[string]in
 		}
 		return as.interpretAndExecute("glob " + pattern)
 	case "run", "exec":
-		return as.interpretAndExecute("run " + getString("command"))
+		cmd := getString("command")
+		if as.isCommandDangerous(cmd) {
+			return []models.Action{{Status: "error", Description: "Command blocked"}}, fmt.Sprintf("⚠️ Command blocked by safety guard: `%s`", cmd)
+		}
+		res, err := as.cmdService.ExecuteCommand(models.CommandRequest{
+			Command:    cmd,
+			Timeout:    120,
+			WorkingDir: as.getWorkspacePath(),
+		})
+		if err != nil {
+			return nil, fmt.Sprintf("❌ Error: %v", err)
+		}
+		output := res.Output
+		if res.Error != "" {
+			output += "\nSTDERR:\n" + res.Error
+		}
+		if len(output) > 8000 {
+			output = output[:8000] + "\n... (truncated)"
+		}
+		status := "✅"
+		if res.ExitCode != 0 {
+			status = fmt.Sprintf("⚠️ Exit code: %d", res.ExitCode)
+		}
+		return []models.Action{{Type: "execute_command", Status: "completed", Duration: res.Duration}}, fmt.Sprintf("%s `%s` (%dms)\n```\n%s\n```", status, cmd, res.Duration, output)
 	case "sysinfo":
 		return as.interpretAndExecute("sysinfo")
 	case "websearch":
@@ -1418,7 +1893,6 @@ func (as *AgentService) dispatchJSONToolCall(toolName string, args map[string]in
 		return []models.Action{{Type: "os_type", Status: "completed"}}, "Typed into OS successfully"
 	case "os_key":
 		key := getString("key")
-		// Simple map for common keys
 		var vk uint16
 		switch strings.ToLower(key) {
 		case "enter":
@@ -1432,7 +1906,7 @@ func (as *AgentService) dispatchJSONToolCall(toolName string, args map[string]in
 		case "backspace":
 			vk = 0x08
 		default:
-			vk = 0x0D // Default to enter
+			vk = 0x0D
 		}
 		err := as.autoSvc.PressKey(vk)
 		if err != nil {
@@ -1472,6 +1946,7 @@ func (as *AgentService) parseAndExecuteActions(text string) ([]models.Action, st
 		var actions []models.Action
 		var result string
 
+		actionStart := time.Now()
 		trimmed := strings.TrimSpace(command)
 		if strings.HasPrefix(trimmed, "{") {
 			var jsonCall map[string]interface{}
@@ -1495,8 +1970,16 @@ func (as *AgentService) parseAndExecuteActions(text string) ([]models.Action, st
 		} else {
 			actions, result = as.interpretAndExecute(command)
 		}
+		actionDuration := time.Since(actionStart)
+		if actionDuration > 30*time.Second {
+			result += fmt.Sprintf("\n⏱️ Action took %.1fs", actionDuration.Seconds())
+		}
 
 		allActions = append(allActions, actions...)
+
+		if as.redactSvc != nil {
+			result = as.redactSvc.RedactSensitiveText(result)
+		}
 
 		afterActionIdx := endIdx + 9
 		if afterActionIdx > len(remainingText) {
@@ -1510,10 +1993,14 @@ func (as *AgentService) parseAndExecuteActions(text string) ([]models.Action, st
 }
 
 func (as *AgentService) generateTitle(message string) string {
-	if len(message) > 40 {
-		return message[:40] + "..."
+	fallback := message
+	if len(fallback) > 50 {
+		fallback = fallback[:50] + "..."
 	}
-	return message
+	if as.titleGenSvc == nil || as.llmProvider == nil {
+		return fallback
+	}
+	return fallback
 }
 
 func (as *AgentService) extractPath(message string, prefixes []string) string {
@@ -1531,7 +2018,6 @@ func (as *AgentService) extractPath(message string, prefixes []string) string {
 		}
 	}
 
-	// Safety: Trim surrounding quotes that the LLM might have added.
 	if (strings.HasPrefix(res, "\"") && strings.HasSuffix(res, "\"")) ||
 		(strings.HasPrefix(res, "'") && strings.HasSuffix(res, "'")) {
 		if len(res) >= 2 {
@@ -1541,9 +2027,6 @@ func (as *AgentService) extractPath(message string, prefixes []string) string {
 	return res
 }
 
-// truncateRunes safely truncates s to at most maxRunes Unicode code points,
-// appending suffix when truncation occurs. This avoids splitting multibyte
-// characters (e.g. emojis, CJK) that a plain byte-slice [:n] would corrupt.
 func truncateRunes(s string, maxRunes int, suffix string) string {
 	runes := []rune(s)
 	if len(runes) <= maxRunes {
@@ -1567,4 +2050,28 @@ func formatSize(b int64) string {
 
 func (as *AgentService) formatSize(b int64) string {
 	return formatSize(b)
+}
+
+func llmMessagesToMaps(msgs []LLMMessage) []map[string]interface{} {
+	result := make([]map[string]interface{}, len(msgs))
+	for i, m := range msgs {
+		result[i] = map[string]interface{}{
+			"role":    m.Role,
+			"content": m.Content,
+		}
+	}
+	return result
+}
+
+func mapsToLLMMessages(maps []map[string]interface{}) []LLMMessage {
+	result := make([]LLMMessage, len(maps))
+	for i, m := range maps {
+		if r, ok := m["role"].(string); ok {
+			result[i].Role = r
+		}
+		if c, ok := m["content"].(string); ok {
+			result[i].Content = c
+		}
+	}
+	return result
 }

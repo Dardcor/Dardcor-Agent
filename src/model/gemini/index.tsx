@@ -11,7 +11,7 @@ const GeminiView: React.FC = () => {
           setIsActive(data.data.gemini)
         }
       })
-      .catch(() => {})
+      .catch(() => { })
   }, [])
 
   const toggleModel = async () => {
@@ -26,12 +26,12 @@ const GeminiView: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...current, gemini: newState })
       })
-    } catch {}
+    } catch { }
   }
 
   return (
     <div className="model-config-view card-premium animate-fade" style={{ maxWidth: '800px' }}>
-      {}
+
       <div style={{
         background: isActive ? 'linear-gradient(135deg, rgba(66,133,244,0.1) 0%, rgba(124,58,237,0.08) 100%)' : 'rgba(255,255,255,0.03)',
         border: isActive ? '1px solid rgba(66,133,244,0.25)' : '1px solid rgba(255,255,255,0.08)',
@@ -48,31 +48,31 @@ const GeminiView: React.FC = () => {
       }}>
         {isActive && (
           <div style={{
-             position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: '#4285f4'
+            position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: '#4285f4'
           }}></div>
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
-           <div style={{
-             width: '10px', height: '10px', borderRadius: '50%',
-             background: isActive ? '#4285f4' : '#4b5563',
-             boxShadow: isActive ? '0 0 12px #4285f4, 0 0 20px rgba(66,133,244,0.4)' : 'none',
-             flexShrink: 0,
-             transition: 'all 0.3s ease'
-           }}></div>
-           <div style={{ display: 'flex', flexDirection: 'column' }}>
-             <strong style={{
-               fontSize: '15px',
-               letterSpacing: '0.2px',
-               color: isActive ? '#fff' : 'rgba(255,255,255,0.6)',
-               transition: 'all 0.3s ease'
-             }}>Aktifkan model ini</strong>
-             {isActive && (
-               <span style={{ fontSize: '11px', color: 'rgba(66,133,244,0.7)', marginTop: '2px' }}>
-                 Google Gemini is currently active
-               </span>
-             )}
-           </div>
+          <div style={{
+            width: '10px', height: '10px', borderRadius: '50%',
+            background: isActive ? '#4285f4' : '#4b5563',
+            boxShadow: isActive ? '0 0 12px #4285f4, 0 0 20px rgba(66,133,244,0.4)' : 'none',
+            flexShrink: 0,
+            transition: 'all 0.3s ease'
+          }}></div>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <strong style={{
+              fontSize: '15px',
+              letterSpacing: '0.2px',
+              color: isActive ? '#fff' : 'rgba(255,255,255,0.6)',
+              transition: 'all 0.3s ease'
+            }}>Aktifkan model ini</strong>
+            {isActive && (
+              <span style={{ fontSize: '11px', color: 'rgba(66,133,244,0.7)', marginTop: '2px' }}>
+                Google Gemini is currently active
+              </span>
+            )}
+          </div>
         </div>
 
         <div
@@ -104,27 +104,27 @@ const GeminiView: React.FC = () => {
       </div>
 
       <div className="config-header">
-         <h2>Google Gemini Configuration</h2>
-         <p>Link your API key to start using Google Gemini with Dardcor Agent.</p>
+        <h2>Google Gemini Configuration</h2>
+        <p>Link your API key to start using Google Gemini with Dardcor Agent.</p>
       </div>
 
       <div className="config-form">
-         <div className="form-group">
-            <label>API Key</label>
-            <input type="password" placeholder="Enter Gemini API Key..." className="input-premium" />
-         </div>
+        <div className="form-group">
+          <label>API Key</label>
+          <input type="password" placeholder="Enter Gemini API Key..." className="input-premium" />
+        </div>
 
-         <div className="form-group">
-            <label>Select Model</label>
-            <select className="input-premium" defaultValue="Select a model...">
-               <option>Select a model...</option>
-               <option>Gemini 1.5 Pro</option>
-               <option>Gemini 1.5 Flash</option>
-               <option>Gemini 1.0 Pro</option>
-            </select>
-         </div>
+        <div className="form-group">
+          <label>Select Model</label>
+          <select className="input-premium" defaultValue="Select a model...">
+            <option>Select a model...</option>
+            <option>Gemini 1.5 Pro</option>
+            <option>Gemini 1.5 Flash</option>
+            <option>Gemini 1.0 Pro</option>
+          </select>
+        </div>
 
-         <button className="btn-primary-glow">Save Configuration</button>
+        <button className="btn-primary-glow">Save Configuration</button>
       </div>
     </div>
   )

@@ -58,7 +58,6 @@ func (s *DreamService) dream() {
 	}
 	defer f.Close()
 
-	// Perfection: Generate a dynamic insight based on actual system state
 	egoState := s.egoSvc.GetState()
 	insight := s.generateAIInsight(egoState)
 
@@ -69,22 +68,59 @@ func (s *DreamService) dream() {
 	f.WriteString(dreamEntry)
 
 	if s.egoSvc != nil {
-		s.egoSvc.RecoverEnergy(0.05) // Dreams recover more energy now
+		s.egoSvc.RecoverEnergy(0.05)
 	}
 }
 
-// generateAIInsight simulates an LLM call to reflect on the agent's state.
-// In a full implementation, this would call llmProvider.Complete with a reflection prompt.
 func (s *DreamService) generateAIInsight(state models.EgoState) string {
-	if state.Confidence < 0.5 {
-		return "Analysis of recent failures suggests a mismatch between tool timeout and system latency. Recommending adaptive buffering."
-	}
-	if state.StreakSuccess > 5 {
-		return fmt.Sprintf("Consistent success in %d tasks detected. Identifying patterns for new 'High-Speed' skill templates.", state.StreakSuccess)
+	var insight string
+
+	successRate := float64(0)
+	total := state.TasksComplete + state.TasksFailed
+	if total > 0 {
+		successRate = float64(state.TasksComplete) / float64(total) * 100
 	}
 
-	// Default to a smart observation
-	return dreamInsights[rand.Intn(len(dreamInsights))]
+	switch {
+	case state.StreakFailed > 3:
+		insight = fmt.Sprintf("Critical analysis: %d consecutive failures with %.0f%% overall success rate. Root cause pattern suggests tool selection mismatch. Recommending: 1) Read target files before modification, 2) Use grep to verify assumptions, 3) Test with smaller scope first.", state.StreakFailed, successRate)
+	case state.Confidence < 0.3:
+		insight = fmt.Sprintf("Recovery analysis: Confidence at %.0f%%. Historical data shows recovery after targeted successes. Recommending focus on high-confidence simple tasks to rebuild momentum. Avoid complex multi-step operations until confidence > 0.5.", state.Confidence*100)
+	case state.StreakSuccess > 7:
+		insight = fmt.Sprintf("Peak performance detected: %d consecutive successes, %.0f%% success rate. Current strategy is optimal. Cataloging successful patterns for future reference. Energy at %.0f%% — schedule regeneration before depletion.", state.StreakSuccess, successRate, state.Energy*100)
+	case state.Energy < 0.3:
+		insight = fmt.Sprintf("Energy conservation advisory: %.0f%% remaining. Completed %d total actions. Recommending: consolidate pending work, defer non-critical tasks, prioritize high-impact actions only.", state.Energy*100, state.TotalActions)
+	case total > 20:
+		insight = fmt.Sprintf("Session analytics: %d actions completed (%.0f%% success). Current streak: %dW/%dL. Workspace patterns suggest optimizing file read caching and reducing redundant searches.", total, successRate, state.StreakSuccess, state.StreakFailed)
+	default:
+		base := dreamInsights[rand.Intn(len(dreamInsights))]
+		insight = fmt.Sprintf("%s [Session stats: %d actions, %.0f%% success, energy %.0f%%]", base, total, successRate, state.Energy*100)
+	}
+
+	return insight
+}
+
+func (s *DreamService) AnalyzeWorkspace(workspace string) string {
+	if s.fsSvc == nil {
+		return ""
+	}
+
+	files, err := s.fsSvc.ListDirectory(workspace)
+	if err != nil {
+		return ""
+	}
+
+	fileCount := 0
+	dirCount := 0
+	for _, f := range files {
+		if f.IsDir {
+			dirCount++
+		} else {
+			fileCount++
+		}
+	}
+
+	return fmt.Sprintf("Workspace: %s — %d files, %d directories at root level.", workspace, fileCount, dirCount)
 }
 
 func (s *DreamService) GetRecentDreams(count int) []string {

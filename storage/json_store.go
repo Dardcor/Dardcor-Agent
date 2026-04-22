@@ -146,8 +146,6 @@ func (s *JSONStore) CreateConversation(title string, source string) (*models.Con
 	return conv, nil
 }
 
-// addMessageLocked performs the read-modify-write atomically.
-// Caller MUST hold s.mu (write lock) before calling.
 func (s *JSONStore) addMessageLocked(convID string, msg models.Message, source string) error {
 	dir := config.AppConfig.GetConversationsDir(source)
 	path := filepath.Join(dir, convID+".json")
@@ -178,6 +176,47 @@ func (s *JSONStore) AddMessage(convID string, msg models.Message, source string)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.addMessageLocked(convID, msg, source)
+}
+
+func (s *JSONStore) UpsertLastAssistantMessage(convID string, content string, actions []models.Action, source string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	dir := config.AppConfig.GetConversationsDir(source)
+	path := filepath.Join(dir, convID+".json")
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("conversation not found")
+	}
+
+	var conv models.Conversation
+	if err := json.Unmarshal(data, &conv); err != nil {
+		return fmt.Errorf("failed to parse conversation: %w", err)
+	}
+
+	if len(conv.Messages) > 0 && conv.Messages[len(conv.Messages)-1].Role == "assistant" {
+		conv.Messages[len(conv.Messages)-1].Content = content
+		if len(actions) > 0 {
+			conv.Messages[len(conv.Messages)-1].Actions = actions
+		}
+	} else {
+		msg := models.Message{
+			ID:        uuid.New().String(),
+			Role:      "assistant",
+			Content:   content,
+			Actions:   actions,
+			Timestamp: time.Now(),
+		}
+		conv.Messages = append(conv.Messages, msg)
+	}
+	conv.UpdatedAt = time.Now()
+
+	out, err := json.MarshalIndent(&conv, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal conversation: %w", err)
+	}
+	return os.WriteFile(path, out, 0644)
 }
 
 func (s *JSONStore) SaveCommandHistory(cmd models.CommandResponse) error {

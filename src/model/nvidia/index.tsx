@@ -7,7 +7,6 @@ const NvidiaView: React.FC = () => {
   const [isSaving, setIsSaving] = React.useState(false)
 
   React.useEffect(() => {
-    // Load active status
     fetch('/api/model/active')
       .then(res => res.json())
       .then(data => {
@@ -17,7 +16,7 @@ const NvidiaView: React.FC = () => {
           if (data.data.nvidia_model) setModel(data.data.nvidia_model)
         }
       })
-      .catch(() => {})
+      .catch(() => { })
   }, [])
 
   const toggleModel = async () => {
@@ -32,7 +31,7 @@ const NvidiaView: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...current, nvidia: newState })
       })
-    } catch {}
+    } catch { }
   }
 
   const saveConfig = async () => {
@@ -41,12 +40,12 @@ const NvidiaView: React.FC = () => {
       const resp = await fetch('/api/model/active')
       const data = await resp.json()
       const current = data.success ? data.data : {}
-      
+
       await fetch('/api/model/active', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          ...current, 
+        body: JSON.stringify({
+          ...current,
           nvidia_api_key: apiKey,
           nvidia_model: model
         })
@@ -76,28 +75,28 @@ const NvidiaView: React.FC = () => {
       }}>
         {isActive && (
           <div style={{
-             position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: '#76b900'
+            position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: '#76b900'
           }}></div>
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
-           <div style={{
-             width: '10px', height: '10px', borderRadius: '50%',
-             background: isActive ? '#76b900' : '#4b5563',
-             boxShadow: isActive ? '0 0 12px #76b900, 0 0 20px rgba(118,185,0,0.4)' : 'none',
-             transition: 'all 0.3s ease'
-           }}></div>
-           <div style={{ display: 'flex', flexDirection: 'column' }}>
-             <strong style={{
-               fontSize: '15px',
-               color: isActive ? '#fff' : 'rgba(255,255,255,0.6)',
-             }}>Aktifkan provider ini</strong>
-             {isActive && (
-               <span style={{ fontSize: '11px', color: 'rgba(118,185,0,0.7)', marginTop: '2px' }}>
-                 NVIDIA API is currently active
-               </span>
-             )}
-           </div>
+          <div style={{
+            width: '10px', height: '10px', borderRadius: '50%',
+            background: isActive ? '#76b900' : '#4b5563',
+            boxShadow: isActive ? '0 0 12px #76b900, 0 0 20px rgba(118,185,0,0.4)' : 'none',
+            transition: 'all 0.3s ease'
+          }}></div>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <strong style={{
+              fontSize: '15px',
+              color: isActive ? '#fff' : 'rgba(255,255,255,0.6)',
+            }}>Aktifkan provider ini</strong>
+            {isActive && (
+              <span style={{ fontSize: '11px', color: 'rgba(118,185,0,0.7)', marginTop: '2px' }}>
+                NVIDIA API is currently active
+              </span>
+            )}
+          </div>
         </div>
 
         <div
@@ -127,58 +126,58 @@ const NvidiaView: React.FC = () => {
       </div>
 
       <div className="config-header">
-         <h2>NVIDIA Configuration</h2>
-         <p>Link your NVIDIA API key to start using specialized models like minimax-m2.7 via NVIDIA's catalog.</p>
+        <h2>NVIDIA Configuration</h2>
+        <p>Link your NVIDIA API key to start using specialized models like minimax-m2.7 via NVIDIA's catalog.</p>
       </div>
 
       <div className="config-form">
-         <div className="form-group">
-            <label>API Key</label>
-            <input 
-              type="password" 
-              placeholder="nvapi-..." 
-              className="input-premium" 
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-            />
-         </div>
+        <div className="form-group">
+          <label>API Key</label>
+          <input
+            type="password"
+            placeholder="nvapi-..."
+            className="input-premium"
+            value={apiKey}
+            onChange={(e) => setApiKey(e.target.value)}
+          />
+        </div>
 
-         <div className="form-group">
-            <label>Select Model</label>
-             <select 
-               className="input-premium" 
-               value={model}
-               onChange={(e) => setModel(e.target.value)}
-             >
-                {/* MiniMax */}
-                <option value="minimaxai/minimax-m2.7">minimaxai/minimax-m2.7 ⭐ Recommended</option>
-                {/* NVIDIA specialized */}
-                <option value="nvidia/ising-calibration-1-35b-a3b">nvidia/ising-calibration-1-35b-a3b (calibration)</option>
-                {/* NVIDIA */}
-                <option value="nvidia/llama-3.1-nemotron-70b-instruct">nvidia/llama-3.1-nemotron-70b-instruct</option>
-                <option value="nvidia/llama-3.1-405b-instruct">nvidia/llama-3.1-405b-instruct</option>
-                {/* Meta Llama */}
-                <option value="meta/llama-3.3-70b-instruct">meta/llama-3.3-70b-instruct</option>
-                <option value="meta/llama-3.1-70b-instruct">meta/llama-3.1-70b-instruct</option>
-                <option value="meta/llama-3.1-8b-instruct">meta/llama-3.1-8b-instruct</option>
-                {/* Mistral */}
-                <option value="mistralai/mixtral-8x22b-instruct-v0.1">mistralai/mixtral-8x22b-instruct-v0.1</option>
-                <option value="mistralai/mistral-large-2-instruct">mistralai/mistral-large-2-instruct</option>
-                {/* Others */}
-                <option value="qwen/qwen2.5-72b-instruct">qwen/qwen2.5-72b-instruct</option>
-                <option value="deepseek-ai/deepseek-r1-distill-llama-70b">deepseek-ai/deepseek-r1-distill-llama-70b</option>
-                <option value="google/gemma-2-27b-it">google/gemma-2-27b-it</option>
-                <option value="microsoft/phi-3.5-mini-instruct">microsoft/phi-3.5-mini-instruct</option>
-             </select>
-         </div>
+        <div className="form-group">
+          <label>Select Model</label>
+          <select
+            className="input-premium"
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+          >
 
-         <button 
-           className="btn-primary-glow" 
-           onClick={saveConfig}
-           disabled={isSaving}
-         >
-           {isSaving ? 'Saving...' : 'Save Configuration'}
-         </button>
+            <option value="minimaxai/minimax-m2.7">minimaxai/minimax-m2.7 ⭐ Recommended</option>
+
+            <option value="nvidia/ising-calibration-1-35b-a3b">nvidia/ising-calibration-1-35b-a3b (calibration)</option>
+
+            <option value="nvidia/llama-3.1-nemotron-70b-instruct">nvidia/llama-3.1-nemotron-70b-instruct</option>
+            <option value="nvidia/llama-3.1-405b-instruct">nvidia/llama-3.1-405b-instruct</option>
+
+            <option value="meta/llama-3.3-70b-instruct">meta/llama-3.3-70b-instruct</option>
+            <option value="meta/llama-3.1-70b-instruct">meta/llama-3.1-70b-instruct</option>
+            <option value="meta/llama-3.1-8b-instruct">meta/llama-3.1-8b-instruct</option>
+
+            <option value="mistralai/mixtral-8x22b-instruct-v0.1">mistralai/mixtral-8x22b-instruct-v0.1</option>
+            <option value="mistralai/mistral-large-2-instruct">mistralai/mistral-large-2-instruct</option>
+
+            <option value="qwen/qwen2.5-72b-instruct">qwen/qwen2.5-72b-instruct</option>
+            <option value="deepseek-ai/deepseek-r1-distill-llama-70b">deepseek-ai/deepseek-r1-distill-llama-70b</option>
+            <option value="google/gemma-2-27b-it">google/gemma-2-27b-it</option>
+            <option value="microsoft/phi-3.5-mini-instruct">microsoft/phi-3.5-mini-instruct</option>
+          </select>
+        </div>
+
+        <button
+          className="btn-primary-glow"
+          onClick={saveConfig}
+          disabled={isSaving}
+        >
+          {isSaving ? 'Saving...' : 'Save Configuration'}
+        </button>
       </div>
     </div>
   )

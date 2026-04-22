@@ -10,15 +10,15 @@ function askQuestion(question) {
 
 const PROVIDERS = {
   antigravity: { name: 'Antigravity (Free Google AI)', fields: [], note: 'Uses OAuth via browser' },
-  openai:      { name: 'OpenAI (GPT-4, o1, o3)', fields: ['api_key'], note: 'Get key at platform.openai.com' },
-  anthropic:   { name: 'Anthropic (Claude)', fields: ['api_key'], note: 'Get key at console.anthropic.com' },
-  gemini:      { name: 'Google Gemini', fields: ['api_key'], note: 'Get key at aistudio.google.com' },
-  groq:        { name: 'Groq (Fast inference)', fields: ['api_key'], note: 'Get key at console.groq.com' },
-  deepseek:    { name: 'DeepSeek', fields: ['api_key'], note: 'Get key at platform.deepseek.com' },
-  openrouter:  { name: 'OpenRouter (Multi-provider)', fields: ['api_key'], note: 'Get key at openrouter.ai' },
-  ollama:      { name: 'Ollama (Local AI)', fields: ['base_url'], note: 'Runs locally on port 11434' },
-  nvidia:      { name: 'NVIDIA NIM (AI Catalog)', fields: ['api_key'], note: 'Get key at build.nvidia.com', baseURL: 'https://integrate.api.nvidia.com/v1' },
-  custom:      { name: 'Custom OpenAI-compatible', fields: ['api_key', 'base_url', 'model'], note: 'Any OpenAI-compatible API' },
+  openai: { name: 'OpenAI (GPT-4, o1, o3)', fields: ['api_key'], note: 'Get key at platform.openai.com' },
+  anthropic: { name: 'Anthropic (Claude)', fields: ['api_key'], note: 'Get key at console.anthropic.com' },
+  gemini: { name: 'Google Gemini', fields: ['api_key'], note: 'Get key at aistudio.google.com' },
+  groq: { name: 'Groq (Fast inference)', fields: ['api_key'], note: 'Get key at console.groq.com' },
+  deepseek: { name: 'DeepSeek', fields: ['api_key'], note: 'Get key at platform.deepseek.com' },
+  openrouter: { name: 'OpenRouter (Multi-provider)', fields: ['api_key'], note: 'Get key at openrouter.ai' },
+  ollama: { name: 'Ollama (Local AI)', fields: ['base_url'], note: 'Runs locally on port 11434' },
+  nvidia: { name: 'NVIDIA NIM (AI Catalog)', fields: ['api_key'], note: 'Get key at build.nvidia.com', baseURL: 'https://integrate.api.nvidia.com/v1' },
+  custom: { name: 'Custom OpenAI-compatible', fields: ['api_key', 'base_url', 'model'], note: 'Any OpenAI-compatible API' },
 };
 
 const NVIDIA_MODELS = [
@@ -66,11 +66,11 @@ export async function handleLogin(opts = {}) {
     const apiKey = await askQuestion(`API Key (nvapi-...): `);
     cfg.api_key = apiKey;
     cfg.base_url = 'https://integrate.api.nvidia.com/v1';
-    
+
     console.log(`\n${C.bold}Available NVIDIA Models:${C.reset}`);
     NVIDIA_MODELS.forEach((m, i) => console.log(`  ${C.cyan}${i + 1}.${C.reset} ${m}`));
     console.log('');
-    
+
     const modelChoice = await askQuestion(`Select model (1-${NVIDIA_MODELS.length}) or type custom: `);
     const modelIdx = parseInt(modelChoice) - 1;
     if (modelIdx >= 0 && modelIdx < NVIDIA_MODELS.length) {
@@ -78,7 +78,7 @@ export async function handleLogin(opts = {}) {
     } else if (isNaN(parseInt(modelChoice)) && modelChoice.trim()) {
       cfg.model = modelChoice.trim();
     } else {
-      cfg.model = NVIDIA_MODELS[0]; // default to minimaxai/minimax-m2.7
+      cfg.model = NVIDIA_MODELS[0];
     }
   } else if (providerKey === 'ollama') {
     const url = await askQuestion(`Base URL [http://localhost:11434]: `);

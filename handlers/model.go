@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"dardcor-agent/config"
 	"dardcor-agent/models"
 )
 
@@ -15,11 +16,15 @@ type ModelHandler struct {
 }
 
 func NewModelHandler() *ModelHandler {
+	baseDir := "database"
+	if config.AppConfig != nil && config.AppConfig.DataDir != "" {
+		baseDir = config.AppConfig.DataDir
+	}
 
-	os.MkdirAll(filepath.Join("database", "model"), 0755)
-	os.MkdirAll(filepath.Join("database", "tools"), 0755)
-	os.MkdirAll(filepath.Join("database", "skills"), 0755)
-	os.MkdirAll(filepath.Join("database", "settings"), 0755)
+	os.MkdirAll(filepath.Join(baseDir, "model"), 0755)
+	os.MkdirAll(filepath.Join(baseDir, "tools"), 0755)
+	os.MkdirAll(filepath.Join(baseDir, "skills"), 0755)
+	os.MkdirAll(filepath.Join(baseDir, "settings"), 0755)
 
 	h := &ModelHandler{}
 
@@ -59,15 +64,19 @@ var defaultSkills = []map[string]interface{}{
 }
 
 func (h *ModelHandler) getPath(configType string) string {
+	baseDir := "database"
+	if config.AppConfig != nil && config.AppConfig.DataDir != "" {
+		baseDir = config.AppConfig.DataDir
+	}
 	switch configType {
 	case "tools":
-		return filepath.Join("database", "tools", "config.json")
+		return filepath.Join(baseDir, "tools", "config.json")
 	case "skills":
-		return filepath.Join("database", "skills", "config.json")
+		return filepath.Join(baseDir, "skills", "config.json")
 	case "workspace":
-		return filepath.Join("database", "settings", "workspace.json")
+		return filepath.Join(baseDir, "settings", "workspace.json")
 	default:
-		return filepath.Join("database", "model", "configure_active.json")
+		return filepath.Join(baseDir, "model", "configure_active.json")
 	}
 }
 

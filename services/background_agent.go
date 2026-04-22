@@ -11,7 +11,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// BackgroundAgentService runs AI tasks asynchronously — inspired by oh-my-openagent background-agent.
 type BackgroundAgentService struct {
 	mu    sync.RWMutex
 	tasks map[string]*BackgroundTask
@@ -19,14 +18,17 @@ type BackgroundAgentService struct {
 }
 
 type BackgroundTask struct {
-	ID          string    `json:"id"`
-	Prompt      string    `json:"prompt"`
-	Status      string    `json:"status"` // pending, running, completed, failed, cancelled
-	Result      string    `json:"result,omitempty"`
-	Error       string    `json:"error,omitempty"`
-	CreatedAt   time.Time `json:"created_at"`
-	CompletedAt time.Time `json:"completed_at,omitempty"`
-	ConvID      string    `json:"conv_id,omitempty"`
+	ID          string             `json:"id"`
+	Prompt      string             `json:"prompt"`
+	Status      string             `json:"status"`
+	Result      string             `json:"result,omitempty"`
+	Error       string             `json:"error,omitempty"`
+	CreatedAt   time.Time          `json:"created_at"`
+	CompletedAt time.Time          `json:"completed_at,omitempty"`
+	ConvID      string             `json:"conv_id,omitempty"`
+	Priority    int                `json:"priority,omitempty"`
+	cancel      context.CancelFunc `json:"-"`
+	ctx         context.Context    `json:"-"`
 }
 
 func NewBackgroundAgentService(agent *AgentService) *BackgroundAgentService {
@@ -36,14 +38,21 @@ func NewBackgroundAgentService(agent *AgentService) *BackgroundAgentService {
 	}
 }
 
-// Submit enqueues a task for background execution and returns its ID immediately.
 func (b *BackgroundAgentService) Submit(prompt string) string {
+	return b.SubmitWithPriority(prompt, 0)
+}
+
+func (b *BackgroundAgentService) SubmitWithPriority(prompt string, priority int) string {
 	taskID := uuid.New().String()
+	ctx, cancel := context.WithCancel(context.Background())
 	task := &BackgroundTask{
 		ID:        taskID,
 		Prompt:    prompt,
 		Status:    "pending",
 		CreatedAt: time.Now(),
+		Priority:  priority,
+		cancel:    cancel,
+		ctx:       ctx,
 	}
 
 	b.mu.Lock()
@@ -61,7 +70,12 @@ func (b *BackgroundAgentService) execute(task *BackgroundTask) {
 		Message: task.Prompt,
 		Source:  "background",
 	}
-	resp, err := b.agent.ProcessMessage(context.Background(), req, nil)
+	resp, err := b.agent.ProcessMessage(task.ctx, req, nil)
+
+	if task.ctx.Err() != nil {
+		b.setStatus(task.ID, "cancelled", "", "Task was cancelled")
+		return
+	}
 
 	if err != nil {
 		b.setStatus(task.ID, "failed", "", fmt.Sprintf("Error: %v", err))
@@ -126,11 +140,46 @@ func (b *BackgroundAgentService) ListTasks() []*BackgroundTask {
 func (b *BackgroundAgentService) CancelTask(id string) bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	if t, ok := b.tasks[id]; ok && t.Status == "pending" {
-		t.Status = "cancelled"
-		return true
+	if t, ok := b.tasks[id]; ok {
+		if t.Status == "pending" || t.Status == "running" {
+			if t.cancel != nil {
+				t.cancel()
+			}
+			t.Status = "cancelled"
+			t.CompletedAt = time.Now()
+			return true
+		}
 	}
 	return false
+}
+
+func (b *BackgroundAgentService) GetRunningCount() int {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	count := 0
+	for _, t := range b.tasks {
+		if t.Status == "running" {
+			count++
+		}
+	}
+	return count
+}
+
+func (b *BackgroundAgentService) CancelAll() int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	count := 0
+	for _, t := range b.tasks {
+		if t.Status == "pending" || t.Status == "running" {
+			if t.cancel != nil {
+				t.cancel()
+			}
+			t.Status = "cancelled"
+			t.CompletedAt = time.Now()
+			count++
+		}
+	}
+	return count
 }
 
 func (b *BackgroundAgentService) PurgeCompleted() int {

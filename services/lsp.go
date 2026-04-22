@@ -10,7 +10,6 @@ import (
 	"sync"
 )
 
-// LSPService provides Language Server Protocol integration for code intelligence
 type LSPService struct {
 	mu      sync.RWMutex
 	servers map[string]*LSPServerInfo
@@ -114,7 +113,6 @@ func (l *LSPService) GetDefinition(filePath string, line, col int) ([]LSPLocatio
 	if srv == nil {
 		return nil, fmt.Errorf("no LSP server available for %s", filePath)
 	}
-	// This is a stub for the full JSON-RPC implementation
 	return nil, fmt.Errorf("LSP method textDocument/definition not yet fully implemented for %s", srv.Command)
 }
 

@@ -11,7 +11,7 @@ const OpenRouterView: React.FC = () => {
           setIsActive(data.data.openrouter)
         }
       })
-      .catch(() => {})
+      .catch(() => { })
   }, [])
 
   const toggleModel = async () => {
@@ -26,12 +26,12 @@ const OpenRouterView: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...current, openrouter: newState })
       })
-    } catch {}
+    } catch { }
   }
 
   return (
     <div className="model-config-view card-premium animate-fade" style={{ maxWidth: '800px' }}>
-      {}
+
       <div style={{
         background: isActive ? 'linear-gradient(135deg, rgba(255,107,0,0.1) 0%, rgba(124,58,237,0.08) 100%)' : 'rgba(255,255,255,0.03)',
         border: isActive ? '1px solid rgba(255,107,0,0.25)' : '1px solid rgba(255,255,255,0.08)',
@@ -48,31 +48,31 @@ const OpenRouterView: React.FC = () => {
       }}>
         {isActive && (
           <div style={{
-             position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: '#ff6b00'
+            position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: '#ff6b00'
           }}></div>
         )}
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1 }}>
-           <div style={{
-             width: '10px', height: '10px', borderRadius: '50%',
-             background: isActive ? '#ff6b00' : '#4b5563',
-             boxShadow: isActive ? '0 0 12px #ff6b00, 0 0 20px rgba(255,107,0,0.4)' : 'none',
-             flexShrink: 0,
-             transition: 'all 0.3s ease'
-           }}></div>
-           <div style={{ display: 'flex', flexDirection: 'column' }}>
-             <strong style={{
-               fontSize: '15px',
-               letterSpacing: '0.2px',
-               color: isActive ? '#fff' : 'rgba(255,255,255,0.6)',
-               transition: 'all 0.3s ease'
-             }}>Aktifkan model ini</strong>
-             {isActive && (
-               <span style={{ fontSize: '11px', color: 'rgba(255,107,0,0.7)', marginTop: '2px' }}>
-                 OpenRouter is currently active
-               </span>
-             )}
-           </div>
+          <div style={{
+            width: '10px', height: '10px', borderRadius: '50%',
+            background: isActive ? '#ff6b00' : '#4b5563',
+            boxShadow: isActive ? '0 0 12px #ff6b00, 0 0 20px rgba(255,107,0,0.4)' : 'none',
+            flexShrink: 0,
+            transition: 'all 0.3s ease'
+          }}></div>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <strong style={{
+              fontSize: '15px',
+              letterSpacing: '0.2px',
+              color: isActive ? '#fff' : 'rgba(255,255,255,0.6)',
+              transition: 'all 0.3s ease'
+            }}>Aktifkan model ini</strong>
+            {isActive && (
+              <span style={{ fontSize: '11px', color: 'rgba(255,107,0,0.7)', marginTop: '2px' }}>
+                OpenRouter is currently active
+              </span>
+            )}
+          </div>
         </div>
 
         <div
@@ -104,34 +104,30 @@ const OpenRouterView: React.FC = () => {
       </div>
 
       <div className="config-header">
-         <h2>OpenRouter Configuration</h2>
-         <p>Link your API key to start using OpenRouter with Dardcor Agent.</p>
+        <h2>OpenRouter Configuration</h2>
+        <p>Link your API key to start using OpenRouter with Dardcor Agent.</p>
       </div>
 
       <div className="config-form">
-         <div className="form-group">
-            <label>API Key</label>
-            <input type="password" placeholder="Enter OpenRouter API Key..." className="input-premium" />
-         </div>
+        <div className="form-group">
+          <label>API Key</label>
+          <input type="password" placeholder="Enter OpenRouter API Key..." className="input-premium" />
+        </div>
 
-         <div className="form-group">
-            <label>Select Model</label>
-            <select className="input-premium" defaultValue="Select a model...">
-               <option>Select a model...</option>
-               <option>GPT-4o</option>
-               <option>Claude 3.5 Sonnet</option>
-               <option>Llama 3 70B</option>
-            </select>
-         </div>
+        <div className="form-group">
+          <label>Select Model</label>
+          <select className="input-premium" defaultValue="Select a model...">
+            <option>Select a model...</option>
+            <option>GPT-4o</option>
+            <option>Claude 3.5 Sonnet</option>
+            <option>Llama 3 70B</option>
+          </select>
+        </div>
 
-         <button className="btn-primary-glow">Save Configuration</button>
+        <button className="btn-primary-glow">Save Configuration</button>
       </div>
     </div>
   )
 }
 
 export default OpenRouterView
-
-
-
-

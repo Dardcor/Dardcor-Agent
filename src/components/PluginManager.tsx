@@ -23,7 +23,6 @@ const PluginManager: React.FC = () => {
 
   const installPlugin = async (name: string) => {
     setInstalling(name);
-    // Simulate install delay
     await new Promise(r => setTimeout(r, 1000));
     setPlugins(prev => prev.map(p => p.name === name ? { ...p, installed: true } : p));
     setInstalling(null);
@@ -53,7 +52,7 @@ const PluginManager: React.FC = () => {
         </button>
       </div>
 
-      {/* Custom install */}
+
       <div style={{ display: 'flex', gap: '0.5rem' }}>
         <input
           value={customName}
@@ -65,7 +64,7 @@ const PluginManager: React.FC = () => {
         <button onClick={installCustom} style={{ background: 'var(--accent)', border: 'none', color: '#fff', padding: '0.5rem 1rem', borderRadius: '6px', cursor: 'pointer' }}>Install</button>
       </div>
 
-      {/* Installed plugins */}
+
       {plugins.filter(p => p.installed).length > 0 && (
         <div>
           <h3 style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 0.5rem' }}>Installed</h3>
@@ -83,7 +82,7 @@ const PluginManager: React.FC = () => {
         </div>
       )}
 
-      {/* Featured plugins */}
+
       <div>
         <h3 style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 0.5rem' }}>Featured Plugins</h3>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>

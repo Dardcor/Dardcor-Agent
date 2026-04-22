@@ -53,7 +53,7 @@ export async function handlePlugin(action, arg) {
       savePlugins(cfg);
       try {
         execSync(`npm uninstall ${arg}`, { cwd: PLUGINS_DIR, stdio: 'inherit' });
-      } catch {}
+      } catch { }
       ok(`Plugin removed: ${arg}`);
       break;
     }
@@ -69,7 +69,7 @@ export async function handlePlugin(action, arg) {
         keywords: ['dardcor', 'plugin'],
       };
       fs.writeFileSync(path.join(pluginDir, 'package.json'), JSON.stringify(template, null, 2));
-      fs.writeFileSync(path.join(pluginDir, 'index.js'), `// ${arg} plugin\nexport default {\n  name: '${arg}',\n  init(agent) {\n    // Add custom commands, hooks, or tools here\n  }\n};\n`);
+      fs.writeFileSync(path.join(pluginDir, 'index.js'), `export default {\n  name: '${arg}',\n  init(agent) {\n  }\n};\n`);
       ok(`Plugin scaffold created: ${pluginDir}`);
       break;
     }

@@ -32,7 +32,6 @@ func (bs *BrowserService) EnsureBrowser() error {
 
 	pw, err := playwright.Run()
 	if err != nil {
-		// Only install if run fails (likely missing drivers)
 		fmt.Printf("[BrowserService] Initializing Playwright drivers (this may take a moment)...")
 		if errImg := playwright.Install(); errImg != nil {
 			return fmt.Errorf("could not install playwright: %w", errImg)

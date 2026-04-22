@@ -8,10 +8,10 @@ export async function handleStats(opts = {}) {
   let stats = { totalMessages: 0, totalTokens: 0, totalCost: 0, sessions: 0, providers: {} };
 
   if (fs.existsSync(statsFile)) {
-    try { stats = { ...stats, ...JSON.parse(fs.readFileSync(statsFile, 'utf8')) }; } catch {}
+    try { stats = { ...stats, ...JSON.parse(fs.readFileSync(statsFile, 'utf8')) }; } catch { }
   }
 
-  // Count from conversation files
+
   const convDirs = [
     path.join(os.homedir(), '.dardcor', 'database', 'conversations-cli'),
     path.join(os.homedir(), '.dardcor', 'database', 'conversations-web'),
@@ -26,7 +26,7 @@ export async function handleStats(opts = {}) {
       try {
         const data = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
         totalMsgs += (data.messages || []).length;
-      } catch {}
+      } catch { }
     }
   }
 

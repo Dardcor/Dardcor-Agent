@@ -12,17 +12,16 @@ import (
 	"dardcor-agent/config"
 )
 
-// IndexService builds a searchable code index — inspired by MIAW-CLI index system.
 type IndexService struct {
 	filePath string
 	index    *CodeIndex
 }
 
 type CodeIndex struct {
-	RootPath  string       `json:"root_path"`
+	RootPath  string        `json:"root_path"`
 	Files     []IndexedFile `json:"files"`
-	BuiltAt   time.Time    `json:"built_at"`
-	FileCount int          `json:"file_count"`
+	BuiltAt   time.Time     `json:"built_at"`
+	FileCount int           `json:"file_count"`
 }
 
 type IndexedFile struct {
@@ -71,7 +70,6 @@ func (s *IndexService) loadIndex() {
 	}
 }
 
-// Build scans rootPath and builds an index.
 func (s *IndexService) Build(rootPath string) (*CodeIndex, error) {
 	if rootPath == "" {
 		var err error
@@ -96,7 +94,7 @@ func (s *IndexService) Build(rootPath string) (*CodeIndex, error) {
 			}
 			return nil
 		}
-		if info.Size() > 1024*1024 { // Skip >1MB
+		if info.Size() > 1024*1024 {
 			return nil
 		}
 
@@ -138,7 +136,6 @@ func (s *IndexService) Build(rootPath string) (*CodeIndex, error) {
 	idx.FileCount = len(idx.Files)
 	s.index = idx
 
-	// Persist
 	os.MkdirAll(filepath.Dir(s.filePath), 0755)
 	data, _ := json.MarshalIndent(idx, "", "  ")
 	os.WriteFile(s.filePath, data, 0644)
@@ -146,7 +143,6 @@ func (s *IndexService) Build(rootPath string) (*CodeIndex, error) {
 	return idx, nil
 }
 
-// Search finds files matching a query.
 func (s *IndexService) Search(query string, maxResults int) []IndexedFile {
 	if s.index == nil || query == "" {
 		return nil
@@ -187,7 +183,6 @@ func (s *IndexService) Search(query string, maxResults int) []IndexedFile {
 	return results
 }
 
-// GetStatus returns a formatted status string.
 func (s *IndexService) GetStatus() string {
 	if s.index == nil {
 		return "No index built. Use `dardcor index` to build."
@@ -199,7 +194,6 @@ func (s *IndexService) GetStatus() string {
 	)
 }
 
-// GetIndex returns the current index.
 func (s *IndexService) GetIndex() *CodeIndex {
 	return s.index
 }

@@ -169,6 +169,7 @@ export interface AgentTurnEvent {
   message_id: string;
   content: string;
   is_final: boolean;
+  status: string;
 }
 
 export interface ToolExecutionEvent {

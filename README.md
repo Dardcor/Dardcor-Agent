@@ -196,10 +196,10 @@ The architecture is intentionally simple. No microservices. No Docker requiremen
 - [x] CLI mode
 - [x] Self-healing system (`dardcor doctor`)
 - [x] Local-only network (privacy-first by default)
-- [ ] Multi-agent collaboration system
-- [ ] Plugin ecosystem & extension API
-- [ ] Cloud sync (optional, privacy-first)
-- [ ] GUI config editor (no more JSON editing)
+- [x] Multi-agent collaboration system
+- [x] Plugin ecosystem & extension API
+- [x] Cloud sync (optional, privacy-first)
+- [x] GUI config editor (no more JSON editing)
 
 ---
 

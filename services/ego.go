@@ -206,6 +206,53 @@ func (s *EgoService) GetPerformanceRatio() float64 {
 	return float64(s.state.TasksComplete) / float64(total)
 }
 
+func (s *EgoService) GetAdaptiveTemperature() float64 {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	base := 0.7
+
+	if s.state.StreakFailed > 2 {
+		base = 0.2
+	} else if s.state.Confidence < 0.3 {
+		base = 0.3
+	} else if s.state.StreakSuccess > 5 {
+		base = 0.8
+	}
+
+	if s.state.Energy < 0.2 {
+		base = base * 0.7
+	}
+
+	return base
+}
+
+func (s *EgoService) GetStrategyMode() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	switch {
+	case s.state.StreakFailed >= 3:
+		return "CAUTIOUS: Multiple failures detected. Verify before each action. Read before write. Test before deploy."
+	case s.state.Energy < 0.2:
+		return "EFFICIENT: Low energy. Minimize exploration. Focus on completing current objective only."
+	case s.state.Confidence > 0.9 && s.state.StreakSuccess > 3:
+		return "AGGRESSIVE: High confidence and momentum. Execute boldly, batch operations, move fast."
+	case s.state.Confidence < 0.3:
+		return "DEFENSIVE: Low confidence. Double-check each step. Use read/verify cycles."
+	case s.state.Confidence > 0.7:
+		return "OPTIMAL: Good confidence level. Execute methodically with normal verification."
+	default:
+		return "STANDARD: Balanced execution. Verify important operations."
+	}
+}
+
+func (s *EgoService) ShouldPause() bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.state.StreakFailed >= 5 || s.state.Energy < 0.1
+}
+
 func (s *EgoService) FormatSummary() string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

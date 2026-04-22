@@ -22,30 +22,23 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-// WSClient represents a single connected WebSocket client.
-// send is a buffered channel; the writePump drains it onto the wire.
-// agentCancel cancels any in-flight agentic loop for this client so that
-// incoming messages (e.g. interrupt / new prompt) are never blocked.
 type WSClient struct {
 	conn        *websocket.Conn
 	send        chan []byte
 	mu          sync.Mutex
 	agentCancel context.CancelFunc
-	agentMu     sync.Mutex // guards agentCancel
+	agentMu     sync.Mutex
 }
 
-// cancelAgent cancels the currently running agentic loop (if any) and
-// stores the new cancel function so the next loop can be cancelled later.
 func (c *WSClient) cancelAgent(newCancel context.CancelFunc) {
 	c.agentMu.Lock()
 	defer c.agentMu.Unlock()
 	if c.agentCancel != nil {
-		c.agentCancel() // cancel previous loop
+		c.agentCancel()
 	}
 	c.agentCancel = newCancel
 }
 
-// stopAgent cancels any running agentic loop and clears the stored cancel.
 func (c *WSClient) stopAgent() {
 	c.agentMu.Lock()
 	defer c.agentMu.Unlock()
@@ -75,8 +68,6 @@ func (wsh *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Buffer size 512: large enough to absorb burst output during a long agent
-	// loop without dropping messages, but bounded to avoid unbounded memory use.
 	client := &WSClient{
 		conn: conn,
 		send: make(chan []byte, 512),
@@ -99,7 +90,6 @@ func (wsh *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Requ
 
 func (wsh *WebSocketHandler) readPump(client *WSClient, clientID string) {
 	defer func() {
-		// Cancel any in-flight agent loop before cleaning up.
 		client.stopAgent()
 		wsh.clients.Delete(clientID)
 		client.conn.Close()
@@ -123,8 +113,6 @@ func (wsh *WebSocketHandler) readPump(client *WSClient, clientID string) {
 			continue
 		}
 
-		// handleMessage is non-blocking for every message type — the agent
-		// path uses its own goroutine so the read loop is never stalled.
 		go wsh.handleMessage(client, wsMsg)
 	}
 }
@@ -146,7 +134,6 @@ func (wsh *WebSocketHandler) handleMessage(client *WSClient, msg models.WSMessag
 	case "agent_message":
 		wsh.handleAgentMessage(client, msg)
 	case "stop_agent":
-		// Explicit stop signal from the client — cancel any running loop.
 		client.stopAgent()
 		wsh.sendToClient(client, models.WSMessage{
 			Type:    "agent_stopped",
@@ -181,9 +168,6 @@ func (wsh *WebSocketHandler) handleMessage(client *WSClient, msg models.WSMessag
 	}
 }
 
-// handleAgentMessage runs the agentic loop in a dedicated goroutine so the
-// WebSocket read loop stays unblocked and can immediately process any incoming
-// message (including stop/interrupt signals) while the LLM is thinking.
 func (wsh *WebSocketHandler) handleAgentMessage(client *WSClient, msg models.WSMessage) {
 	payload, ok := msg.Payload.(map[string]interface{})
 	if !ok {
@@ -197,13 +181,9 @@ func (wsh *WebSocketHandler) handleAgentMessage(client *WSClient, msg models.WSM
 	message, _ := payload["message"].(string)
 	convID, _ := payload["conversation_id"].(string)
 
-	// Create a cancellable context for this agent run.
-	// cancelAgent cancels any previously running loop before storing the new one.
 	ctx, cancel := context.WithCancel(context.Background())
 	client.cancelAgent(cancel)
 
-	// Run the agentic loop in its own goroutine so the WS reader is never
-	// blocked waiting for LLM responses (which can take tens of seconds per turn).
 	go func() {
 		wsh.sendToClient(client, models.WSMessage{
 			Type:    "typing",
@@ -226,7 +206,6 @@ func (wsh *WebSocketHandler) handleAgentMessage(client *WSClient, msg models.WSM
 		})
 
 		if err != nil {
-			// context.Canceled means the user (or a new message) interrupted the loop.
 			if err == context.Canceled {
 				return
 			}
@@ -418,9 +397,6 @@ func (wsh *WebSocketHandler) handleRenameConversation(client *WSClient, msg mode
 	wsh.handleGetConversations(client)
 }
 
-// sendToClient marshals msg and enqueues it on the client's send channel.
-// If the channel is full the message is dropped and a warning is logged so
-// that silent drops become visible in server logs.
 func (wsh *WebSocketHandler) sendToClient(client *WSClient, msg models.WSMessage) {
 	data, err := json.Marshal(msg)
 	if err != nil {
@@ -434,9 +410,6 @@ func (wsh *WebSocketHandler) sendToClient(client *WSClient, msg models.WSMessage
 	}
 }
 
-// Broadcast sends msg to every connected client.
-// If a client's send channel is full the message is dropped and logged rather
-// than silently discarded.
 func (wsh *WebSocketHandler) Broadcast(msg models.WSMessage) {
 	data, err := json.Marshal(msg)
 	if err != nil {

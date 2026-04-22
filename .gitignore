@@ -10,6 +10,7 @@ bin/*.exe
 *.exe
 *.bin
 dardcor.exe
+dardcor-agent.exe
 
 # IDEs
 .vscode/

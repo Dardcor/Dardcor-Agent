@@ -22,7 +22,7 @@ const BackgroundTasksPanel: React.FC = () => {
       const res = await fetch('/api/background/tasks');
       const data = await res.json();
       if (data.success) setTasks(data.data || []);
-    } catch {}
+    } catch { }
   }, []);
 
   useEffect(() => {
@@ -45,7 +45,7 @@ const BackgroundTasksPanel: React.FC = () => {
         setNewPrompt('');
         fetchTasks();
       }
-    } catch {}
+    } catch { }
     setLoading(false);
   };
 
@@ -89,7 +89,7 @@ const BackgroundTasksPanel: React.FC = () => {
         </button>
       </div>
 
-      {/* Submit new task */}
+
       <div style={{ display: 'flex', gap: '0.5rem' }}>
         <input
           value={newPrompt}
@@ -107,7 +107,7 @@ const BackgroundTasksPanel: React.FC = () => {
         </button>
       </div>
 
-      {/* Task list */}
+
       <div style={{ flex: 1, overflowY: 'auto', display: 'flex', gap: '0.5rem', flexDirection: 'column' }}>
         {tasks.length === 0 ? (
           <div style={{ color: 'var(--text-muted)', textAlign: 'center', marginTop: '2rem' }}>
@@ -153,7 +153,7 @@ const BackgroundTasksPanel: React.FC = () => {
         )}
       </div>
 
-      {/* Task detail */}
+
       {selectedTask && (
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '8px', padding: '1rem', maxHeight: '250px', overflowY: 'auto' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>

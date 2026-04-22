@@ -204,5 +204,5 @@ type Settings struct {
 	APIKey         string `json:"api_key,omitempty"`
 	AIProvider     string `json:"ai_provider"`
 	AIModel        string `json:"ai_model"`
-	ExecutionMode  string `json:"execution_mode"` // "auto", "yolo", "safe"
+	ExecutionMode  string `json:"execution_mode"`
 }

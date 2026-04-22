@@ -7,8 +7,6 @@ import (
 	"time"
 )
 
-// SessionRecoveryService detects and recovers from agent errors
-// — inspired by oh-my-openagent session-recovery.
 type SessionRecoveryService struct {
 	mu       sync.RWMutex
 	attempts map[string]*RecoveryAttempt
@@ -24,13 +22,13 @@ type RecoveryAttempt struct {
 type RecoveryErrorType string
 
 const (
-	ErrToolResultMissing    RecoveryErrorType = "tool_result_missing"
-	ErrContextWindowLimit   RecoveryErrorType = "context_window_limit"
-	ErrRateLimitExceeded    RecoveryErrorType = "rate_limit_exceeded"
-	ErrTokenLimitExceeded   RecoveryErrorType = "token_limit_exceeded"
-	ErrEmptyResponse        RecoveryErrorType = "empty_response"
-	ErrThinkingBlockOrder   RecoveryErrorType = "thinking_block_order"
-	ErrUnknown              RecoveryErrorType = "unknown"
+	ErrToolResultMissing  RecoveryErrorType = "tool_result_missing"
+	ErrContextWindowLimit RecoveryErrorType = "context_window_limit"
+	ErrRateLimitExceeded  RecoveryErrorType = "rate_limit_exceeded"
+	ErrTokenLimitExceeded RecoveryErrorType = "token_limit_exceeded"
+	ErrEmptyResponse      RecoveryErrorType = "empty_response"
+	ErrThinkingBlockOrder RecoveryErrorType = "thinking_block_order"
+	ErrUnknown            RecoveryErrorType = "unknown"
 )
 
 func NewSessionRecoveryService() *SessionRecoveryService {
@@ -39,7 +37,6 @@ func NewSessionRecoveryService() *SessionRecoveryService {
 	}
 }
 
-// DetectErrorType classifies an error for recovery strategy.
 func (s *SessionRecoveryService) DetectErrorType(errMsg string) RecoveryErrorType {
 	lower := strings.ToLower(errMsg)
 
@@ -67,7 +64,6 @@ func (s *SessionRecoveryService) DetectErrorType(errMsg string) RecoveryErrorTyp
 	return ErrUnknown
 }
 
-// IsRecoverable returns true if the error can be auto-recovered.
 func (s *SessionRecoveryService) IsRecoverable(errMsg string) bool {
 	t := s.DetectErrorType(errMsg)
 	switch t {
@@ -77,7 +73,6 @@ func (s *SessionRecoveryService) IsRecoverable(errMsg string) bool {
 	return false
 }
 
-// BuildRecoveryPrompt creates a recovery prompt based on error type.
 func (s *SessionRecoveryService) BuildRecoveryPrompt(errType RecoveryErrorType, originalPrompt string) string {
 	switch errType {
 	case ErrContextWindowLimit, ErrTokenLimitExceeded:
@@ -91,7 +86,6 @@ func (s *SessionRecoveryService) BuildRecoveryPrompt(errType RecoveryErrorType, 
 	}
 }
 
-// RecordAttempt logs a recovery attempt.
 func (s *SessionRecoveryService) RecordAttempt(sessionID string, errType RecoveryErrorType, success bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -103,7 +97,6 @@ func (s *SessionRecoveryService) RecordAttempt(sessionID string, errType Recover
 	}
 }
 
-// GetAttempt returns the recovery attempt for a session.
 func (s *SessionRecoveryService) GetAttempt(sessionID string) *RecoveryAttempt {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -114,13 +107,11 @@ func (s *SessionRecoveryService) GetAttempt(sessionID string) *RecoveryAttempt {
 	return nil
 }
 
-// TruncateHistory reduces conversation history to fit within token limits.
 func (s *SessionRecoveryService) TruncateHistory(messages []LLMMessage, maxTokens int) []LLMMessage {
 	if len(messages) == 0 {
 		return messages
 	}
 
-	// Keep system message if present
 	var systemMsg *LLMMessage
 	var convMsgs []LLMMessage
 	for i, m := range messages {
@@ -131,7 +122,6 @@ func (s *SessionRecoveryService) TruncateHistory(messages []LLMMessage, maxToken
 		}
 	}
 
-	// Estimate tokens (rough: 4 chars ≈ 1 token)
 	targetChars := maxTokens * 4
 	totalChars := 0
 

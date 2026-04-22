@@ -56,7 +56,6 @@ const Workspace: React.FC = () => {
     e.preventDefault()
     const trimmedPath = workspacePath.trim()
     if (trimmedPath) {
-      // Create folder if it doesn't exist
       try {
         await fetch('/api/files/mkdir', {
           method: 'POST',
@@ -85,7 +84,6 @@ const Workspace: React.FC = () => {
 
     let path = workspacePath.trim().replace(/\//g, '\\')
 
-    // Remove trailing \ for better explorer compatibility
     if (path.length > 3 && path.endsWith('\\')) path = path.slice(0, -1)
     if (/^[a-zA-Z]:$/.test(path)) path += '\\'
 

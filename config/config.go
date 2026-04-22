@@ -81,13 +81,11 @@ func Init() (*Config, error) {
 		},
 	}
 
-	// Load settings if exists
 	settingsPath := filepath.Join(baseDir, "settings.json")
 	if data, err := os.ReadFile(settingsPath); err == nil {
 		json.Unmarshal(data, &cfg.Settings)
 	}
 
-	// Load project-level config if exists
 	loadProjectConfig(cfg)
 
 	AppConfig = cfg
@@ -163,7 +161,6 @@ func buildAIConfig(userCfg UserConfig) AIConfig {
 }
 
 func loadProjectConfig(cfg *Config) {
-	// 1. Load Global Rules (~/.dardcor.json)
 	homeDir, _ := os.UserHomeDir()
 	globalPath := filepath.Join(homeDir, ".dardcor.json")
 	if data, err := os.ReadFile(globalPath); err == nil {
@@ -183,7 +180,6 @@ func loadProjectConfig(cfg *Config) {
 		}
 	}
 
-	// 2. Load Project Rules (./.dardcor.json)
 	projectPath := ".dardcor.json"
 	if data, err := os.ReadFile(projectPath); err == nil {
 		var pCfg struct {
@@ -195,11 +191,9 @@ func loadProjectConfig(cfg *Config) {
 
 		if err := json.Unmarshal(data, &pCfg); err == nil {
 			if len(pCfg.Rules) > 0 {
-				// Project rules extend global rules
 				cfg.ProjectRules = append(cfg.ProjectRules, pCfg.Rules...)
 			}
 			if pCfg.Prompt != "" {
-				// Project prompt overrides global prompt
 				cfg.ProjectPrompt = pCfg.Prompt
 			}
 		}

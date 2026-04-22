@@ -44,7 +44,7 @@ func (h *FileSystemHandler) safeJoin(path string) (string, error) {
 func (h *FileSystemHandler) ListDirectory(w http.ResponseWriter, r *http.Request) {
 	path, err := h.safeJoin(r.URL.Query().Get("path"))
 	if err != nil {
-		path = "." // Fallback to workspace root if empty/invalid
+		path = "."
 		if workspace, err2 := h.service.GetDefaultWorkspace(); err2 == nil {
 			path = workspace
 		}

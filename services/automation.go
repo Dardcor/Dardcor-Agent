@@ -54,7 +54,7 @@ type KEYBDINPUT struct {
 
 type INPUT struct {
 	Type uint32
-	Data [24]byte // Large enough for MOUSEINPUT or KEYBDINPUT
+	Data [24]byte
 }
 
 type POINT struct {
@@ -82,7 +82,6 @@ func (s *AutomationService) GetCursorPos() (int, int) {
 
 func (s *AutomationService) MouseMove(x, y int) error {
 	w, h := s.GetScreenSize()
-	// Absolute coordinates are 0-65535
 	ax := int32(x * 65535 / w)
 	ay := int32(y * 65535 / h)
 
@@ -132,8 +131,6 @@ func (s *AutomationService) MouseClick(x, y int, button string) error {
 
 func (s *AutomationService) Type(text string) error {
 	for _, char := range text {
-		// This is a simplified version using Vk
-		// For a real supreme agent, we should use ScanCode for Unicode
 		vk := s.getVkFromChar(char)
 		if vk == 0 {
 			continue
@@ -155,7 +152,6 @@ func (s *AutomationService) Type(text string) error {
 }
 
 func (s *AutomationService) getVkFromChar(r rune) uint16 {
-	// Simplified mapping
 	if r >= 'a' && r <= 'z' {
 		return uint16(r - 'a' + 0x41)
 	}

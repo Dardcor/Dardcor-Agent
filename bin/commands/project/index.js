@@ -5,7 +5,7 @@ import os from 'os';
 
 const INDEX_FILE = path.join(os.homedir(), '.dardcor', 'database', 'code_index.json');
 
-function buildIndex(rootPath, patterns = ['**/*.ts','**/*.js','**/*.go','**/*.py','**/*.tsx','**/*.jsx']) {
+function buildIndex(rootPath, patterns = ['**/*.ts', '**/*.js', '**/*.go', '**/*.py', '**/*.tsx', '**/*.jsx']) {
   const excluded = new Set(['node_modules', '.git', 'dist', 'build', '__pycache__', 'vendor', '.next']);
   const index = { path: rootPath, files: [], builtAt: new Date().toISOString() };
 
@@ -19,11 +19,11 @@ function buildIndex(rootPath, patterns = ['**/*.ts','**/*.js','**/*.go','**/*.py
         walk(fullPath);
       } else if (e.isFile()) {
         const ext = path.extname(e.name);
-        const textExts = new Set(['.ts','.tsx','.js','.jsx','.go','.py','.rs','.java','.c','.cpp','.h','.md','.json','.yaml','.yml','.toml','.env']);
+        const textExts = new Set(['.ts', '.tsx', '.js', '.jsx', '.go', '.py', '.rs', '.java', '.c', '.cpp', '.h', '.md', '.json', '.yaml', '.yml', '.toml', '.env']);
         if (textExts.has(ext)) {
           try {
             const stat = fs.statSync(fullPath);
-            if (stat.size < 500 * 1024) { // Skip files > 500KB
+            if (stat.size < 500 * 1024) {
               const content = fs.readFileSync(fullPath, 'utf8');
               index.files.push({
                 path: path.relative(rootPath, fullPath),
@@ -33,7 +33,7 @@ function buildIndex(rootPath, patterns = ['**/*.ts','**/*.js','**/*.go','**/*.py
                 preview: content.slice(0, 200),
               });
             }
-          } catch {}
+          } catch { }
         }
       }
     }
@@ -68,10 +68,10 @@ export async function handleIndex(opts = {}) {
   fs.writeFileSync(INDEX_FILE, JSON.stringify(index, null, 2));
   ok(`Index built: ${index.files.length} files indexed`);
 
-  // Also try to send to Go backend if running
+
   try {
     if (await ensureEngine()) {
       await httpPost('/api/index/build', { path: rootPath });
     }
-  } catch {}
+  } catch { }
 }

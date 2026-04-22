@@ -250,7 +250,7 @@ const AntigravityView: React.FC = () => {
   return (
     <div className="antigravity-dashboard animate-fade">
 
-      { }
+
       <div style={{
         background: activeAccount ? 'linear-gradient(135deg, rgba(16,185,129,0.1) 0%, rgba(124,58,237,0.08) 100%)' : 'rgba(255,255,255,0.03)',
         border: activeAccount ? '1px solid rgba(16,185,129,0.25)' : '1px solid rgba(255,255,255,0.08)',
@@ -332,7 +332,7 @@ const AntigravityView: React.FC = () => {
         </div>
       </div>
 
-      { }
+
       <div className="dashboard-top-bar">
         <div className="search-box">
           <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
@@ -451,7 +451,7 @@ const AntigravityView: React.FC = () => {
         </div>
       </div>
 
-      { }
+
       <div className="dashboard-table-header" style={{ gridTemplateColumns: '50px 1fr 1.8fr 130px 80px 90px' }}>
         <div className="col-check">
           <input
@@ -470,7 +470,7 @@ const AntigravityView: React.FC = () => {
         <div style={{ textAlign: 'center' }}>ACTIONS</div>
       </div>
 
-      { }
+
       <div style={{ minHeight: '300px' }}>
         {paginatedAccounts.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px', color: 'var(--text-dim)', textAlign: 'center', gap: '12px' }}>
@@ -492,7 +492,7 @@ const AntigravityView: React.FC = () => {
                   borderLeft: acc.is_active ? '2px solid #10b981' : '2px solid transparent',
                 }}
               >
-                { }
+
                 <div className="col-check">
                   <div className="drag-handle">⠿</div>
                   <input type="checkbox" checked={selectedEmails.has(acc.email)} onChange={() => {
@@ -500,7 +500,7 @@ const AntigravityView: React.FC = () => {
                   }} />
                 </div>
 
-                { }
+
                 <div className="col-email">
                   <div className="email-text" title={acc.email} style={{ color: acc.is_active ? '#a78bfa' : '#60a5fa' }}>
                     {acc.email}
@@ -516,7 +516,7 @@ const AntigravityView: React.FC = () => {
                   </div>
                 </div>
 
-                { }
+
                 <div className="col-quota">
                   {(() => {
                     const allQuotas = deduplicateQuotas(showAllQuotas ? acc.quotas : acc.quotas?.filter(q => q.available !== false))
@@ -558,7 +558,7 @@ const AntigravityView: React.FC = () => {
                   })()}
                 </div>
 
-                { }
+
                 <div className="col-last">
                   <div className="last-date">
                     {acc.last_used && acc.last_used !== '0001-01-01T00:00:00Z'
@@ -572,7 +572,7 @@ const AntigravityView: React.FC = () => {
                   </div>
                 </div>
 
-                { }
+
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <button
                     onClick={() => toggleActive(acc.email)}
@@ -594,7 +594,7 @@ const AntigravityView: React.FC = () => {
                   </button>
                 </div>
 
-                { }
+
                 <div className="col-actions">
                   <button
                     onClick={() => handleRefresh(acc.email)}
@@ -618,7 +618,7 @@ const AntigravityView: React.FC = () => {
         )}
       </div>
 
-      { }
+
       <div className="dashboard-footer">
         <div className="footer-left">
           Showing <strong style={{ color: '#a78bfa', margin: '0 3px' }}>{paginatedAccounts.length > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}</strong>

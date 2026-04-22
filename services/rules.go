@@ -8,11 +8,9 @@ import (
 	"sync"
 )
 
-// RulesService loads .dardcorrules files from the project directory and
-// injects them into the agent's system prompt — inspired by MIAW-CLI rules system.
 type RulesService struct {
 	mu    sync.RWMutex
-	cache map[string]string // directory → rules content
+	cache map[string]string
 }
 
 var rulesFileNames = []string{
@@ -27,7 +25,6 @@ func NewRulesService() *RulesService {
 	return &RulesService{cache: make(map[string]string)}
 }
 
-// LoadRules walks up from dir until it finds a rules file or hits the root.
 func (r *RulesService) LoadRules(dir string) string {
 	r.mu.RLock()
 	if cached, ok := r.cache[dir]; ok {
@@ -61,14 +58,12 @@ func (r *RulesService) searchUpward(dir string) string {
 	return ""
 }
 
-// InvalidateCache clears the rules cache so next call re-reads from disk.
 func (r *RulesService) InvalidateCache() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.cache = make(map[string]string)
 }
 
-// BuildRulesPrompt returns a formatted rules section or empty string.
 func (r *RulesService) BuildRulesPrompt(workspaceDir string) string {
 	rules := r.LoadRules(workspaceDir)
 	if rules == "" {
@@ -77,7 +72,6 @@ func (r *RulesService) BuildRulesPrompt(workspaceDir string) string {
 	return rules
 }
 
-// GetRulesFiles returns all rules file paths found (for display).
 func (r *RulesService) GetRulesFiles(dir string) []string {
 	var found []string
 	current := dir
@@ -97,7 +91,6 @@ func (r *RulesService) GetRulesFiles(dir string) []string {
 	return found
 }
 
-// InjectRules adds rules content to a system prompt.
 func (r *RulesService) InjectRules(systemPrompt, workspaceDir string) string {
 	rules := r.BuildRulesPrompt(workspaceDir)
 	if rules == "" {
@@ -106,12 +99,10 @@ func (r *RulesService) InjectRules(systemPrompt, workspaceDir string) string {
 	return systemPrompt + rules
 }
 
-// GetTemplateList returns available .dardcorrules templates.
 func (r *RulesService) GetTemplateList() []string {
 	return []string{"react", "nextjs", "node-api", "python", "flutter", "rust"}
 }
 
-// GetTemplate returns a template content by name.
 func GetRulesTemplate(name string) string {
 	templates := map[string]string{
 		"react": `# Dardcor Rules — React Project
@@ -229,7 +220,7 @@ func GetRulesTemplate(name string) string {
 ## Conventions
 - Use Result<T, E> for error handling, no unwrap() in production
 - Prefer owned types in public APIs
-- Document all public items with /////
+- Document all public items with docstrings
 - Use clippy and rustfmt
 
 ## Architecture

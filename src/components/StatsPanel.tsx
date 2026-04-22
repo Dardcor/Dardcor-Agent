@@ -22,8 +22,8 @@ const StatsPanel: React.FC = () => {
   const [searchResults, setSearchResults] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch('/api/stats').then(r => r.json()).then(d => { if (d.success) setStats(d.data); }).catch(() => {});
-    fetch('/api/index/status').then(r => r.json()).then(d => { if (d.success) setIndexStatus(d); }).catch(() => {});
+    fetch('/api/stats').then(r => r.json()).then(d => { if (d.success) setStats(d.data); }).catch(() => { });
+    fetch('/api/index/status').then(r => r.json()).then(d => { if (d.success) setIndexStatus(d); }).catch(() => { });
   }, []);
 
   const buildIndex = async () => {
@@ -32,7 +32,7 @@ const StatsPanel: React.FC = () => {
       await fetch('/api/index/build', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
       const d = await (await fetch('/api/index/status')).json();
       if (d.success) setIndexStatus(d);
-    } catch {}
+    } catch { }
     setIndexBuilding(false);
   };
 
@@ -54,7 +54,7 @@ const StatsPanel: React.FC = () => {
     <div className="panel" style={{ padding: '1.5rem', height: '100%', display: 'flex', flexDirection: 'column', gap: '1.2rem', overflowY: 'auto' }}>
       <h2 style={{ color: 'var(--text-primary)', margin: 0 }}>📊 Stats & Cost Tracker</h2>
 
-      {/* Cost overview */}
+
       <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '1.2rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
           <h3 style={{ color: 'var(--text-primary)', margin: 0 }}>Usage Overview</h3>
@@ -90,7 +90,7 @@ const StatsPanel: React.FC = () => {
         )}
       </div>
 
-      {/* Code Index */}
+
       <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '10px', padding: '1.2rem' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.8rem' }}>
           <h3 style={{ color: 'var(--text-primary)', margin: 0 }}>🗂️ Code Index</h3>

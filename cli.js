@@ -7,7 +7,7 @@ import { printHelp, printBanner, printCommandHelp } from './bin/help.js';
 const args = process.argv.slice(2);
 const [command, ...rest] = args;
 
-// ─── Option parser ────────────────────────────────────────────────────────────
+
 function parseOpts(args) {
   const opts = {};
   const positional = [];
@@ -19,14 +19,14 @@ function parseOpts(args) {
       opts.version = true;
     } else if (a.startsWith('--')) {
       const key = a.slice(2);
-      // Next arg is the value unless it starts with -- or missing
+
       if (args[i + 1] !== undefined && !args[i + 1].startsWith('--')) {
         opts[key] = args[++i];
       } else {
         opts[key] = true;
       }
     } else if (a.startsWith('-') && a.length === 2) {
-      // short flag  -f  -o value
+
       const key = a.slice(1);
       if (args[i + 1] !== undefined && !args[i + 1].startsWith('-')) {
         opts[key] = args[++i];
@@ -41,20 +41,20 @@ function parseOpts(args) {
   return opts;
 }
 
-// ─── Print version ────────────────────────────────────────────────────────────
+
 function printVersion() {
   import('./bin/help.js').then(({ printBanner }) => printBanner());
 }
 
-// ─── Main router ─────────────────────────────────────────────────────────────
+
 async function start() {
   try {
     const opts = parseOpts(rest);
 
-    // Global --version / -v
+
     if (opts.version && !command) { printVersion(); return; }
 
-    // ─── Global help: dardcor  |  dardcor help  |  dardcor --help ───
+
     if (command === '--help' || command === '-h') { printHelp(); return; }
     if (command === 'help') {
       const sub = rest[0];
@@ -63,32 +63,32 @@ async function start() {
       return;
     }
 
-    // Default: run interactive CLI if no command
+
     if (!command) { await runCLI(); return; }
 
-    // Per-command --help  (dardcor commit --help)
+
     if (opts.help) { printCommandHelp(command); return; }
 
-    // ─── Core ────────────────────────────────────────────────────────────────
-    if (command === 'run')    { await run();       return; }
-    if (command === 'cli')    { await runCLI();    return; }
+
+    if (command === 'run') { await run(); return; }
+    if (command === 'cli') { await runCLI(); return; }
     if (command === 'doctor') { await runDoctor(); return; }
 
-    // dardcor auto [yolo|safe]
+
     if (command === 'auto') {
       const mode = rest[0] || 'auto';
       await runCLI(mode);
       return;
     }
 
-    // dardcor auth login | logout
+
     if (command === 'auth') {
       const sub = rest[0];
       if (sub === 'login') {
         const { handleLogin } = await import('./bin/commands/project/login.js');
         await handleLogin(opts);
       } else if (sub === 'logout') {
-        // Implement logout if needed, otherwise just message
+
         console.log(`\n  ${C.purple}DARDCOR${C.reset} Logged out successfully.\n`);
       } else {
         console.log(`\n  ${C.red}${C.bold}Error:${C.reset} Unknown auth command: ${sub || 'none'}\n  Use: dardcor auth login | logout\n`);
@@ -96,7 +96,7 @@ async function start() {
       return;
     }
 
-    // ─── AI Commands ─────────────────────────────────────────────────────────
+
     if (command === 'ask') {
       const prompt = rest.filter(r => !r.startsWith('-')).join(' ');
       if (!prompt) { printCommandHelp('ask'); return; }
@@ -192,7 +192,7 @@ async function start() {
       await handleThink(prompt, opts); return;
     }
 
-    // ─── Git Commands ─────────────────────────────────────────────────────────
+
     if (command === 'commit') {
       const { handleCommit } = await import('./bin/commands/git/commit.js');
       await handleCommit(opts); return;
@@ -221,7 +221,7 @@ async function start() {
       await handleDiff(ref, opts); return;
     }
 
-    // ─── Project / System Commands ────────────────────────────────────────────
+
     if (command === 'config') {
       const { handleConfig } = await import('./bin/commands/project/config.js');
       await handleConfig(opts); return;
@@ -239,7 +239,7 @@ async function start() {
 
     if (command === 'models') {
       const { handleModels } = await import('./bin/commands/project/models.js');
-      // Pass all flags through: --filter, --search, --provider, --pricing, --all, --count
+
       await handleModels(opts); return;
     }
 
@@ -281,7 +281,7 @@ async function start() {
       await handleInitProject(opts); return;
     }
 
-    // ─── Unknown command ──────────────────────────────────────────────────────
+
     const C = {
       reset: '\x1b[0m', bold: '\x1b[1m', dim: '\x1b[2m',
       red: '\x1b[31m', cyan: '\x1b[36m', yellow: '\x1b[33m',

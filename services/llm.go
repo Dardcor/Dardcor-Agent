@@ -73,9 +73,11 @@ func isRetryable(err error) bool {
 }
 
 type LLMProvider struct {
-	cfg    config.AIConfig
-	client *http.Client
-	agSvc  *AntigravityService
+	cfg         config.AIConfig
+	client      *http.Client
+	agSvc       *AntigravityService
+	rateLimiter *RateLimiterService
+	promptCache *PromptCacheService
 }
 
 type openAIResponseBody struct {
@@ -177,14 +179,7 @@ func (p *LLMProvider) CompleteStream(systemPrompt string, messages []LLMMessage,
 	case "anthropic":
 		return p.streamAnthropic(systemPrompt, messages, start, cb)
 	case "antigravity":
-		resp, err := p.callAntigravity(systemPrompt, messages, start)
-		if err != nil {
-			return nil, err
-		}
-		if cb != nil {
-			cb(resp.Content)
-		}
-		return resp, nil
+		return p.streamAntigravity(systemPrompt, messages, start, cb)
 	case "gemini":
 		return p.streamGeminiNative(systemPrompt, messages, start, cb)
 	case "local", "":
@@ -201,7 +196,6 @@ func (p *LLMProvider) CompleteStream(systemPrompt string, messages []LLMMessage,
 	}
 }
 
-// Summarize uses the LLM to compress a set of messages into a concise summary.
 func (p *LLMProvider) Summarize(messages []LLMMessage) (string, error) {
 	if len(messages) == 0 {
 		return "", nil
@@ -282,6 +276,22 @@ func (p *LLMProvider) callOpenAICompat(systemPrompt string, messages []LLMMessag
 	if err != nil {
 		return nil, &LLMError{Kind: LLMErrTimeout, Message: err.Error()}
 	}
+	if p.rateLimiter != nil {
+		headers := make(map[string]string)
+		for _, key := range []string{
+			"x-ratelimit-limit-requests", "x-ratelimit-remaining-requests",
+			"x-ratelimit-limit-tokens", "x-ratelimit-remaining-tokens",
+			"x-ratelimit-reset-requests", "x-ratelimit-reset-tokens",
+			"retry-after",
+		} {
+			if v := resp.Header.Get(key); v != "" {
+				headers[key] = v
+			}
+		}
+		if len(headers) > 0 {
+			p.rateLimiter.UpdateFromHeaders(headers, p.cfg.Provider)
+		}
+	}
 	defer resp.Body.Close()
 
 	respBytes, _ := io.ReadAll(resp.Body)
@@ -350,6 +360,22 @@ func (p *LLMProvider) streamOpenAICompat(systemPrompt string, messages []LLMMess
 	if err != nil {
 		return nil, &LLMError{Kind: LLMErrTimeout, Message: err.Error()}
 	}
+	if p.rateLimiter != nil {
+		headers := make(map[string]string)
+		for _, key := range []string{
+			"x-ratelimit-limit-requests", "x-ratelimit-remaining-requests",
+			"x-ratelimit-limit-tokens", "x-ratelimit-remaining-tokens",
+			"x-ratelimit-reset-requests", "x-ratelimit-reset-tokens",
+			"retry-after",
+		} {
+			if v := resp.Header.Get(key); v != "" {
+				headers[key] = v
+			}
+		}
+		if len(headers) > 0 {
+			p.rateLimiter.UpdateFromHeaders(headers, p.cfg.Provider)
+		}
+	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
@@ -417,6 +443,25 @@ func (p *LLMProvider) callAnthropic(systemPrompt string, messages []LLMMessage, 
 	if err != nil {
 		return nil, &LLMError{Kind: LLMErrTimeout, Message: err.Error()}
 	}
+	if p.rateLimiter != nil {
+		headers := make(map[string]string)
+		for _, key := range []string{
+			"x-ratelimit-limit-requests", "x-ratelimit-remaining-requests",
+			"x-ratelimit-limit-tokens", "x-ratelimit-remaining-tokens",
+			"x-ratelimit-reset-requests", "x-ratelimit-reset-tokens",
+			"retry-after",
+			"anthropic-ratelimit-requests-limit", "anthropic-ratelimit-requests-remaining",
+			"anthropic-ratelimit-tokens-limit", "anthropic-ratelimit-tokens-remaining",
+			"anthropic-ratelimit-requests-reset", "anthropic-ratelimit-tokens-reset",
+		} {
+			if v := resp.Header.Get(key); v != "" {
+				headers[key] = v
+			}
+		}
+		if len(headers) > 0 {
+			p.rateLimiter.UpdateFromHeaders(headers, p.cfg.Provider)
+		}
+	}
 	defer resp.Body.Close()
 
 	respBytes, _ := io.ReadAll(resp.Body)
@@ -470,6 +515,25 @@ func (p *LLMProvider) streamAnthropic(systemPrompt string, messages []LLMMessage
 	resp, err := p.client.Do(req)
 	if err != nil {
 		return nil, &LLMError{Kind: LLMErrTimeout, Message: err.Error()}
+	}
+	if p.rateLimiter != nil {
+		headers := make(map[string]string)
+		for _, key := range []string{
+			"x-ratelimit-limit-requests", "x-ratelimit-remaining-requests",
+			"x-ratelimit-limit-tokens", "x-ratelimit-remaining-tokens",
+			"x-ratelimit-reset-requests", "x-ratelimit-reset-tokens",
+			"retry-after",
+			"anthropic-ratelimit-requests-limit", "anthropic-ratelimit-requests-remaining",
+			"anthropic-ratelimit-tokens-limit", "anthropic-ratelimit-tokens-remaining",
+			"anthropic-ratelimit-requests-reset", "anthropic-ratelimit-tokens-reset",
+		} {
+			if v := resp.Header.Get(key); v != "" {
+				headers[key] = v
+			}
+		}
+		if len(headers) > 0 {
+			p.rateLimiter.UpdateFromHeaders(headers, p.cfg.Provider)
+		}
 	}
 	defer resp.Body.Close()
 
@@ -741,7 +805,6 @@ func (p *LLMProvider) callAntigravity(systemPrompt string, messages []LLMMessage
 	agCfg := p.agSvc.LoadConfig()
 	isAutoRotation := agCfg.SelectedModel == ""
 
-	// Order accounts so the active one is first, but include all others for rotation
 	activeAcc, _ := p.agSvc.GetActiveAccount()
 	orderedAccounts := make([]models.AntigravityAccount, 0, len(allAccounts))
 	if activeAcc != nil {
@@ -757,12 +820,10 @@ func (p *LLMProvider) callAntigravity(systemPrompt string, messages []LLMMessage
 	for _, acc := range orderedAccounts {
 		currAcc := &acc
 
-		// Skip forbidden accounts
 		if currAcc.Status == "FORBIDDEN" {
 			continue
 		}
 
-		// Refresh token if expired
 		if currAcc.AccessToken == "" || (!currAcc.Expiry.IsZero() && time.Now().After(currAcc.Expiry.Add(-2*time.Minute))) {
 			refreshed, err := p.agSvc.RefreshToken(currAcc.Email)
 			if err != nil {
@@ -777,9 +838,8 @@ func (p *LLMProvider) callAntigravity(systemPrompt string, messages []LLMMessage
 			p.agSvc.FetchProjectAndQuotas(currAcc)
 		}
 
-		// Prepare contents
 		var contents []map[string]interface{}
-		for _, m := range messages {
+		for i, m := range messages {
 			role := m.Role
 			if role == "system" {
 				role = "user"
@@ -787,19 +847,23 @@ func (p *LLMProvider) callAntigravity(systemPrompt string, messages []LLMMessage
 			if role == "assistant" {
 				role = "model"
 			}
+
+			text := m.Content
+			if i == 0 && systemPrompt != "" {
+				text = "Follow these SYSTEM INSTRUCTIONS strictly:\n\n" + systemPrompt + "\n\nUser request:\n" + text
+			}
+
 			contents = append(contents, map[string]interface{}{
 				"role":  role,
-				"parts": []map[string]interface{}{{"text": m.Content}},
+				"parts": []map[string]interface{}{{"text": text}},
 			})
 		}
 
-		// Model selection logic
 		modelName := p.cfg.Model
 		if agCfg.SelectedModel != "" {
 			modelName = agCfg.SelectedModel
 		}
 
-		// Image Gen Auto-Selection
 		isImageGen := false
 		for _, m := range messages {
 			if strings.Contains(m.Content, "[IMAGE_GEN_MODE]") {
@@ -824,10 +888,8 @@ func (p *LLMProvider) callAntigravity(systemPrompt string, messages []LLMMessage
 				continue
 			}
 		} else if isAutoRotation {
-			// Find best available model in this account
 			bestModel := ""
 			bestQuota := -1
-			// Prefer high-tier models if available
 			for _, q := range currAcc.Quotas {
 				if q.Percentage > 0 {
 					if q.Percentage > bestQuota {
@@ -921,12 +983,11 @@ func (p *LLMProvider) callAntigravity(systemPrompt string, messages []LLMMessage
 			if resp.StatusCode != http.StatusOK {
 				fmt.Printf("[Antigravity] Account %s error %d: %s\n", currAcc.Email, resp.StatusCode, string(respBytes))
 				if resp.StatusCode == 403 || resp.StatusCode == 429 {
-					// These are rotation triggers
 					accountErr = fmt.Errorf("quota exceeded or forbidden (HTTP %d)", resp.StatusCode)
-					break // Move to next account
+					break
 				}
 				accountErr = fmt.Errorf("API error %d: %s", resp.StatusCode, string(respBytes))
-				continue // Try next endpoint for THIS account
+				continue
 			}
 
 			var googleResp struct {
@@ -977,4 +1038,212 @@ func (p *LLMProvider) callAntigravity(systemPrompt string, messages []LLMMessage
 		return nil, fmt.Errorf("antigravity rotation failed: %w", lastErr)
 	}
 	return nil, fmt.Errorf("antigravity request failed: all accounts exhausted")
+}
+
+func (p *LLMProvider) streamAntigravity(systemPrompt string, messages []LLMMessage, start time.Time, cb StreamCallback) (*LLMResponse, error) {
+	if p.agSvc == nil {
+		return nil, fmt.Errorf("antigravity service not initialized")
+	}
+
+	allAccounts := p.agSvc.GetAccounts()
+	if len(allAccounts) == 0 {
+		return nil, fmt.Errorf("no antigravity accounts found. please add and activate an account in the dashboard")
+	}
+
+	agCfg := p.agSvc.LoadConfig()
+
+	activeAcc, _ := p.agSvc.GetActiveAccount()
+	orderedAccounts := make([]models.AntigravityAccount, 0, len(allAccounts))
+	if activeAcc != nil {
+		orderedAccounts = append(orderedAccounts, *activeAcc)
+	}
+	for _, acc := range allAccounts {
+		if activeAcc == nil || acc.Email != activeAcc.Email {
+			orderedAccounts = append(orderedAccounts, acc)
+		}
+	}
+
+	var lastErr error
+	for _, acc := range orderedAccounts {
+		currAcc := &acc
+
+		if currAcc.Status == "FORBIDDEN" {
+			continue
+		}
+
+		if currAcc.AccessToken == "" || (!currAcc.Expiry.IsZero() && time.Now().After(currAcc.Expiry.Add(-2*time.Minute))) {
+			refreshed, err := p.agSvc.RefreshToken(currAcc.Email)
+			if err != nil {
+				lastErr = err
+				continue
+			}
+			currAcc = refreshed
+		}
+
+		if currAcc.ProjectID == "" {
+			p.agSvc.FetchProjectAndQuotas(currAcc)
+		}
+
+		var contents []map[string]interface{}
+		for i, m := range messages {
+			role := m.Role
+			if role == "system" {
+				role = "user"
+			}
+			if role == "assistant" {
+				role = "model"
+			}
+
+			text := m.Content
+			if i == 0 && systemPrompt != "" {
+				text = "Follow these SYSTEM INSTRUCTIONS strictly:\n\n" + systemPrompt + "\n\nUser request:\n" + text
+			}
+
+			contents = append(contents, map[string]interface{}{
+				"role":  role,
+				"parts": []map[string]interface{}{{"text": text}},
+			})
+		}
+
+		modelName := p.cfg.Model
+		if agCfg.SelectedModel != "" {
+			modelName = agCfg.SelectedModel
+		}
+
+		temp, maxTok, thinkBudget := 0.7, 8192, 0
+		if agCfg.Temperature > 0 {
+			temp = agCfg.Temperature
+		}
+		if agCfg.MaxTokens > 0 {
+			maxTok = agCfg.MaxTokens
+		}
+		if agCfg.ThinkingBudget > 0 {
+			thinkBudget = agCfg.ThinkingBudget
+		}
+		if maxTok <= thinkBudget {
+			maxTok = thinkBudget + 8192
+		}
+
+		reqMap := map[string]interface{}{
+			"contents": contents,
+			"model":    modelName,
+		}
+		reqMap["generationConfig"] = map[string]interface{}{
+			"temperature":     temp,
+			"maxOutputTokens": maxTok,
+		}
+		if thinkBudget > 0 {
+			reqMap["generationConfig"].(map[string]interface{})["thinkingConfig"] = map[string]interface{}{
+				"includeThoughts": true,
+				"thinkingBudget":  thinkBudget,
+			}
+		}
+
+		finalPayload := map[string]interface{}{
+			"project":     currAcc.ProjectID,
+			"request":     reqMap,
+			"model":       modelName,
+			"requestId":   fmt.Sprintf("agent/antigravity/%s/%d-str", currAcc.ID[:8], len(messages)),
+			"userAgent":   "antigravity",
+			"requestType": "agent",
+		}
+
+		bodyBytes, _ := json.Marshal(finalPayload)
+		endpoints := []string{
+			"https://daily-cloudcode-pa.googleapis.com/v1internal:generateContent",
+			"https://cloudcode-pa.googleapis.com/v1internal:generateContent",
+		}
+
+		var accountErr error
+		for _, endpoint := range endpoints {
+			req, err := http.NewRequest("POST", endpoint, bytes.NewBuffer(bodyBytes))
+			if err != nil {
+				continue
+			}
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Authorization", "Bearer "+currAcc.AccessToken)
+			req.Header.Set("User-Agent", "antigravity")
+			req.Header.Set("x-client-name", "antigravity")
+			req.Header.Set("x-client-version", "3.3.18")
+			req.Header.Set("x-machine-id", "dardcor-agent-local")
+
+			resp, err := p.client.Do(req)
+			if err != nil {
+				accountErr = err
+				continue
+			}
+
+			respBytes, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+
+			if resp.StatusCode != http.StatusOK {
+				if resp.StatusCode == 403 || resp.StatusCode == 429 {
+					accountErr = fmt.Errorf("quota exceeded")
+					break
+				}
+				accountErr = fmt.Errorf("api err: %s", string(respBytes))
+				continue
+			}
+
+			var googleResp struct {
+				Response struct {
+					Candidates []struct {
+						Content struct {
+							Parts []struct {
+								Text         string `json:"text,omitempty"`
+								Thought      string `json:"thought,omitempty"`
+								FunctionCall *struct {
+									Name string                 `json:"name"`
+									Args map[string]interface{} `json:"args"`
+								} `json:"functionCall,omitempty"`
+							} `json:"parts"`
+						} `json:"content"`
+					} `json:"candidates"`
+				} `json:"response"`
+			}
+			json.Unmarshal(respBytes, &googleResp)
+
+			var fullContent strings.Builder
+			if len(googleResp.Response.Candidates) > 0 {
+				for _, p := range googleResp.Response.Candidates[0].Content.Parts {
+					chunkText := p.Text
+					if p.Thought != "" {
+						chunkText = "> [Thinking]\n" + p.Thought + "\n\n" + chunkText
+					}
+					if p.FunctionCall != nil {
+						jsonArgs, _ := json.Marshal(p.FunctionCall.Args)
+						chunkText += fmt.Sprintf("\n[ACTION] %s %s [/ACTION]", p.FunctionCall.Name, string(jsonArgs))
+					}
+
+					if chunkText != "" {
+						fullContent.WriteString(chunkText)
+						if cb != nil {
+							runes := []rune(chunkText)
+							chunkSize := 10
+							for i := 0; i < len(runes); i += chunkSize {
+								end := i + chunkSize
+								if end > len(runes) {
+									end = len(runes)
+								}
+								cb(string(runes[i:end]))
+								time.Sleep(5 * time.Millisecond)
+							}
+						}
+					}
+				}
+			}
+
+			return &LLMResponse{
+				Content:  fullContent.String(),
+				Model:    modelName,
+				Provider: "antigravity",
+				Duration: time.Since(start).Milliseconds(),
+			}, nil
+		}
+		lastErr = accountErr
+	}
+	if lastErr != nil {
+		return nil, lastErr
+	}
+	return nil, fmt.Errorf("all accounts exhausted")
 }

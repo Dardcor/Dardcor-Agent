@@ -23,7 +23,6 @@ func (s *VisionService) CaptureScreen() (string, error) {
 	outputPath := filepath.Join(s.storageDir, filename)
 	absPath, _ := filepath.Abs(outputPath)
 
-	// PowerShell script to take a screenshot
 	psScript := fmt.Sprintf(`
 		Add-Type -AssemblyName System.Windows.Forms
 		Add-Type -AssemblyName System.Drawing
@@ -58,7 +57,6 @@ func (s *VisionService) CleanupOldScreenshots() {
 		return
 	}
 
-	// Keep last 10 screenshots
 	if len(files) <= 10 {
 		return
 	}

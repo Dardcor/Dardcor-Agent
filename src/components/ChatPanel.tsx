@@ -81,12 +81,22 @@ const ChatPanel: React.FC = () => {
     const unsubResp = wsService.on('agent_response', (msg: any) => {
       setIsTyping(false)
       setIsGeneratingImage(false)
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: msg.payload?.content || '',
-        timestamp: new Date().toLocaleTimeString(),
-        isNew: true
-      }])
+      setMessages(prev => {
+        const lastMsg = prev[prev.length - 1]
+        if (lastMsg && lastMsg.role === 'assistant' && lastMsg.isNew) {
+          return [...prev.slice(0, -1), {
+            ...lastMsg,
+            content: msg.payload?.content || lastMsg.content,
+            isNew: false
+          }]
+        }
+        return [...prev, {
+          role: 'assistant',
+          content: msg.payload?.content || '',
+          timestamp: new Date().toLocaleTimeString(),
+          isNew: false
+        }]
+      })
 
       if (msg.payload?.conversation_id) {
         const newId = msg.payload.conversation_id
@@ -96,6 +106,37 @@ const ChatPanel: React.FC = () => {
         if (window.location.pathname === '/chat') {
           navigate(`/chat/${newId}`, { replace: true })
         }
+      }
+    })
+
+    const unsubTurn = wsService.onAgentTurn((payload) => {
+      if (payload.status === 'stream_chunk') {
+        const chunk = payload.content || ''
+        setMessages(prev => {
+          const newMsgs = [...prev]
+          const lastMsg = newMsgs[newMsgs.length - 1]
+          if (lastMsg && lastMsg.role === 'assistant' && lastMsg.isNew) {
+            lastMsg.content += chunk
+            return newMsgs
+          } else {
+            return [...newMsgs, {
+              role: 'assistant',
+              content: chunk,
+              timestamp: new Date().toLocaleTimeString(),
+              isNew: true
+            }]
+          }
+        })
+      } else if (payload.status === 'processing' && payload.content) {
+        setMessages(prev => {
+          const newMsgs = [...prev]
+          const lastMsg = newMsgs[newMsgs.length - 1]
+          if (lastMsg && lastMsg.role === 'assistant' && lastMsg.isNew) {
+            lastMsg.content = payload.content
+            return newMsgs
+          }
+          return prev
+        })
       }
     })
 
@@ -181,7 +222,7 @@ const ChatPanel: React.FC = () => {
     setIsConnected(wsService.isConnected)
 
     return () => {
-      unsubConn(); unsubResp(); unsubTyping()
+      unsubConn(); unsubResp(); unsubTyping(); unsubTurn();
       unsubError(); unsubConvList(); unsubConvDetail(); unsubConvCreated()
       document.removeEventListener('mousedown', handleClickOutside)
       document.removeEventListener('toggle-history', handleExternalToggle)
@@ -341,10 +382,48 @@ const ChatPanel: React.FC = () => {
           const cleanText = part.replace(/\[THOUGHT\][\s\S]*?(\[PLAN\]|\[ACTION\]|$)/i, '$1').trim()
           if (!cleanText) return null
 
-          if (isLastMsg && role === 'assistant' && isNew) {
-            return <TypewriterText key={i} text={cleanText} onType={scrollToBottomFast} />
-          }
-          return <span key={i} style={{ whiteSpace: 'pre-wrap' }}>{cleanText}</span>
+          const segments = cleanText.split(/(\[ACTION\][\s\S]*?\[\/ACTION\]|\[PLAN\][\s\S]*?\[\/PLAN\])/g)
+
+          return (
+            <React.Fragment key={i}>
+              {segments.map((segment, idx) => {
+                if (segment.startsWith('[ACTION]') && segment.endsWith('[/ACTION]')) {
+                  const inner = segment.substring(8, segment.length - 9).trim()
+                  const firstSpace = inner.indexOf(' ')
+                  const cmdName = firstSpace > -1 ? inner.substring(0, firstSpace) : inner
+                  const args = firstSpace > -1 ? inner.substring(firstSpace + 1) : '{ }'
+                  return (
+                    <div key={idx} className="tool-execution-block">
+                      <div className="tool-header">
+                        <div className="tool-icon">🛠️</div>
+                        <span className="tool-title">Executing Tool</span>
+                        <span className="tool-badge">{cmdName}</span>
+                      </div>
+                      <pre className="tool-args">{args}</pre>
+                    </div>
+                  )
+                }
+                if (segment.startsWith('[PLAN]') && segment.endsWith('[/PLAN]')) {
+                  const inner = segment.substring(6, segment.length - 7).trim()
+                  return (
+                    <div key={idx} className="plan-execution-block">
+                      <div className="plan-header">
+                        <div className="tool-icon">📄</div>
+                        <span className="tool-title">Agent Plan</span>
+                      </div>
+                      <div className="plan-content">{inner}</div>
+                    </div>
+                  )
+                }
+                if (!segment.trim()) return null
+
+                if (isLastMsg && role === 'assistant' && isNew) {
+                  return <TypewriterText key={idx} text={segment} onType={scrollToBottomFast} />
+                }
+                return <span key={idx} style={{ whiteSpace: 'pre-wrap' }}>{segment}</span>
+              })}
+            </React.Fragment>
+          )
         })}
       </>
     )
@@ -653,6 +732,47 @@ const ChatPanel: React.FC = () => {
         @keyframes ripple-expand {
           0% { transform: scale(0.8); opacity: 0.8; }
           100% { transform: scale(2.2); opacity: 0; }
+        }
+
+
+        .tool-execution-block {
+           background: rgba(0, 0, 0, 0.4); border-radius: 10px; margin: 12px 0;
+           border: 1px solid rgba(139, 92, 246, 0.3); padding: 12px;
+           box-shadow: inset 0 0 15px rgba(139, 92, 246, 0.05);
+        }
+        .tool-header {
+           display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+        }
+        .tool-icon {
+           display: flex; align-items: center; justify-content: center;
+           width: 24px; height: 24px; background: rgba(139, 92, 246, 0.2);
+           border-radius: 6px; font-size: 14px;
+        }
+        .tool-title { font-weight: 600; color: #c4b5fd; font-size: 13px; }
+        .tool-badge {
+           background: rgba(139, 92, 246, 0.2); color: #ddd6fe;
+           padding: 2px 8px; border-radius: 4px; font-size: 11px; font-family: monospace;
+           border: 1px solid rgba(139, 92, 246, 0.4);
+        }
+        .tool-args {
+           background: rgba(0, 0, 0, 0.6); padding: 10px; border-radius: 6px;
+           color: #a78bfa; font-size: 12px; font-family: monospace;
+           white-space: pre-wrap; word-break: break-all; margin: 0;
+           border: 1px dashed rgba(139, 92, 246, 0.2);
+        }
+
+        .plan-execution-block {
+           background: rgba(16, 185, 129, 0.05); border-radius: 10px; margin: 12px 0;
+           border: 1px solid rgba(16, 185, 129, 0.2); padding: 12px;
+        }
+        .plan-header {
+           display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+        }
+        .plan-header .tool-icon { background: rgba(16, 185, 129, 0.15); }
+        .plan-header .tool-title { font-weight: 600; color: #6ee7b7; font-size: 13px; }
+        .plan-content {
+           color: #a7f3d0; font-size: 13px; line-height: 1.5;
+           white-space: pre-wrap;
         }
       `}} />
     </div>

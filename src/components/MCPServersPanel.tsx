@@ -31,7 +31,7 @@ const MCPServersPanel: React.FC = () => {
       const res = await fetch('/api/mcp/servers');
       const data = await res.json();
       if (data.success) setServers(data.data || []);
-    } catch {}
+    } catch { }
   };
 
   useEffect(() => { fetchServers(); }, []);
@@ -47,7 +47,7 @@ const MCPServersPanel: React.FC = () => {
       });
       setNewName(''); setNewCommand(''); setNewArgs(''); setShowAdd(false);
       fetchServers();
-    } catch {}
+    } catch { }
     setLoading(false);
   };
 
@@ -60,7 +60,7 @@ const MCPServersPanel: React.FC = () => {
         body: JSON.stringify({ name: srv.name, command: srv.command, args: srv.args }),
       });
       fetchServers();
-    } catch {}
+    } catch { }
     setLoading(false);
   };
 
@@ -90,7 +90,7 @@ const MCPServersPanel: React.FC = () => {
         </div>
       )}
 
-      {/* Installed servers */}
+
       {servers.length > 0 && (
         <div>
           <h3 style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 0.5rem' }}>Installed</h3>
@@ -113,7 +113,7 @@ const MCPServersPanel: React.FC = () => {
         </div>
       )}
 
-      {/* Builtin servers */}
+
       <div>
         <h3 style={{ color: 'var(--text-muted)', fontSize: '0.8rem', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 0.5rem' }}>Quick Install</h3>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>

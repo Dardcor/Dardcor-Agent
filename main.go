@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
@@ -46,6 +47,10 @@ func main() {
 	visionSvc := services.NewVisionService()
 	autoSvc := services.NewAutomationService()
 	agentSvc := services.NewAgentService(fsSvc, cmdSvc, sysSvc, antigravitySvc, memSvc, skillSvc, orchestratorSvc, egoSvc, reflectSvc, browserSvc, visionSvc, autoSvc)
+
+	costTrackerSvc := services.NewCostTrackerService()
+	rateLimiterSvc := services.NewRateLimiterService()
+	insightsSvc := services.NewInsightsService(costTrackerSvc)
 
 	fsHandler := handlers.NewFileSystemHandler(fsSvc)
 	cmdHandler := handlers.NewCommandHandler(cmdSvc)
@@ -140,6 +145,32 @@ func main() {
 
 	api.HandleFunc("/workspace/config", modelHandler.GetWorkspaceConfig).Methods("GET")
 	api.HandleFunc("/workspace/config", modelHandler.SaveWorkspaceConfig).Methods("POST", "OPTIONS")
+
+	api.HandleFunc("/insights", func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		daysStr := req.URL.Query().Get("days")
+		days := 30
+		if daysStr != "" {
+			if d, err := strconv.Atoi(daysStr); err == nil && d > 0 {
+				days = d
+			}
+		}
+		report := insightsSvc.Generate(days)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": true,
+			"data":    report,
+		})
+	}).Methods("GET")
+
+	api.HandleFunc("/rate-limits", func(w http.ResponseWriter, req *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		state := rateLimiterSvc.GetState()
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": true,
+			"data":    state,
+		})
+	}).Methods("GET")
+
 	egoHandler := handlers.NewEgoHandler(egoSvc, dreamSvc)
 	api.HandleFunc("/ego/state", egoHandler.GetState).Methods("GET")
 	api.HandleFunc("/ego/dreams", egoHandler.GetDreams).Methods("GET")

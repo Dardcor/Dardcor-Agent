@@ -13,23 +13,21 @@ import (
 	"dardcor-agent/config"
 )
 
-// MCPClientService manages Model Context Protocol servers
-// — inspired by MIAW-CLI and oh-my-openagent MCP support.
 type MCPClientService struct {
-	mu       sync.RWMutex
-	servers  map[string]*MCPServer
+	mu         sync.RWMutex
+	servers    map[string]*MCPServer
 	configPath string
 }
 
 type MCPServer struct {
-	Name        string    `json:"name"`
-	Command     string    `json:"command"`
-	Args        []string  `json:"args"`
-	Env         map[string]string `json:"env,omitempty"`
-	Status      string    `json:"status"` // idle, running, error
-	LastError   string    `json:"last_error,omitempty"`
-	AddedAt     time.Time `json:"added_at"`
-	Available   bool      `json:"available"`
+	Name      string            `json:"name"`
+	Command   string            `json:"command"`
+	Args      []string          `json:"args"`
+	Env       map[string]string `json:"env,omitempty"`
+	Status    string            `json:"status"`
+	LastError string            `json:"last_error,omitempty"`
+	AddedAt   time.Time         `json:"added_at"`
+	Available bool              `json:"available"`
 }
 
 type MCPConfig struct {
@@ -74,7 +72,6 @@ func (m *MCPClientService) loadConfig() {
 		if _, err := exec.LookPath(s.Command); err == nil {
 			available = true
 		}
-		// npx is always available if npm is installed
 		if s.Command == "npx" || s.Command == "node" {
 			if _, err := exec.LookPath(s.Command); err == nil {
 				available = true
@@ -110,7 +107,6 @@ func (m *MCPClientService) saveConfig() {
 	os.WriteFile(m.configPath, data, 0644)
 }
 
-// AddServer adds a new MCP server configuration.
 func (m *MCPClientService) AddServer(name, command string, args []string, env map[string]string) {
 	available := false
 	if _, err := exec.LookPath(command); err == nil {
@@ -131,7 +127,6 @@ func (m *MCPClientService) AddServer(name, command string, args []string, env ma
 	m.saveConfig()
 }
 
-// RemoveServer removes an MCP server by name.
 func (m *MCPClientService) RemoveServer(name string) bool {
 	m.mu.Lock()
 	_, existed := m.servers[name]
@@ -143,7 +138,6 @@ func (m *MCPClientService) RemoveServer(name string) bool {
 	return existed
 }
 
-// ListServers returns all configured MCP servers.
 func (m *MCPClientService) ListServers() []*MCPServer {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -155,7 +149,6 @@ func (m *MCPClientService) ListServers() []*MCPServer {
 	return list
 }
 
-// GetServer returns a specific server by name.
 func (m *MCPClientService) GetServer(name string) *MCPServer {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -166,7 +159,6 @@ func (m *MCPClientService) GetServer(name string) *MCPServer {
 	return nil
 }
 
-// FormatForAgentPrompt returns a list of available MCP servers for the agent system prompt.
 func (m *MCPClientService) FormatForAgentPrompt() string {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -188,7 +180,6 @@ func (m *MCPClientService) FormatForAgentPrompt() string {
 	return sb.String()
 }
 
-// GetBuiltinServers returns a list of commonly used MCP servers.
 func GetBuiltinMCPServers() []MCPServerConfig {
 	return []MCPServerConfig{
 		{Command: "npx", Args: []string{"-y", "@upstash/context7-mcp@latest"}},

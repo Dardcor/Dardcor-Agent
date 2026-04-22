@@ -2,6 +2,7 @@ package services
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -241,4 +242,98 @@ func (ms *MemoryService) Keys() []string {
 		keys = append(keys, k)
 	}
 	return keys
+}
+
+func (ms *MemoryService) SearchSemantic(query string, limit int) []MemoryEntry {
+	ms.mutex.RLock()
+	defer ms.mutex.RUnlock()
+
+	if query == "" || len(ms.data) == 0 {
+		return nil
+	}
+
+	keywords := strings.Fields(strings.ToLower(query))
+	type scored struct {
+		key   string
+		value interface{}
+		score int
+	}
+
+	var results []scored
+	for k, v := range ms.data {
+		lk := strings.ToLower(k)
+		lv := strings.ToLower(fmt.Sprint(v))
+		score := 0
+		for _, kw := range keywords {
+			if strings.Contains(lk, kw) {
+				score += 3
+			}
+			if strings.Contains(lv, kw) {
+				score += 1
+			}
+		}
+		if score > 0 {
+			results = append(results, scored{key: k, value: v, score: score})
+		}
+	}
+
+	for i := 0; i < len(results); i++ {
+		for j := i + 1; j < len(results); j++ {
+			if results[j].score > results[i].score {
+				results[i], results[j] = results[j], results[i]
+			}
+		}
+	}
+
+	if limit > 0 && len(results) > limit {
+		results = results[:limit]
+	}
+
+	entries := make([]MemoryEntry, len(results))
+	for i, r := range results {
+		entries[i] = MemoryEntry{Key: r.key, Value: r.value}
+	}
+	return entries
+}
+
+func (ms *MemoryService) LearnFromFailure(taskDesc string, errorMsg string, resolution string) {
+	ms.mutex.Lock()
+	key := "failure:" + strings.ReplaceAll(strings.ToLower(taskDesc), " ", "_")
+	if len(key) > 80 {
+		key = key[:80]
+	}
+	ms.data[key] = map[string]string{
+		"error":      errorMsg,
+		"resolution": resolution,
+		"task":       taskDesc,
+	}
+	ms.scheduleSave()
+	ms.mutex.Unlock()
+}
+
+func (ms *MemoryService) GetRecentEpisodes(count int) []EpisodicLog {
+	ms.mutex.RLock()
+	defer ms.mutex.RUnlock()
+	if len(ms.episodicData) == 0 {
+		return nil
+	}
+	start := len(ms.episodicData) - count
+	if start < 0 {
+		start = 0
+	}
+	result := make([]EpisodicLog, len(ms.episodicData[start:]))
+	copy(result, ms.episodicData[start:])
+	return result
+}
+
+func (ms *MemoryService) FormatForPrompt(query string, maxEntries int) string {
+	entries := ms.SearchSemantic(query, maxEntries)
+	if len(entries) == 0 {
+		return "No relevant memories."
+	}
+	var sb strings.Builder
+	for _, e := range entries {
+		sb.WriteString(fmt.Sprintf("- %s: %v\n", e.Key, e.Value))
+	}
+	return sb.String()
 }

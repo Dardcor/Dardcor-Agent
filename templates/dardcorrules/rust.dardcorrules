@@ -13,7 +13,7 @@ version: "0.1.0"
 - Use Result<T, E> for error handling
 - Prefer iterators over manual loops
 - Use derive macros where applicable
-- Document public APIs with /// comments
+- Document public APIs using docstrings
 
 ## Constraints
 - No unsafe code without thorough documentation

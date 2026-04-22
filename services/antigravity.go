@@ -26,14 +26,10 @@ var (
 	ErrAccountAlreadyRegistered = fmt.Errorf("account already registered")
 )
 
-// defaultClientID returns the Google OAuth Client ID from environment variable.
-// Set ANTIGRAVITY_CLIENT_ID to configure the OAuth client.
 func defaultClientID() string {
 	return os.Getenv("ANTIGRAVITY_CLIENT_ID")
 }
 
-// defaultClientSecret returns the Google OAuth Client Secret from environment variable.
-// Set ANTIGRAVITY_CLIENT_SECRET to configure the OAuth client.
 func defaultClientSecret() string {
 	return os.Getenv("ANTIGRAVITY_CLIENT_SECRET")
 }
@@ -687,7 +683,6 @@ func (s *AntigravityService) ExchangeCode(code string, redirectURI string) error
 }
 
 func (s *AntigravityService) RefreshToken(email string) (*models.AntigravityAccount, error) {
-	// Copy the fields we need while holding the lock, then release before the HTTP call.
 	s.mu.Lock()
 	var refreshToken string
 	var accCopy models.AntigravityAccount
@@ -739,8 +734,6 @@ func (s *AntigravityService) RefreshToken(email string) (*models.AntigravityAcco
 		return nil, err
 	}
 
-	// Re-acquire the lock and update by index to avoid stale-pointer writes
-	// after a potential slice reallocation between the two lock windows.
 	s.mu.Lock()
 	for i := range s.accounts {
 		if s.accounts[i].Email == email {
