@@ -117,7 +117,7 @@ dardcor help
 
 ---
 
-### 🌐 Launch Web UI
+### Launch Web UI
 
 ```bash
 dardcor run
