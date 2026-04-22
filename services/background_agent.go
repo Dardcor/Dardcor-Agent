@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"time"
@@ -60,7 +61,7 @@ func (b *BackgroundAgentService) execute(task *BackgroundTask) {
 		Message: task.Prompt,
 		Source:  "background",
 	}
-	resp, err := b.agent.ProcessMessage(req, nil)
+	resp, err := b.agent.ProcessMessage(context.Background(), req, nil)
 
 	if err != nil {
 		b.setStatus(task.ID, "failed", "", fmt.Sprintf("Error: %v", err))
