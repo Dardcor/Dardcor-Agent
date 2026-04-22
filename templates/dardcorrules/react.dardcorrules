@@ -1,0 +1,23 @@
+## Project Identity
+name: "React App"
+description: "React application with TypeScript"
+version: "1.0.0"
+
+## Tech Stack
+- Framework: React 18+
+- Language: TypeScript
+- Styling: Tailwind CSS / CSS Modules
+- Build: Vite
+- Package Manager: pnpm
+
+## Coding Style
+- Functional components with hooks
+- Custom hooks for shared logic
+- Prefer composition over inheritance
+- Use TypeScript strict mode
+
+## Constraints
+- NEVER use `any` type
+- NEVER commit .env files
+- Components should be small and focused
+- Always handle loading and error states

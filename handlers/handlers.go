@@ -2,8 +2,11 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	"dardcor-agent/models"
 	"dardcor-agent/services"
@@ -17,8 +20,35 @@ func NewFileSystemHandler(service *services.FileSystemService) *FileSystemHandle
 	return &FileSystemHandler{service: service}
 }
 
+func (h *FileSystemHandler) safeJoin(path string) (string, error) {
+	workspace, err := h.service.GetDefaultWorkspace()
+	if err != nil {
+		return "", err
+	}
+	cleanPath := filepath.Clean(path)
+	if filepath.IsAbs(cleanPath) {
+		rel, err := filepath.Rel(workspace, cleanPath)
+		if err != nil || strings.HasPrefix(rel, "..") {
+			return "", fmt.Errorf("access denied: path outside workspace")
+		}
+		return cleanPath, nil
+	}
+	target := filepath.Join(workspace, cleanPath)
+	rel, err := filepath.Rel(workspace, target)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		return "", fmt.Errorf("access denied: path outside workspace")
+	}
+	return target, nil
+}
+
 func (h *FileSystemHandler) ListDirectory(w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Query().Get("path")
+	path, err := h.safeJoin(r.URL.Query().Get("path"))
+	if err != nil {
+		path = "." // Fallback to workspace root if empty/invalid
+		if workspace, err2 := h.service.GetDefaultWorkspace(); err2 == nil {
+			path = workspace
+		}
+	}
 	if path == "" {
 		path = "."
 	}
@@ -39,7 +69,14 @@ func (h *FileSystemHandler) ListDirectory(w http.ResponseWriter, r *http.Request
 }
 
 func (h *FileSystemHandler) ReadFile(w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Query().Get("path")
+	path, err := h.safeJoin(r.URL.Query().Get("path"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, models.APIResponse{
+			Success: false,
+			Error:   err.Error(),
+		})
+		return
+	}
 	if path == "" {
 		writeJSON(w, http.StatusBadRequest, models.APIResponse{
 			Success: false,
@@ -73,7 +110,16 @@ func (h *FileSystemHandler) WriteFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.service.WriteFile(req.Path, req.Content); err != nil {
+	path, err := h.safeJoin(req.Path)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, models.APIResponse{
+			Success: false,
+			Error:   err.Error(),
+		})
+		return
+	}
+
+	if err := h.service.WriteFile(path, req.Content); err != nil {
 		writeJSON(w, http.StatusInternalServerError, models.APIResponse{
 			Success: false,
 			Error:   err.Error(),
@@ -88,7 +134,15 @@ func (h *FileSystemHandler) WriteFile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *FileSystemHandler) DeleteFile(w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Query().Get("path")
+	path, err := h.safeJoin(r.URL.Query().Get("path"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, models.APIResponse{
+			Success: false,
+			Error:   err.Error(),
+		})
+		return
+	}
+
 	if path == "" {
 		writeJSON(w, http.StatusBadRequest, models.APIResponse{
 			Success: false,
@@ -121,6 +175,15 @@ func (h *FileSystemHandler) SearchFiles(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	path, err := h.safeJoin(req.Path)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, models.APIResponse{
+			Success: false,
+			Error:   err.Error(),
+		})
+		return
+	}
+	req.Path = path
 	results, err := h.service.SearchFiles(req)
 	if err != nil {
 		writeJSON(w, http.StatusInternalServerError, models.APIResponse{
@@ -137,7 +200,14 @@ func (h *FileSystemHandler) SearchFiles(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *FileSystemHandler) GetFileInfo(w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Query().Get("path")
+	path, err := h.safeJoin(r.URL.Query().Get("path"))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, models.APIResponse{
+			Success: false,
+			Error:   err.Error(),
+		})
+		return
+	}
 	if path == "" {
 		writeJSON(w, http.StatusBadRequest, models.APIResponse{
 			Success: false,
@@ -173,7 +243,15 @@ func (h *FileSystemHandler) CreateDirectory(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if err := h.service.CreateDirectory(req.Path); err != nil {
+	path, err := h.safeJoin(req.Path)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, models.APIResponse{
+			Success: false,
+			Error:   err.Error(),
+		})
+		return
+	}
+	if err := h.service.CreateDirectory(path); err != nil {
 		writeJSON(w, http.StatusInternalServerError, models.APIResponse{
 			Success: false,
 			Error:   err.Error(),
@@ -223,7 +301,18 @@ func (h *FileSystemHandler) MoveFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.service.MoveFile(req.Source, req.Destination); err != nil {
+	src, err := h.safeJoin(req.Source)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, models.APIResponse{Success: false, Error: "source: " + err.Error()})
+		return
+	}
+	dst, err := h.safeJoin(req.Destination)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, models.APIResponse{Success: false, Error: "destination: " + err.Error()})
+		return
+	}
+
+	if err := h.service.MoveFile(src, dst); err != nil {
 		writeJSON(w, http.StatusInternalServerError, models.APIResponse{
 			Success: false,
 			Error:   err.Error(),
@@ -250,7 +339,18 @@ func (h *FileSystemHandler) CopyFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.service.CopyFile(req.Source, req.Destination); err != nil {
+	src, err := h.safeJoin(req.Source)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, models.APIResponse{Success: false, Error: "source: " + err.Error()})
+		return
+	}
+	dst, err := h.safeJoin(req.Destination)
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, models.APIResponse{Success: false, Error: "destination: " + err.Error()})
+		return
+	}
+
+	if err := h.service.CopyFile(src, dst); err != nil {
 		writeJSON(w, http.StatusInternalServerError, models.APIResponse{
 			Success: false,
 			Error:   err.Error(),

@@ -1,0 +1,21 @@
+## Project Identity
+name: "Flutter App"
+description: "Flutter/Dart application"
+version: "1.0.0"
+
+## Tech Stack
+- Framework: Flutter
+- Language: Dart
+- State Management: Riverpod
+- Testing: flutter_test
+
+## Coding Style
+- Use const constructors where possible
+- Prefer composition over inheritance
+- Use named parameters for clarity
+- Follow Dart lint rules
+
+## Constraints
+- No hardcoded strings — use l10n
+- Handle all async errors
+- Write widget tests for all screens

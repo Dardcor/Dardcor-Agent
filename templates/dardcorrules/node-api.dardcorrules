@@ -1,0 +1,24 @@
+## Project Identity
+name: "Node.js API"
+description: "Node.js REST API"
+version: "1.0.0"
+
+## Tech Stack
+- Runtime: Node.js 20+
+- Framework: Express / Hono / Fastify
+- Language: TypeScript
+- Database: PostgreSQL
+- Package Manager: pnpm
+
+## Coding Style
+- Use async/await over callbacks
+- Proper error handling with custom error classes
+- Input validation with Zod
+- Structured logging
+
+## Constraints
+- NEVER expose stack traces in production
+- All endpoints must have input validation
+- Use parameterized queries (no SQL injection)
+- Rate limiting on all public endpoints
+- CORS properly configured

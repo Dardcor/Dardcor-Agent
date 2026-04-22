@@ -1,0 +1,21 @@
+## Project Identity
+name: "Rust Project"
+description: "Rust application"
+version: "0.1.0"
+
+## Tech Stack
+- Language: Rust (stable)
+- Build: Cargo
+- Testing: cargo test
+
+## Coding Style
+- Follow Rust naming conventions
+- Use Result<T, E> for error handling
+- Prefer iterators over manual loops
+- Use derive macros where applicable
+- Document public APIs with /// comments
+
+## Constraints
+- No unsafe code without thorough documentation
+- Handle all Result and Option types explicitly
+- Use clippy and rustfmt

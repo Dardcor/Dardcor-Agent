@@ -14,10 +14,12 @@ var (
 )
 
 type Config struct {
-	Port     string          `json:"port"`
-	DataDir  string          `json:"data_dir"`
-	Settings models.Settings `json:"settings"`
-	AI       AIConfig        `json:"ai"`
+	Port          string          `json:"port"`
+	DataDir       string          `json:"data_dir"`
+	Settings      models.Settings `json:"settings"`
+	AI            AIConfig        `json:"ai"`
+	ProjectRules  []string        `json:"-"`
+	ProjectPrompt string          `json:"-"`
 }
 
 type AIConfig struct {
@@ -41,23 +43,20 @@ type UserConfig struct {
 
 func Init() (*Config, error) {
 	homeDir, _ := os.UserHomeDir()
-	dataDir := filepath.Join(homeDir, ".dardcor", "database")
+	baseDir := filepath.Join(homeDir, ".dardcor")
 
 	if envDir := os.Getenv("DARDCOR_DATA_DIR"); envDir != "" {
-		dataDir = envDir
-	} else {
-		cwd, _ := os.Getwd()
-		localData := filepath.Join(cwd, "database")
-		if _, err := os.Stat(localData); err == nil {
-			dataDir = localData
-		} else {
-			execPath, _ := os.Executable()
-			baseDir := filepath.Dir(execPath)
-			execData := filepath.Join(baseDir, "database")
-			if _, err := os.Stat(execData); err == nil {
-				dataDir = execData
-			}
-		}
+		baseDir = envDir
+	}
+
+	dirs := []string{
+		baseDir,
+		filepath.Join(baseDir, "session"),
+		filepath.Join(baseDir, "cache"),
+		filepath.Join(baseDir, "plugins"),
+	}
+	for _, dir := range dirs {
+		os.MkdirAll(dir, 0755)
 	}
 
 	defaultShell := "cmd.exe"
@@ -65,13 +64,12 @@ func Init() (*Config, error) {
 		defaultShell = "/bin/bash"
 	}
 
-	port := "25000"
-	userCfg := loadUserConfig()
+	userCfg := loadUserConfig(baseDir)
 	aiCfg := buildAIConfig(userCfg)
 
 	cfg := &Config{
-		Port:    port,
-		DataDir: dataDir,
+		Port:    "25000",
+		DataDir: baseDir,
 		AI:      aiCfg,
 		Settings: models.Settings{
 			Theme:          "dark",
@@ -83,32 +81,21 @@ func Init() (*Config, error) {
 		},
 	}
 
-	settingsPath := filepath.Join(dataDir, "settings.json")
+	// Load settings if exists
+	settingsPath := filepath.Join(baseDir, "settings.json")
 	if data, err := os.ReadFile(settingsPath); err == nil {
 		json.Unmarshal(data, &cfg.Settings)
 	}
 
-	dirs := []string{
-		dataDir,
-		filepath.Join(dataDir, "conversations-web"),
-		filepath.Join(dataDir, "commands"),
-		filepath.Join(dataDir, "settings"),
-		filepath.Join(dataDir, "model", "antigravity"),
-	}
-	for _, dir := range dirs {
-		os.MkdirAll(dir, 0755)
-	}
+	// Load project-level config if exists
+	loadProjectConfig(cfg)
 
 	AppConfig = cfg
 	return cfg, nil
 }
 
-func loadUserConfig() UserConfig {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return UserConfig{}
-	}
-	cfgPath := filepath.Join(homeDir, ".dardcor", "config.json")
+func loadUserConfig(baseDir string) UserConfig {
+	cfgPath := filepath.Join(baseDir, "config.json")
 	data, err := os.ReadFile(cfgPath)
 	if err != nil {
 		return UserConfig{}
@@ -167,11 +154,63 @@ func buildAIConfig(userCfg UserConfig) AIConfig {
 			ai.BaseURL = "https://openrouter.ai/api/v1"
 		case "ollama":
 			ai.BaseURL = "http://localhost:11434/v1"
+		case "nvidia":
+			ai.BaseURL = "https://integrate.api.nvidia.com/v1"
 		}
 	}
 
 	return ai
 }
+
+func loadProjectConfig(cfg *Config) {
+	// 1. Load Global Rules (~/.dardcor.json)
+	homeDir, _ := os.UserHomeDir()
+	globalPath := filepath.Join(homeDir, ".dardcor.json")
+	if data, err := os.ReadFile(globalPath); err == nil {
+		var gCfg struct {
+			Model    string            `json:"model"`
+			Rules    []string          `json:"rules"`
+			Prompt   string            `json:"prompt"`
+			Settings map[string]string `json:"settings"`
+		}
+		if err := json.Unmarshal(data, &gCfg); err == nil {
+			if len(gCfg.Rules) > 0 {
+				cfg.ProjectRules = append(cfg.ProjectRules, gCfg.Rules...)
+			}
+			if gCfg.Prompt != "" {
+				cfg.ProjectPrompt = gCfg.Prompt
+			}
+		}
+	}
+
+	// 2. Load Project Rules (./.dardcor.json)
+	projectPath := ".dardcor.json"
+	if data, err := os.ReadFile(projectPath); err == nil {
+		var pCfg struct {
+			Model    string            `json:"model"`
+			Rules    []string          `json:"rules"`
+			Prompt   string            `json:"prompt"`
+			Settings map[string]string `json:"settings"`
+		}
+
+		if err := json.Unmarshal(data, &pCfg); err == nil {
+			if len(pCfg.Rules) > 0 {
+				// Project rules extend global rules
+				cfg.ProjectRules = append(cfg.ProjectRules, pCfg.Rules...)
+			}
+			if pCfg.Prompt != "" {
+				// Project prompt overrides global prompt
+				cfg.ProjectPrompt = pCfg.Prompt
+			}
+		}
+	}
+}
+
+func (c *Config) ConfigPath() string  { return filepath.Join(c.DataDir, "config.json") }
+func (c *Config) AccountPath() string { return filepath.Join(c.DataDir, "account.json") }
+func (c *Config) SessionDir() string  { return filepath.Join(c.DataDir, "session") }
+func (c *Config) CacheDir() string    { return filepath.Join(c.DataDir, "cache") }
+func (c *Config) PluginsDir() string  { return filepath.Join(c.DataDir, "plugins") }
 
 func (c *Config) SaveSettings() error {
 	settingsPath := filepath.Join(c.DataDir, "settings.json")
@@ -183,17 +222,15 @@ func (c *Config) SaveSettings() error {
 }
 
 func (c *Config) GetConversationsDir(source string) string {
-	folder := "conversations-web"
-	if source == "cli" {
-		folder = "conversations-cli"
-	}
-	dir := filepath.Join(c.DataDir, folder)
+	dir := filepath.Join(c.SessionDir(), source)
 	os.MkdirAll(dir, 0755)
 	return dir
 }
 
 func (c *Config) GetCommandsDir() string {
-	return filepath.Join(c.DataDir, "commands")
+	dir := filepath.Join(c.CacheDir(), "commands")
+	os.MkdirAll(dir, 0755)
+	return dir
 }
 
 func (c *Config) IsAIEnabled() bool {
