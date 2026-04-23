@@ -94,9 +94,6 @@ cd Dardcor-Agent
 ```bash
 # Via NPM
 npm install -g dardcor-agent@latest
-
-# Via GitHub (bleeding edge)
-npm install -g github:Dardcor/Dardcor-Agent
 ```
 
 ### Uninstall
