@@ -196,6 +196,10 @@ class WebSocketService {
     this.send('rename_conversation', { id, title })
   }
 
+  stopAgent() {
+    this.send('stop_agent', {})
+  }
+
   onAgentTurn(handler: (payload: AgentTurnEvent) => void): () => void {
     return this.on('agent_turn', (msg) => handler(msg.payload as AgentTurnEvent))
   }

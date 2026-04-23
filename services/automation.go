@@ -161,14 +161,51 @@ func (s *AutomationService) getVkFromChar(r rune) uint16 {
 	if r >= '0' && r <= '9' {
 		return uint16(r - '0' + 0x30)
 	}
-	if r == ' ' {
+	switch r {
+	case ' ':
 		return 0x20
-	}
-	if r == '\n' || r == '\r' {
-		return 0x0D
-	}
-	if r == '.' {
+	case '\n', '\r':
+		return 0x0D // Enter
+	case '\t':
+		return 0x09 // Tab
+	case '.':
 		return 0xBE
+	case ':':
+		return 0xBA // ; or :
+	case '/':
+		return 0xBF // / or ?
+	case '-':
+		return 0xBD // - or _
+	case '_':
+		return 0xBD // same as -
+	case '=':
+		return 0xBB // = or +
+	case '+':
+		return 0xBB
+	case '\\':
+		return 0xDC
+	case '?':
+		return 0xBF
+	case '!':
+		return 0x31 // 1 + shift (handled poorly without shift logic but better than 0)
+	case '@':
+		return 0x32
+	case '#':
+		return 0x33
+	case '$':
+		return 0x34
+	case '%':
+		return 0x35
+	case '^':
+		return 0x36
+	case '&':
+		return 0x37
+	case '*':
+		return 0x38
+	case '(':
+		return 0x39
+	case ')':
+		return 0x30
 	}
 	return 0
 }

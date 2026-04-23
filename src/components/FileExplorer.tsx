@@ -15,6 +15,7 @@ const FileExplorer: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<FileNode | null>(null)
   const [fileContent, setFileContent] = useState('')
   const [drives, setDrives] = useState<string[]>([])
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchDrives()
@@ -33,6 +34,7 @@ const FileExplorer: React.FC = () => {
 
   const fetchFiles = async (path: string) => {
     setIsLoading(true)
+    setError(null)
     try {
       const cleanPath = path.trim()
       const res = await fetch(`/api/files?path=${encodeURIComponent(cleanPath)}`)
@@ -40,16 +42,20 @@ const FileExplorer: React.FC = () => {
       if (data.success) {
         setFiles(data.data || [])
         if (data.data && data.data.length > 0) {
-           const firstItem = data.data[0]
-           const lastSep = firstItem.path.lastIndexOf('/') !== -1 ? firstItem.path.lastIndexOf('/') : firstItem.path.lastIndexOf('\\')
-           const parent = firstItem.path.substring(0, lastSep)
-           setCurrentPath(parent || cleanPath || 'Project Root')
+          const firstItem = data.data[0]
+          const lastSep = firstItem.path.lastIndexOf('/') !== -1 ? firstItem.path.lastIndexOf('/') : firstItem.path.lastIndexOf('\\')
+          const parent = firstItem.path.substring(0, lastSep)
+          setCurrentPath(parent || cleanPath || 'Project Root')
         } else {
-           setCurrentPath(cleanPath || 'Project Root')
+          setCurrentPath(cleanPath || 'Project Root')
         }
+      } else {
+        setError(data.error || 'Failed to list directory')
+        setFiles([])
       }
     } catch (e) {
       console.error('Fetch error:', e)
+      setError('Connection error')
     } finally {
       setIsLoading(false)
     }
@@ -86,58 +92,63 @@ const FileExplorer: React.FC = () => {
   return (
     <div className="file-explorer">
       <div className="file-toolbar">
-         <div className="explorer-controls">
-            <button className="toolbar-btn" onClick={handleBack} title="Back">
-               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M19 12H5M12 19l-7-7 7-7" />
-               </svg>
-            </button>
-            <button className="toolbar-btn" onClick={() => fetchFiles(currentPath)} title="Refresh">
-               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M23 4h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
-               </svg>
-            </button>
-         </div>
+        <div className="explorer-controls">
+          <button className="toolbar-btn" onClick={handleBack} title="Back">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <button className="toolbar-btn" onClick={() => fetchFiles(currentPath)} title="Refresh">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M23 4h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+            </svg>
+          </button>
+        </div>
 
-         <div className="drive-selector">
-            {drives.map(d => (
-               <button key={d} className="drive-pill" onClick={() => fetchFiles(d)}>
-                  💽 {d.replace(/[\\/]/g, '')}
-               </button>
-            ))}
-         </div>
+        <div className="drive-selector">
+          {drives.map(d => (
+            <button key={d} className="drive-pill" onClick={() => fetchFiles(d)}>
+              💽 {d.replace(/[\\/]/g, '')}
+            </button>
+          ))}
+        </div>
 
-         <div className="path-display">
-            <span className="path-label">Location:</span>
-            <span className="path-text">{currentPath}</span>
-         </div>
+        <div className="path-display">
+          <span className="path-label">Location:</span>
+          <span className="path-text">{currentPath}</span>
+        </div>
       </div>
 
       <div className="file-grid-container">
         {isLoading && <div className="loading-overlay"><div className="spinner"></div></div>}
 
         <div className="file-grid-header">
-           <div className="col-name">Name</div>
-           <div className="col-size">Size</div>
-           <div className="col-date">Modified</div>
+          <div className="col-name">Name</div>
+          <div className="col-size">Size</div>
+          <div className="col-date">Modified</div>
         </div>
 
         <div className="file-list-detailed">
+          {error && (
+            <div className="error-notif" style={{ color: '#ef4444', padding: '20px', textAlign: 'center', fontSize: '13px' }}>
+              ⚠️ {error}
+            </div>
+          )}
           {files.map((file, i) => (
             <div key={i} className="file-row" onClick={() => handleOpen(file)}>
               <div className="col-name">
-                 <span className="file-icon">{file.is_dir ? '📁' : '📄'}</span>
-                 <span className="file-name">{file.name}</span>
+                <span className="file-icon">{file.is_dir ? '📁' : '📄'}</span>
+                <span className="file-name">{file.name}</span>
               </div>
               <div className="col-size">
-                 {file.is_dir ? '--' : `${(file.size / 1024).toFixed(1)} KB`}
+                {file.is_dir ? '--' : `${(file.size / 1024).toFixed(1)} KB`}
               </div>
               <div className="col-date">
-                 {file.mod_time ? new Date(file.mod_time).toLocaleDateString() : '---'}
+                {file.mod_time ? new Date(file.mod_time).toLocaleDateString() : '---'}
               </div>
             </div>
           ))}
-          {!isLoading && files.length === 0 && (
+          {!isLoading && !error && files.length === 0 && (
             <div className="empty-notif">This directory is empty.</div>
           )}
         </div>

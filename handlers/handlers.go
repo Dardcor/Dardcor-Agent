@@ -2,11 +2,9 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"path/filepath"
 	"strconv"
-	"strings"
 
 	"dardcor-agent/models"
 	"dardcor-agent/services"
@@ -21,24 +19,15 @@ func NewFileSystemHandler(service *services.FileSystemService) *FileSystemHandle
 }
 
 func (h *FileSystemHandler) safeJoin(path string) (string, error) {
-	workspace, err := h.service.GetDefaultWorkspace()
-	if err != nil {
-		return "", err
+	if path == "" {
+		return h.service.GetDefaultWorkspace()
 	}
 	cleanPath := filepath.Clean(path)
 	if filepath.IsAbs(cleanPath) {
-		rel, err := filepath.Rel(workspace, cleanPath)
-		if err != nil || strings.HasPrefix(rel, "..") {
-			return "", fmt.Errorf("access denied: path outside workspace")
-		}
 		return cleanPath, nil
 	}
-	target := filepath.Join(workspace, cleanPath)
-	rel, err := filepath.Rel(workspace, target)
-	if err != nil || strings.HasPrefix(rel, "..") {
-		return "", fmt.Errorf("access denied: path outside workspace")
-	}
-	return target, nil
+	workspace, _ := h.service.GetDefaultWorkspace()
+	return filepath.Join(workspace, cleanPath), nil
 }
 
 func (h *FileSystemHandler) ListDirectory(w http.ResponseWriter, r *http.Request) {

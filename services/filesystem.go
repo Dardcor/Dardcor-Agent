@@ -294,17 +294,7 @@ func (fs *FileSystemService) GetDrives() []string {
 }
 
 func (fs *FileSystemService) GetDefaultWorkspace() (string, error) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	workspacePath := filepath.Join(home, "Documents", "Dardcor-Workspace")
-	if _, err := os.Stat(workspacePath); os.IsNotExist(err) {
-		if err := os.MkdirAll(workspacePath, 0755); err != nil {
-			return "", err
-		}
-	}
-	return workspacePath, nil
+	return os.Getwd()
 }
 func (fs *FileSystemService) Glob(root, pattern string) ([]string, error) {
 	relPattern := pattern

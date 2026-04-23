@@ -112,6 +112,9 @@ const ChatPanel: React.FC = () => {
     const unsubTurn = wsService.onAgentTurn((payload) => {
       if (payload.status === 'stream_chunk') {
         const chunk = payload.content || ''
+        if (chunk.includes('[COMPLETE]')) {
+          setIsTyping(false)
+        }
         setMessages(prev => {
           const newMsgs = [...prev]
           const lastMsg = newMsgs[newMsgs.length - 1]
@@ -128,6 +131,9 @@ const ChatPanel: React.FC = () => {
           }
         })
       } else if (payload.status === 'processing' && payload.content) {
+        if (payload.content.includes('[COMPLETE]')) {
+          setIsTyping(false)
+        }
         setMessages(prev => {
           const newMsgs = [...prev]
           const lastMsg = newMsgs[newMsgs.length - 1]
@@ -295,6 +301,12 @@ const ChatPanel: React.FC = () => {
     if (e.key === 'Tab') { e.preventDefault(); setAgentMode(m => m === 'build' ? 'plan' : 'build') }
   }
 
+  const handleStop = () => {
+    wsService.stopAgent()
+    setIsTyping(false)
+    setIsGeneratingImage(false)
+  }
+
   const loadConversation = (id: string) => {
     setConversationId(id)
     localStorage.setItem('last_conv_id', id)
@@ -382,16 +394,36 @@ const ChatPanel: React.FC = () => {
           const cleanText = part.replace(/\[THOUGHT\][\s\S]*?(\[PLAN\]|\[ACTION\]|$)/i, '$1').trim()
           if (!cleanText) return null
 
-          const segments = cleanText.split(/(\[ACTION\][\s\S]*?\[\/ACTION\]|\[PLAN\][\s\S]*?\[\/PLAN\])/g)
+          const segments = cleanText.split(/(\[ACTION\][\s\S]*?(?:\[\/ACTION\]|$)|\[PLAN\][\s\S]*?(?:\[\/PLAN\]|$))/g)
 
           return (
             <React.Fragment key={i}>
               {segments.map((segment, idx) => {
-                if (segment.startsWith('[ACTION]') && segment.endsWith('[/ACTION]')) {
-                  const inner = segment.substring(8, segment.length - 9).trim()
-                  const firstSpace = inner.indexOf(' ')
-                  const cmdName = firstSpace > -1 ? inner.substring(0, firstSpace) : inner
-                  const args = firstSpace > -1 ? inner.substring(firstSpace + 1) : '{ }'
+                if (segment.startsWith('[ACTION]')) {
+                  const hasEndTag = segment.endsWith('[/ACTION]')
+                  const inner = hasEndTag ? segment.substring(8, segment.length - 9).trim() : segment.substring(8).trim()
+
+                  let cmdName = '...'
+                  let args = inner
+
+                  try {
+                    // Try to parse as JSON if it looks like JSON
+                    if (inner.startsWith('{')) {
+                      const json = JSON.parse(hasEndTag ? inner : inner + '}')
+                      cmdName = json.tool || json.name || 'tool'
+                      args = JSON.stringify(json, null, 2)
+                    } else {
+                      const firstSpace = inner.indexOf(' ')
+                      cmdName = firstSpace > -1 ? inner.substring(0, firstSpace) : inner
+                      args = firstSpace > -1 ? inner.substring(firstSpace + 1) : '{ }'
+                    }
+                  } catch (e) {
+                    // Fallback to text parsing
+                    const firstSpace = inner.indexOf(' ')
+                    cmdName = firstSpace > -1 ? inner.substring(0, firstSpace) : inner
+                    args = firstSpace > -1 ? inner.substring(firstSpace + 1) : inner
+                  }
+
                   return (
                     <div key={idx} className="tool-execution-block">
                       <div className="tool-header">
@@ -403,8 +435,9 @@ const ChatPanel: React.FC = () => {
                     </div>
                   )
                 }
-                if (segment.startsWith('[PLAN]') && segment.endsWith('[/PLAN]')) {
-                  const inner = segment.substring(6, segment.length - 7).trim()
+                if (segment.startsWith('[PLAN]')) {
+                  const hasEndTag = segment.endsWith('[/PLAN]')
+                  const inner = hasEndTag ? segment.substring(6, segment.length - 7).trim() : segment.substring(6).trim()
                   return (
                     <div key={idx} className="plan-execution-block">
                       <div className="plan-header">
@@ -623,6 +656,21 @@ const ChatPanel: React.FC = () => {
                         textShadow: '0 0 10px rgba(96, 165, 250, 0.5)'
                       }}>Generating Visual Intelligence</span>
                       <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px' }}>Dardcor Image Engine v2.4 (Active)</span>
+                      <button
+                        onClick={handleStop}
+                        style={{
+                          marginTop: '15px',
+                          background: 'rgba(239, 68, 68, 0.2)', border: '1px solid rgba(239, 68, 68, 0.4)',
+                          color: '#ef4444', borderRadius: '8px', padding: '6px 16px', fontSize: '12px',
+                          fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px',
+                          transition: 'all 0.2s', zIndex: 10
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.35)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.2)'}
+                      >
+                        <div style={{ width: '10px', height: '10px', background: '#ef4444', borderRadius: '2px' }} />
+                        CANCEL GENERATION
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -636,8 +684,22 @@ const ChatPanel: React.FC = () => {
                 <div style={{ width: '28px', height: '28px', borderRadius: '50%', border: '3px solid rgba(168, 85, 247, 0.2)', borderTopColor: '#a855f7', animation: 'spin 1s linear infinite' }} />
               </div>
               <div className="message-body" style={{ justifyContent: 'center' }}>
-                <div className="message-content" style={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-                  <span style={{ color: '#a855f7', fontSize: '14px', fontWeight: 600, letterSpacing: '0.5px' }}>Dardcor Agent Thinking...</span>
+                <div className="message-content" style={{ display: 'flex', alignItems: 'center', gap: '15px', background: 'rgba(124,58,237,0.05)', border: '1px solid rgba(124,58,237,0.2)', padding: '8px 15px', borderRadius: '12px' }}>
+                  <span style={{ color: '#a855f7', fontSize: '13px', fontWeight: 600, letterSpacing: '0.5px' }}>Dardcor Agent Thinking...</span>
+                  <button
+                    onClick={handleStop}
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)',
+                      color: '#ef4444', borderRadius: '6px', padding: '2px 8px', fontSize: '11px',
+                      fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.25)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)'}
+                  >
+                    <div style={{ width: '8px', height: '8px', background: '#ef4444', borderRadius: '1px' }} />
+                    STOP
+                  </button>
                 </div>
               </div>
             </div>
@@ -657,12 +719,20 @@ const ChatPanel: React.FC = () => {
               rows={1}
               disabled={isTyping}
             />
-            <button className="chat-send-btn" type="submit" disabled={!input.trim() || !isConnected || isTyping}>
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <line x1="22" y1="2" x2="11" y2="13" />
-                <polygon points="22 2 15 22 11 13 2 9 22 2" />
-              </svg>
-            </button>
+            {isTyping ? (
+              <button className="chat-send-btn" type="button" onClick={handleStop} style={{ background: '#ef4444' }}>
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                  <rect x="6" y="6" width="12" height="12" />
+                </svg>
+              </button>
+            ) : (
+              <button className="chat-send-btn" type="submit" disabled={!input.trim() || !isConnected}>
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <line x1="22" y1="2" x2="11" y2="13" />
+                  <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                </svg>
+              </button>
+            )}
           </form>
           <div className="chat-input-hint">
             Tab to switch mode • {agentMode.toUpperCase()} MODE
