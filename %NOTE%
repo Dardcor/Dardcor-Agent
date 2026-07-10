@@ -1,0 +1,26 @@
+# Plan
+
+- Locate TUI layout renderer and styles.
+- Define UI scenarios; write characterization test first.
+- Repair layout; typecheck and manual TUI QA.
+
+# Scenarios
+
+- Happy: transcript displays full messages without character-separated layout. Surface: TUI capture. Test: discover.
+- Edge: narrow pane retains readable sidebar/input. Surface: resize capture. Test: discover.
+- Regression: command input shortcut/footer stays visible. Surface: TUI capture. Test: discover.
+
+# Now
+
+- Discovery
+
+# Todo
+
+- Locate UI renderer
+- Characterize broken layout
+- Apply smallest UI repair
+- Verify and manual QA
+
+# Findings
+
+# Learnings

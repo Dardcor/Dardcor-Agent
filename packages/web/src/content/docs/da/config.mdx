@@ -1,0 +1,688 @@
+---
+title: Konfiguration
+description: Ved at bruge dardcor JSON konfig.
+---
+
+Du kan konfigurere dardcor ved hjælp af en JSON-konfigurationsfil.
+
+---
+
+## Format
+
+dardcor understøtter både **JSON** og **JSONC** (JSON med kommentarer) formater.
+
+```jsonc title="dardcor.jsonc"
+{
+  "$schema": "https://dardcor-code.vercel.app//config.json",
+  "model": "anthropic/claude-sonnet-4-5",
+  "autoupdate": true,
+  "server": {
+    "port": 4096,
+  },
+}
+```
+
+---
+
+## Placeringer
+
+Du kan placere din konfiguration et par forskellige steder, og de har en
+forskellig rækkefølge.
+
+:::note
+Konfigurationsfiler **flettes sammen**, erstattes ikke.
+:::
+
+Konfigurationsfiler flettes sammen, erstattes ikke. Indstillinger fra følgende konfigurationssteder kombineret. Senere konfigurationer tilsidesætter kun tidligere konfigurationer for modstridende nøgler. Ikke-modstridende indstillinger fra alle konfigurationer bevares.
+
+For eksempel, hvis dine globale konfigurationssæt `autoupdate: true`, og dine projektkonfigurationssæt `model: "anthropic/claude-sonnet-4-5"`, vil den endelige konfiguration integrere begge indstillinger.
+
+---
+
+### Prioritetsrækkefølge
+
+Konfigurationskilder indlæses i denne rækkefølge (senere kilder tilsidesætter tidligere):
+
+1. **Fjernkonfiguration** (fra `.well-known/dardcor`) - organisatoriske standardindstillinger
+2. **Global config** (`~/.config/dardcor/dardcor.json`) - brugerpræferencer
+3. **Tilpasset konfiguration** (`dardcor_CONFIG` env var) - tilpassede tilsidesættelser
+4. **Project config** (`dardcor.json` i projekt) - projektspecifikke indstillinger
+5. **`.dardcor` mapper** - agent, kommandoer, plugins
+6. **Inline config** (`dardcor_CONFIG_CONTENT` env var) - runtime tilsidesættelser
+
+Dette betyder, at projektkonfigurationer kan tilsidesætte globale standardindstillinger, og globale konfigurationer kan tilsidesætte eksterne organisatoriske standarder.
+
+:::note
+`.dardcor` og `~/.config/dardcor` mapperne bruger **flertalsnavne** for undermapper: `agents/`, `commands/`, `modes/`, `plugins/`, `skills/`, `tools/` og `themes/`. Enkelte navne (f.eks. `agent/`) understøtter også bagudkompatibilitet.
+:::
+
+---
+
+### Ekstern konfiguration
+
+Organisationer kan levere standardkonfiguration via `.well-known/dardcor`-slutpunktet. Dette hentes automatisk, når du godkender med en udbyder, der understøtter det.
+
+Remote config indlæses først og fungerer som basislaget. Alle andre konfigurationskilder (global, projekt) kan tilsidesætte disse standardindstillinger.
+
+Hvis din organisation f.eks. leverer MCP-servere, der er deaktiveret som standard:
+
+```json title="Remote config from .well-known/dardcor"
+{
+  "mcp": {
+    "jira": {
+      "type": "remote",
+      "url": "https://jira.example.com/mcp",
+      "enabled": false
+    }
+  }
+}
+```
+
+Du kan aktivere specifikke servere i din lokale konfiguration:
+
+```json title="dardcor.json"
+{
+  "mcp": {
+    "jira": {
+      "type": "remote",
+      "url": "https://jira.example.com/mcp",
+      "enabled": true
+    }
+  }
+}
+```
+
+---
+
+### Global
+
+Placer din globale dardcor-konfiguration i `~/.config/dardcor/dardcor.json`. Brug global konfiguration til brugerdækkende præferencer som temaer, udbydere eller nøglebindinger.
+
+Global config tilsidesætter eksterne organisatoriske standarder.
+
+---
+
+### Projekt-niveau
+
+Tilføj `dardcor.json` i dit projektrod. Project config har den højeste forrang blandt standard config-filer - den tilsidesætter både globale og eksterne config.
+
+:::tip
+Placer projektspecifik konfiguration i roden af ​​dit projekt.
+:::
+
+Når dardcor starter op, søger den efter en konfigurationsfil i den aktuelle mappe eller går op til den nærmeste Git-mappe.
+
+Dette er også sikkert at blive tjekket ind i Git og bruger det samme skema som det globale.
+
+---
+
+### Brugerdefineret sti
+
+Angiv en brugerdefineret konfigurationsfilsti ved hjælp af miljøvariablen `dardcor_CONFIG`.
+
+```bash
+export dardcor_CONFIG=/path/to/my/custom-config.json
+dardcor run "Hello world"
+```
+
+Brugerdefineret konfigurationsindlæses mellem globale konfigurationer og projektkonfigurationer i prioriteret rækkefølge.
+
+---
+
+### Brugerdefineret mappe
+
+Angiv en brugerdefineret konfigurationsmappe ved hjælp af `dardcor_CONFIG_DIR`
+miljøvariabel. Dette kort vil blive søgt efter agenter, kommandoer,
+modes og plugins ligesom standard `.dardcor` mappen, og bør
+følge samme struktur.
+
+```bash
+export dardcor_CONFIG_DIR=/path/to/my/config-directory
+dardcor run "Hello world"
+```
+
+Den brugerdefinerede mappe indlæses efter den globale konfig og `.dardcor` mapper, så den **kan tilsidesætte** deres indstillinger.
+
+---
+
+## Skema
+
+Konfigurationsfilen har et skema, der defineres i [**`dardcor.ai/config.json`**](https://dardcor-code.vercel.app//config.json).
+
+Din editor skal være i stand til at validere og autofuldføre baseret på skemaet.
+
+---
+
+### TUI
+
+Du kan konfigurere TUI-specifikke indstillinger gennem indstillingen `tui`.
+
+```json title="dardcor.json"
+{
+  "$schema": "https://dardcor-code.vercel.app//config.json",
+  "tui": {
+    "scroll_speed": 3,
+    "scroll_acceleration": {
+      "enabled": true
+    },
+    "diff_style": "auto"
+  }
+}
+```
+
+Tilgængelige muligheder:
+
+- `scroll_acceleration.enabled` - Aktiver macOS-stil rulleacceleration. **Har forrang frem for `scroll_speed`.**
+- `scroll_speed` - Brugerdefineret rullehastighedsmultiplikator (standard: `3`, minimum: `1`). Ignoreres, hvis `scroll_acceleration.enabled` er `true`.
+- `diff_style` - Kontroller diff-gengivelse. `"auto"` tilpasser sig terminalbredden, `"stacked"` viser altid en enkelt kolonne.
+
+[Learn more about using the TUI here](/docs/tui).
+
+---
+
+### Server
+
+Du kan konfigurere serverindstillinger for kommandoerne `dardcor serve` og `dardcor web` gennem indstillingen `server`.
+
+```json title="dardcor.json"
+{
+  "$schema": "https://dardcor-code.vercel.app//config.json",
+  "server": {
+    "port": 4096,
+    "hostname": "0.0.0.0",
+    "mdns": true,
+    "mdnsDomain": "myproject.local",
+    "cors": ["http://localhost:5173"]
+  }
+}
+```
+
+Tilgængelige muligheder:
+
+- `port` - Port til at lytte på.
+- `hostname` - Værtsnavn at lytte på. Når `mdns` er aktiveret, og der ikke er angivet noget værtsnavn, er standarden `0.0.0.0`.
+- `mdns` - Aktiver mDNS-tjenesteopdagelse. Dette gør det muligt for andre enheder på netværket at opdage din dardcor-server.
+- `mdnsDomain` - Brugerdefineret domænenavn til mDNS-tjeneste. Som standard er `dardcor.local`. Nyttigt til at køre flere forekomster på det samme netværk.
+- `cors` - Yderligere oprindelser for at tillade CORS ved brug af HTTP-serveren fra en browserbaseret klient. Værdier skal være fulde oprindelser (skema + vært + valgfri port), f.eks. `https://app.example.com`.
+
+[Learn more about the server here](/docs/server).
+
+---
+
+### Værktøjer (`tools`)
+
+Du kan administrere de værktøjer, en LLM kan bruge, gennem indstillingen `tools`.
+
+```json title="dardcor.json"
+{
+  "$schema": "https://dardcor-code.vercel.app//config.json",
+  "tools": {
+    "write": false,
+    "bash": false
+  }
+}
+```
+
+[Learn more about tools here](/docs/tools).
+
+---
+
+### Modeller (`models`)
+
+Du kan konfigurere de udbydere og modeller, du vil bruge i din dardcor-konfiguration, gennem mulighederne `provider`, `model` og `small_model`.
+
+```json title="dardcor.json"
+{
+  "$schema": "https://dardcor-code.vercel.app//config.json",
+  "provider": {},
+  "model": "anthropic/claude-sonnet-4-5",
+  "small_model": "anthropic/claude-haiku-4-5"
+}
+```
+
+Indstillingen `small_model` konfigurerer en separat model til lette opgaver som titelgenerering. Som standard forsøger dardcor at bruge en billigere model, hvis en er tilgængelig fra din udbyder, ellers falder den tilbage til din hovedmodel.
+
+Udbydermuligheder kan omfatte `timeout` og `setCacheKey`:
+
+```json title="dardcor.json"
+{
+  "$schema": "https://dardcor-code.vercel.app//config.json",
+  "provider": {
+    "anthropic": {
+      "options": {
+        "timeout": 600000,
+        "setCacheKey": true
+      }
+    }
+  }
+}
+```
+
+- `timeout` - Anmodningstimeout i millisekunder (standard: 300000). Indstil til `false` for at deaktivere.
+- `setCacheKey` - Sørg for, at en cache-nøgle altid er indstillet til den udpegede udbyder.
+
+Du kan også konfigurere [local models](/docs/models#local). [Learn more](/docs/models).
+
+---
+
+#### Udbyder-specifikke muligheder
+
+Nogle udbydere understøtter yderligere konfigurationsmuligheder ud over de generiske `timeout` og `apiKey` indstillinger.
+
+##### Amazon Bedrock
+
+Amazon Bedrock understøtter AWS-specifik konfiguration:
+
+```json title="dardcor.json"
+{
+  "$schema": "https://dardcor-code.vercel.app//config.json",
+  "provider": {
+    "amazon-bedrock": {
+      "options": {
+        "region": "us-east-1",
+        "profile": "my-aws-profile",
+        "endpoint": "https://bedrock-runtime.us-east-1.vpce-xxxxx.amazonaws.com"
+      }
+    }
+  }
+}
+```
+
+- `region` - AWS region for Bedrock (standard til `AWS_REGION` env var eller `us-east-1`)
+- `profile` - AWS navngivet profil fra `~/.aws/credentials` (standard til `AWS_PROFILE` env var)
+- `endpoint` - Brugerdefineret slutpunkt URL for VPC-endepunkter. Dette er et alias for den generiske `baseURL`-indstilling, der bruger AWS-specifik terminologi. Hvis begge er angivet, har `endpoint` forrang.
+
+:::note
+Bearer tokens (`AWS_BEARER_TOKEN_BEDROCK` eller `/connect`) har forrang over profilbaseret godkendelse. Se [authentication precedence](/docs/providers#authentication-precedence) for detaljer.
+:::
+
+[Learn more about Amazon Bedrock configuration](/docs/providers#amazon-bedrock).
+
+---
+
+### Temaer (`themes`)
+
+Du kan konfigurere det tema, du vil bruge i din dardcor-konfiguration, gennem indstillingen `theme`.
+
+```json title="dardcor.json"
+{
+  "$schema": "https://dardcor-code.vercel.app//config.json",
+  "theme": ""
+}
+```
+
+[Learn more here](/docs/themes).
+
+---
+
+### Agent
+
+Du kan konfigurere opgaver specialiserede agenter til specifikke indstillinger gennem indstillingen `agent`.
+
+```jsonc title="dardcor.jsonc"
+{
+  "$schema": "https://dardcor-code.vercel.app//config.json",
+  "agent": {
+    "code-reviewer": {
+      "description": "Reviews code for best practices and potential issues",
+      "model": "anthropic/claude-sonnet-4-5",
+      "prompt": "You are a code reviewer. Focus on security, performance, and maintainability.",
+      "tools": {
+        // Disable file modification tools for review-only agent
+        "write": false,
+        "edit": false,
+      },
+    },
+  },
+}
+```
+
+Du kan også definere agenter ved at bruge markdown-filer i `~/.config/dardcor/agents/` eller `.dardcor/agents/`. [Learn more here](/docs/agents).
+
+---
+
+### Standardagent (`default_agent`)
+
+Du kan indstille standardagenten ved at bruge indstillingen `default_agent`. Dette bestemmer, hvilken agent der bruges, når ingen er eksplicit angivet.
+
+```json title="dardcor.json"
+{
+  "$schema": "https://dardcor-code.vercel.app//config.json",
+  "default_agent": "plan"
+}
+```
+
+Standardagenten skal være en primær agent (ikke en subagent). Dette kan være en indbygget agent som `"build"` eller `"plan"`, eller en [custom agent](/docs/agents), du har defineret. Hvis den angivne agent ikke eksisterer eller er en underagent, vil dardcor falde tilbage til `"build"` med en advarsel.
+
+Denne indstilling gælder på tværs af alle grænseflader: TUI, CLI (`dardcor run`), desktop-app og GitHub Action.
+
+---
+
+### Deling (`share`)
+
+Du kan konfigurere funktionen [share](/docs/share) gennem indstillingen `share`.
+
+```json title="dardcor.json"
+{
+  "$schema": "https://dardcor-code.vercel.app//config.json",
+  "share": "manual"
+}
+```
+
+Dette kræver:
+
+- `"manual"` - Tillad manuel deling via kommandoer (standard)
+- `"auto"` - Del automatisk nye samtaler
+- `"disabled"` - Deaktiver deling helt
+
+Som standard er deling indstillet til manuel tilstand, hvor du eksplicit skal dele samtaler ved hjælp af kommandoen `/share`.
+
+---
+
+### Kommandoer (`command`)
+
+Du kan konfigurere brugerdefinerede kommandoer til gentagne opgaver gennem indstillingen `command`.
+
+```jsonc title="dardcor.jsonc"
+{
+  "$schema": "https://dardcor-code.vercel.app//config.json",
+  "command": {
+    "test": {
+      "template": "Run the full test suite with coverage report and show any failures.\nFocus on the failing tests and suggest fixes.",
+      "description": "Run tests with coverage",
+      "agent": "build",
+      "model": "anthropic/claude-haiku-4-5",
+    },
+    "component": {
+      "template": "Create a new React component named $ARGUMENTS with TypeScript support.\nInclude proper typing and basic structure.",
+      "description": "Create a new component",
+    },
+  },
+}
+```
+
+Du kan også definere kommandoer ved hjælp af markdown-filer i `~/.config/dardcor/commands/` eller `.dardcor/commands/`. [Learn more here](/docs/commands).
+
+---
+
+### Tastebindinger (`keybinds`)
+
+Du kan tilpasse dine nøglebindinger gennem indstillingen `keybinds`.
+
+```json title="dardcor.json"
+{
+  "$schema": "https://dardcor-code.vercel.app//config.json",
+  "keybinds": {}
+}
+```
+
+[Learn more here](/docs/keybinds).
+
+---
+
+### Auto-opdatering (`autoupdate`)
+
+dardcor vil automatisk downloade alle nye opdateringer, når den starter op. Du kan deaktivere dette med indstillingen `autoupdate`.
+
+```json title="dardcor.json"
+{
+  "$schema": "https://dardcor-code.vercel.app//config.json",
+  "autoupdate": false
+}
+```
+
+Hvis du ikke ønsker opdatering, men ønsker at blive underrettet, når en ny version er tilgængelig, skal du indstille `autoupdate` til `"notify"`.
+Bemærk, at dette kun virker, hvis det ikke blev installeret ved hjælp af en pakkehåndtering såsom Homebrew.
+
+---
+
+### Formater (`formatter`)
+
+Du kan konfigurere kodeformatere gennem indstillingen `formatter`.
+
+```json title="dardcor.json"
+{
+  "$schema": "https://dardcor-code.vercel.app//config.json",
+  "formatter": {
+    "prettier": {
+      "disabled": true
+    },
+    "custom-prettier": {
+      "command": ["npx", "prettier", "--write", "$FILE"],
+      "environment": {
+        "NODE_ENV": "development"
+      },
+      "extensions": [".js", ".ts", ".jsx", ".tsx"]
+    }
+  }
+}
+```
+
+[Learn more about formatters here](/docs/formatters).
+
+---
+
+### Tilladelse (`permission`)
+
+Som standard dardcor **tillader alle operationer** uden at kræve eksplicit godkendelse. Du kan ændre dette ved at bruge indstillingen `permission`.
+
+For at sikre, at værktøjerne `edit` og `bash` for eksempel kræver brugergodkendelse:
+
+```json title="dardcor.json"
+{
+  "$schema": "https://dardcor-code.vercel.app//config.json",
+  "permission": {
+    "edit": "ask",
+    "bash": "ask"
+  }
+}
+```
+
+[Learn more about permissions here](/docs/permissions).
+
+---
+
+### Komprimering (`compaction`)
+
+Du kan styre kontekstkomprimeringsadfærd gennem indstillingen `compaction`.
+
+```json title="dardcor.json"
+{
+  "$schema": "https://dardcor-code.vercel.app//config.json",
+  "compaction": {
+    "auto": true,
+    "prune": false,
+    "reserved": 10000
+  }
+}
+```
+
+- `auto` - Komprimer automatisk sessionen, når konteksten er fuld (standard: `true`).
+- `prune` - Fjern gamle værktøjsudgange for at gemme tokens (standard: `false`).
+- `reserved` - Tokenbuffer til komprimering. Efterlader nok vindue til at undgå overløb under komprimering
+
+---
+
+### Overvågning (`watcher`)
+
+Du kan konfigurere ignoreringsmønstre for filovervåger gennem indstillingen `watcher`.
+
+```json title="dardcor.json"
+{
+  "$schema": "https://dardcor-code.vercel.app//config.json",
+  "watcher": {
+    "ignore": ["node_modules/**", "dist/**", ".git/**"]
+  }
+}
+```
+
+Mønstre følger glob-syntaks. Brug dette til at udelukke støjende mapper fra filvisning.
+
+---
+
+### MCP
+
+Du kan konfigurere MCP-servere, som du vil bruge, gennem indstillingen `mcp`.
+
+```json title="dardcor.json"
+{
+  "$schema": "https://dardcor-code.vercel.app//config.json",
+  "mcp": {}
+}
+```
+
+[Learn more here](/docs/mcp-servers).
+
+---
+
+### Plugin
+
+[Plugins](/docs/plugins) udvide dardcor med brugerdefinerede værktøjer, kroge og integrationer.
+
+Placer plugin-filer i `.dardcor/plugins/` eller `~/.config/dardcor/plugins/`. Du kan også indlæse plugins fra npm gennem indstillingen `plugin`.
+
+```json title="dardcor.json"
+{
+  "$schema": "https://dardcor-code.vercel.app//config.json",
+  "plugin": ["dardcor-helicone-session", "@my-org/custom-plugin"]
+}
+```
+
+[Learn more here](/docs/plugins).
+
+---
+
+### Instruktioner (`instructions`)
+
+Du kan konfigurere brugervejledningen til den model, du kan gennem indstillingen `instructions`.
+
+```json title="dardcor.json"
+{
+  "$schema": "https://dardcor-code.vercel.app//config.json",
+  "instructions": ["CONTRIBUTING.md", "docs/guidelines.md", ".cursor/rules/*.md"]
+}
+```
+
+Dette kræver en række stier og globmønstre til instruktionsfiler. [Læs mere
+om regler her](/docs/rules).
+
+---
+
+### Deaktiverede udbydere (`disabled_providers`)
+
+Du kan deaktivere udbydere, der indlæses automatisk gennem `disabled_providers`-indstillingen. Dette er nyttigt, når du vil forhindre visse udbydere i at blive indlæst, deres legitimationsoplysninger er tilgængelige.
+
+```json title="dardcor.json"
+{
+  "$schema": "https://dardcor-code.vercel.app//config.json",
+  "disabled_providers": ["openai", "gemini"]
+}
+```
+
+:::note
+`disabled_providers` har prioritet over `enabled_providers`.
+:::
+
+Indstillingen `disabled_providers` accepterer en række udbyder-id'er. Når en udbyder er deaktiveret:
+
+- Den vil ikke blive indlæst, selvom miljøvariabler er indstillet.
+- Den vil ikke blive indlæst, selvom API-nøgler er konfigureret via `/connect`-kommandoen.
+- Udbyderens modeller vises ikke på modelvalgslisten.
+
+---
+
+### Aktiverede udbydere (`enabled_providers`)
+
+Du kan angive en tilladelsesliste over udbydere gennem muligheden `enabled_providers`. Når den er indstillet, vil kun de angivne udbydere blive aktiveret, og alle andre vil blive ignoreret.
+
+```json title="dardcor.json"
+{
+  "$schema": "https://dardcor-code.vercel.app//config.json",
+  "enabled_providers": ["anthropic", "openai"]
+}
+```
+
+Dette er nyttigt, når du vil begrænse dardcor til kun at bruge specifikke udbydere i stedet for at deaktivere dem én efter én.
+
+:::note
+`disabled_providers` har prioritet over `enabled_providers`.
+:::
+
+Hvis en udbyder optræder i både `enabled_providers` og `disabled_providers`, har `disabled_providers` prioritet for bagudkompatibilitet.
+
+---
+
+### Eksperimentel (`experimental`)
+
+Nøglen `experimental` indeholder muligheder, der er under aktiv udvikling.
+
+```json title="dardcor.json"
+{
+  "$schema": "https://dardcor-code.vercel.app//config.json",
+  "experimental": {}
+}
+```
+
+:::caution
+Eksperimentelle muligheder er ikke stabile. De kan ændres eller fjernes uden varsel.
+:::
+
+---
+
+## Variabler
+
+Du kan bruge variabelsubstitution i dine konfigurationsfiler til at referere til miljøvariabler og filindhold.
+
+---
+
+### Miljøvariabler
+
+Brug `{env:VARIABLE_NAME}` til at erstatte miljøvariabler:
+
+```json title="dardcor.json"
+{
+  "$schema": "https://dardcor-code.vercel.app//config.json",
+  "model": "{env:dardcor_MODEL}",
+  "provider": {
+    "anthropic": {
+      "models": {},
+      "options": {
+        "apiKey": "{env:ANTHROPIC_API_KEY}"
+      }
+    }
+  }
+}
+```
+
+Hvis miljøvariablen ikke er indstillet, vil den blive erstattet med en tom streng.
+
+---
+
+### Filer
+
+Brug `{file:path/to/file}` til at erstatte indholdet af en fil:
+
+```json title="dardcor.json"
+{
+  "$schema": "https://dardcor-code.vercel.app//config.json",
+  "instructions": ["./custom-instructions.md"],
+  "provider": {
+    "openai": {
+      "options": {
+        "apiKey": "{file:~/.secrets/openai-key}"
+      }
+    }
+  }
+}
+```
+
+Filstier kan være:
+
+- I forhold til konfigurationsfilbiblioteket
+- Eller absolutte stier, der starter med `/` eller `~`
+
+Disse er nyttige til:
+
+- Opbevaring af følsomme data som API-nøgler i separate filer.
+- Inklusiv store instruktionsfiler uden at rode i din konfiguration.
+- Deling af fælles konfigurationsuddrag på tværs af flere konfigurationsfiler.

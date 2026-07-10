@@ -1,0 +1,78 @@
+---
+title: Ecosistema
+description: Progetti e integrazioni costruiti con dardcor.
+---
+
+Una raccolta di progetti della comunità costruiti su dardcor.
+
+:::note
+Vuoi aggiungere il tuo progetto legato a dardcor a questa lista? Apri una PR.
+:::
+
+Puoi anche dare un'occhiata a [awesome-dardcor](https://github.com/awesome-dardcor/awesome-dardcor) e [dardcor.cafe](https://dardcor.cafe), una comunità che aggrega ecosistema e community.
+
+---
+
+## Plugin
+
+| Nome                                                                                               | Descrizione                                                                                       |
+| -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| [dardcor-daytona](https://github.com/daytonaio/daytona/tree/main/libs/dardcor-plugin)            | Esegue automaticamente sessioni dardcor in sandbox Daytona isolate con sync git e anteprime live |
+| [dardcor-helicone-session](https://github.com/H2Shami/dardcor-helicone-session)                  | Inietta automaticamente gli header di sessione Helicone per raggruppare le richieste              |
+| [dardcor-type-inject](https://github.com/nick-vi/dardcor-type-inject)                            | Inietta automaticamente tipi TypeScript/Svelte nelle letture dei file con tool di lookup          |
+| [dardcor-openai-codex-auth](https://github.com/numman-ali/dardcor-openai-codex-auth)             | Usa il tuo abbonamento ChatGPT Plus/Pro invece dei crediti API                                    |
+| [dardcor-gemini-auth](https://github.com/jenslys/dardcor-gemini-auth)                            | Usa il tuo piano Gemini esistente invece della fatturazione API                                   |
+| [dardcor-antigravity-auth](https://github.com/NoeFabris/dardcor-antigravity-auth)                | Usa i modelli gratuiti di Antigravity invece della fatturazione API                               |
+| [dardcor-devcontainers](https://github.com/athal7/dardcor-devcontainers)                         | Isolamento devcontainer multi-branch con shallow clone e porte assegnate automaticamente          |
+| [dardcor-google-antigravity-auth](https://github.com/shekohex/dardcor-google-antigravity-auth)   | Plugin OAuth Google Antigravity, con supporto a Google Search e gestione API più robusta          |
+| [dardcor-dynamic-context-pruning](https://github.com/Tarquinen/dardcor-dynamic-context-pruning)  | Ottimizza l'uso dei token eliminando output obsoleti degli strumenti                              |
+| [dardcor-vibeguard](https://github.com/inkdust2021/dardcor-vibeguard)                            | Oscura segreti/PII in placeholder stile VibeGuard prima delle chiamate LLM; ripristina localmente |
+| [dardcor-websearch-cited](https://github.com/ghoulr/dardcor-websearch-cited.git)                 | Aggiunge supporto websearch nativo per provider supportati con stile grounded di Google           |
+| [dardcor-pty](https://github.com/shekohex/dardcor-pty.git)                                       | Permette agli agenti AI di eseguire processi in background in una PTY e inviare input interattivo |
+| [dardcor-shell-strategy](https://github.com/JRedeker/dardcor-shell-strategy)                     | Istruzioni per comandi shell non interattivi: evita blocchi dovuti a operazioni dipendenti da TTY |
+| [dardcor-wakatime](https://github.com/angristan/dardcor-wakatime)                                | Traccia l'uso di dardcor con Wakatime                                                            |
+| [dardcor-md-table-formatter](https://github.com/franlol/dardcor-md-table-formatter/tree/main)    | Ripulisce le tabelle markdown prodotte dai LLM                                                    |
+| [dardcor-morph-plugin](https://github.com/morphllm/dardcor-morph-plugin)                         | Editing Fast Apply, ricerca codebase WarpGrep e compattazione del contesto tramite Morph          |
+| [oh-my-dardcor](https://github.com/code-yeongyu/oh-my-dardcor)                                   | Agenti in background, tool LSP/AST/MCP predefiniti, agenti curati, compatibile con Claude Code    |
+| [dardcor-notificator](https://github.com/panta82/dardcor-notificator)                            | Notifiche desktop e avvisi sonori per le sessioni dardcor                                        |
+| [dardcor-notifier](https://github.com/mohak34/dardcor-notifier)                                  | Notifiche desktop e avvisi sonori per eventi di permesso, completamento ed errore                 |
+| [dardcor-zellij-namer](https://github.com/24601/dardcor-zellij-namer)                            | Naming automatico delle sessioni Zellij basato sul contesto dardcor                              |
+| [dardcor-skillful](https://github.com/zenobi-us/dardcor-skillful)                                | Permette agli agenti dardcor di caricare prompt al bisogno con discovery e injection di skill    |
+| [dardcor-supermemory](https://github.com/supermemoryai/dardcor-supermemory)                      | Memoria persistente tra sessioni usando Supermemory                                               |
+| [@plannotator/dardcor](https://github.com/backnotprop/plannotator/tree/main/apps/dardcor-plugin) | Revisione interattiva dei piani con annotazione visiva e condivisione privata/offline             |
+| [@openspoon/subtask2](https://github.com/spoons-and-mirrors/subtask2)                              | Estende dardcor /commands in un sistema di orchestrazione con controllo di flusso granulare      |
+| [dardcor-scheduler](https://github.com/different-ai/dardcor-scheduler)                           | Pianifica job ricorrenti con launchd (Mac) o systemd (Linux) usando sintassi cron                 |
+| [micode](https://github.com/vtemian/micode)                                                        | Workflow strutturato Brainstorm → Plan → Implement con continuità di sessione                     |
+| [octto](https://github.com/vtemian/octto)                                                          | UI browser interattiva per brainstorming AI con moduli multi-domanda                              |
+| [dardcor-background-agents](https://github.com/kdcokenny/dardcor-background-agents)              | Agenti in background stile Claude Code con delega async e persistenza del contesto                |
+| [dardcor-notify](https://github.com/kdcokenny/dardcor-notify)                                    | Notifiche native del sistema per dardcor: sai quando i task finiscono                            |
+| [dardcor-workspace](https://github.com/kdcokenny/dardcor-workspace)                              | Harness di orchestrazione multi-agente bundle: 16 componenti, una installazione                   |
+| [dardcor-worktree](https://github.com/kdcokenny/dardcor-worktree)                                | Git worktree senza attriti per dardcor                                                           |
+| [dardcor-sentry-monitor](https://github.com/stolinski/dardcor-sentry-monitor)                    | Traccia e debugga i tuoi agenti AI con Sentry AI Monitoring                                       |
+
+---
+
+## Progetti
+
+| Nome                                                                                       | Descrizione                                                          |
+| ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| [kimaki](https://github.com/remorses/kimaki)                                               | Bot Discord per controllare sessioni dardcor, costruito sull'SDK    |
+| [dardcor.nvim](https://github.com/NickvanDyke/dardcor.nvim)                              | Plugin Neovim per prompt consapevoli dell'editor, costruito sull'API |
+| [portal](https://github.com/hosenur/portal)                                                | Web UI mobile-first per dardcor su Tailscale/VPN                    |
+| [dardcor plugin template](https://github.com/zenobi-us/dardcor-plugin-template/)         | Template per costruire plugin dardcor                               |
+| [dardcor.nvim](https://github.com/sudo-tee/dardcor.nvim)                                 | Frontend Neovim per dardcor: un agente di coding AI per terminale   |
+| [ai-sdk-provider-dardcor-sdk](https://github.com/ben-vargas/ai-sdk-provider-dardcor-sdk) | Provider Vercel AI SDK per usare dardcor tramite @dardcor-ai/sdk   |
+| [OpenChamber](https://github.com/btriapitsyn/openchamber)                                  | App Web/Desktop ed estensione VS Code per dardcor                   |
+| [dardcor-Obsidian](https://github.com/mtymek/dardcor-obsidian)                           | Plugin Obsidian che integra dardcor nella UI di Obsidian            |
+| [OpenWork](https://github.com/different-ai/openwork)                                       | Alternativa open source a Claude Cowork, alimentata da dardcor      |
+| [ocx](https://github.com/kdcokenny/ocx)                                                    | Gestore di estensioni dardcor con profili portabili e isolati       |
+| [CodeNomad](https://github.com/NeuralNomadsAI/CodeNomad)                                   | App client Desktop, Web, Mobile e remota per dardcor                |
+
+---
+
+## Agenti
+
+| Nome                                                              | Descrizione                                               |
+| ----------------------------------------------------------------- | --------------------------------------------------------- |
+| [Agentic](https://github.com/Cluster444/agentic)                  | Agenti AI modulari e comandi per uno sviluppo strutturato |
+| [dardcor-agents](https://github.com/darrenhinde/dardcor-agents) | Config, prompt, agenti e plugin per workflow migliorati   |

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=DARDCOR
+Exec=/opt/DARDCOR/ai.DARDCOR.desktop %U
+Terminal=false
+Type=Application
+Icon=ai.DARDCOR.desktop
+StartupWMClass=ai.DARDCOR.desktop
+NoDisplay=true
+Comment=Open source AI coding agent
+Categories=Development;

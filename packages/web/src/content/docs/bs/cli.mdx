@@ -1,0 +1,614 @@
+---
+title: CLI
+description: dardcor CLI opcije i naredbe.
+---
+
+import { Tabs, TabItem } from "@astrojs/starlight/components"
+
+dardcor CLI po defaultu pokreće [TUI](/docs/tui) kada se pokrene bez ikakvih argumenata.
+
+```bash
+dardcor
+```
+
+Ali takođe prihvata naredbe kao što je dokumentovano na ovoj stranici. Ovo vam omogućava programsku interakciju sa dardcor.
+
+```bash
+dardcor run "Explain how closures work in JavaScript"
+```
+
+---
+
+### tui
+
+Pokrenite dardcor terminalski korisnički interfejs.
+
+```bash
+dardcor [project]
+```
+
+#### Opcije
+
+| Opcija                                   | Kratko | Opis                                                                     |
+| ---------------------------------------- | ------ | ------------------------------------------------------------------------ |
+| <nobr><code>{"--continue"}</code></nobr> | `-c`   | Nastavite posljednju sesiju                                              |
+| <nobr><code>{"--session"}</code></nobr>  | `-s`   | ID sesije za nastavak                                                    |
+| <nobr><code>{"--fork"}</code></nobr>     |        | Forkujte sesiju pri nastavku (koristiti sa `--continue` ili `--session`) |
+| <nobr><code>{"--prompt"}</code></nobr>   |        | Prompt za upotrebu                                                       |
+| <nobr><code>{"--model"}</code></nobr>    | `-m`   | Model za korištenje u obliku provider/model                              |
+| <nobr><code>{"--agent"}</code></nobr>    |        | Agent za korištenje                                                      |
+| <nobr><code>{"--port"}</code></nobr>     |        | Port na kojem treba slušati                                              |
+| <nobr><code>{"--hostname"}</code></nobr> |        | Hostname na kojem treba slušati                                          |
+
+---
+
+## Naredbe
+
+dardcor CLI takođe ima sljedeće naredbe.
+
+---
+
+### agent
+
+Upravljajte dardcor agentima.
+
+```bash
+dardcor agent [command]
+```
+
+---
+
+### attach
+
+Priključite terminal na već pokrenut dardcor backend server pokrenut putem `serve` ili `web` naredbi.
+
+```bash
+dardcor attach [url]
+```
+
+Ovo omogućava korištenje TUI-ja sa udaljenim dardcor backend-om. Na primjer:
+
+```bash
+# Start the backend server for web/mobile access
+dardcor web --port 4096 --hostname 0.0.0.0
+
+# In another terminal, attach the TUI to the running backend
+dardcor attach http://10.20.30.40:4096
+```
+
+#### Opcije
+
+| Opcija                                   | Kratko | Opis                                                                                          |
+| ---------------------------------------- | ------ | --------------------------------------------------------------------------------------------- |
+| <nobr><code>{"--dir"}</code></nobr>      |        | Radni direktorij za pokretanje TUI-a                                                          |
+| <nobr><code>{"--continue"}</code></nobr> | `-c`   | Nastavi posljednju sesiju                                                                     |
+| <nobr><code>{"--session"}</code></nobr>  | `-s`   | ID sesije za nastavak                                                                         |
+| <nobr><code>{"--fork"}</code></nobr>     |        | Forkuj sesiju prilikom nastavka (koristite sa `--continue` ili `--session`)                   |
+| <nobr><code>{"--password"}</code></nobr> | `-p`   | Lozinka za osnovnu autentifikaciju (zadano: `dardcor_SERVER_PASSWORD`)                       |
+| <nobr><code>{"--username"}</code></nobr> | `-u`   | Korisničko ime za osnovnu autentifikaciju (zadano: `dardcor_SERVER_USERNAME` ili `dardcor`) |
+
+---
+
+#### create
+
+Kreirajte novog agenta s prilagođenom konfiguracijom.
+
+```bash
+dardcor agent create
+```
+
+Ova naredba će vas voditi kroz kreiranje novog agenta sa prilagođenim sistemskim promptom i konfiguracijom alata.
+
+---
+
+#### list
+
+Navedite sve dostupne agente.
+
+```bash
+dardcor agent list
+```
+
+---
+
+### auth
+
+Naredba za upravljanje vjerodajnicama i prijavom za provajdere.
+
+```bash
+dardcor auth [command]
+```
+
+---
+
+#### login
+
+dardcor pokreće lista provajdera na [Models.dev](https://models.dev), tako da možete koristiti `dardcor auth login` da konfigurirate API ključeve za bilo kojeg provajdera kojeg želite koristiti. Ovo je pohranjeno u `~/.local/share/dardcor/auth.json`.
+
+```bash
+dardcor auth login
+```
+
+Kada se dardcor pokrene, učitava dobavljače iz datoteke vjerodajnica. I ako postoje neki ključevi definirani u vašim okruženjima ili `.env` fajl u vašem projektu.
+
+---
+
+#### list
+
+Navodi sve autentifikovane dobavljače pohranjene u datoteci vjerodajnica.
+
+```bash
+dardcor auth list
+```
+
+Ili kratka verzija.
+
+```bash
+dardcor auth ls
+```
+
+---
+
+#### logout
+
+Odjavljuje vas s provajdera tako što ga briše iz datoteke vjerodajnica.
+
+```bash
+dardcor auth logout
+```
+
+---
+
+### github
+
+Upravljajte GitHub agentom za automatizaciju repozitorija.
+
+```bash
+dardcor github [command]
+```
+
+---
+
+#### install
+
+Instalirajte GitHub agenta u svoj repozitorij.
+
+```bash
+dardcor github install
+```
+
+Ovo postavlja neophodni tok rada GitHub Actions i vodi vas kroz proces konfiguracije. [Saznajte više](/docs/github).
+
+---
+
+#### run
+
+Pokrenite GitHub agent. Ovo se obično koristi u GitHub Actions.
+
+```bash
+dardcor github run
+```
+
+##### Opcije
+
+| Opcija                                | Opis                                   |
+| ------------------------------------- | -------------------------------------- |
+| <nobr><code>{"--event"}</code></nobr> | GitHub mock event za pokretanje agenta |
+| <nobr><code>{"--token"}</code></nobr> | GitHub Personal Access Token           |
+
+---
+
+### mcp
+
+Upravljajte Model Context Protocol (MCP) serverima.
+
+```bash
+dardcor mcp [command]
+```
+
+---
+
+#### add
+
+Dodajte MCP server svojoj konfiguraciji.
+
+```bash
+dardcor mcp add
+```
+
+Ova naredba će vas voditi kroz dodavanje lokalnog ili udaljenog MCP servera.
+
+---
+
+#### list
+
+Navedite sve konfigurirane MCP servere i njihov status veze.
+
+```bash
+dardcor mcp list
+```
+
+Ili koristite kratku verziju.
+
+```bash
+dardcor mcp ls
+```
+
+---
+
+#### auth
+
+Autentifikujte se sa MCP serverom koji je omogućen za OAuth.
+
+```bash
+dardcor mcp auth [name]
+```
+
+Ako ne navedete ime servera, od vas će biti zatraženo da izaberete neki od dostupnih servera koji podržavaju OAuth.
+Također možete navesti servere koji podržavaju OAuth i njihov status autentifikacije.
+
+```bash
+dardcor mcp auth list
+```
+
+Ili koristite kratku verziju.
+
+```bash
+dardcor mcp auth ls
+```
+
+---
+
+#### logout
+
+Uklonite OAuth vjerodajnice za MCP server.
+
+```bash
+dardcor mcp logout [name]
+```
+
+---
+
+#### debug
+
+Otklanjanje grešaka (debug) OAuth veze sa MCP serverom.
+
+```bash
+dardcor mcp debug <name>
+```
+
+---
+
+### models
+
+Navedite sve dostupne modele konfiguriranih provajdera.
+
+```bash
+dardcor models [provider]
+```
+
+Ova naredba prikazuje sve modele dostupne kod vaših konfiguriranih provajdera u formatu `provider/model`.
+Ovo je korisno za pronalaženje tačnog naziva modela za korištenje u [vašoj konfiguraciji](/docs/config/).
+Opciono možete proslijediti ID provajdera za filtriranje modela po tom dobavljaču.
+
+```bash
+dardcor models anthropic
+```
+
+#### Opcije
+
+| Opcija                                  | Opis                                                                     |
+| --------------------------------------- | ------------------------------------------------------------------------ |
+| <nobr><code>{"--refresh"}</code></nobr> | Osvježite keš modela sa models.dev                                       |
+| <nobr><code>{"--verbose"}</code></nobr> | Koristite detaljniji izlaz modela (uključuje metapodatke poput troškova) |
+
+Koristite `--refresh` zastavicu da ažurirate keširanu listu modela. Ovo je korisno kada su novi modeli dodani provajderu i želite da ih vidite u dardcor.
+
+```bash
+dardcor models --refresh
+```
+
+---
+
+### run
+
+Pokrenite dardcor u neinteraktivnom modu tako što ćete direktno proslijediti prompt.
+
+```bash
+dardcor run [message..]
+```
+
+Ovo je korisno za skriptiranje, automatizaciju ili kada želite brz odgovor bez pokretanja punog TUI-ja. Na primjer:
+
+```bash "dardcor run"
+dardcor run Explain the use of context in Go
+```
+
+Također možete priključiti pokrenutu `dardcor serve` instancu kako biste izbjegli vrijeme hladnog pokretanja MCP servera pri svakom pokretanju:
+
+```bash
+# Start a headless server in one terminal
+dardcor serve
+
+# In another terminal, run commands that attach to it
+dardcor run --attach http://localhost:4096 "Explain async/await in JavaScript"
+```
+
+#### Opcije
+
+| Opcija                                   | Kratko | Opis                                                                                          |
+| ---------------------------------------- | ------ | --------------------------------------------------------------------------------------------- |
+| <nobr><code>{"--command"}</code></nobr>  |        | Naredba za pokretanje, koristite poruku za argumente                                          |
+| <nobr><code>{"--continue"}</code></nobr> | `-c`   | Nastavite posljednju sesiju                                                                   |
+| <nobr><code>{"--session"}</code></nobr>  | `-s`   | ID sesije za nastavak                                                                         |
+| <nobr><code>{"--fork"}</code></nobr>     |        | Forkujte sesiju pri nastavku (koristiti sa `--continue` ili `--session`)                      |
+| <nobr><code>{"--share"}</code></nobr>    |        | Podijelite sesiju                                                                             |
+| <nobr><code>{"--model"}</code></nobr>    | `-m`   | Model za korištenje u obliku provider/model                                                   |
+| <nobr><code>{"--agent"}</code></nobr>    |        | Agent za korištenje                                                                           |
+| <nobr><code>{"--file"}</code></nobr>     | `-f`   | Fajlovi koje treba priložiti poruci                                                           |
+| <nobr><code>{"--format"}</code></nobr>   |        | Format: default (formatiran) ili json (sirovi JSON događaji)                                  |
+| <nobr><code>{"--title"}</code></nobr>    |        | Naslov sesije (koristi skraćeni prompt ako nije navedena vrijednost)                          |
+| <nobr><code>{"--attach"}</code></nobr>   |        | Priključite na pokrenuti dardcor server (npr. http://localhost:4096)                         |
+| <nobr><code>{"--password"}</code></nobr> | `-p`   | Lozinka za osnovnu autentifikaciju (zadano: `dardcor_SERVER_PASSWORD`)                       |
+| <nobr><code>{"--username"}</code></nobr> | `-u`   | Korisničko ime za osnovnu autentifikaciju (zadano: `dardcor_SERVER_USERNAME` ili `dardcor`) |
+| <nobr><code>{"--dir"}</code></nobr>      |        | Direktorij za pokretanje, ili putanja na udaljenom serveru pri spajanju                       |
+| <nobr><code>{"--variant"}</code></nobr>  |        | Varijanta modela (napor zaključivanja specifičan za provajdera)                               |
+| <nobr><code>{"--thinking"}</code></nobr> |        | Prikaži blokove razmišljanja                                                                  |
+| <nobr><code>{"--port"}</code></nobr>     |        | Port za lokalni server (zadano na nasumični port)                                             |
+
+---
+
+### serve
+
+Pokrenite dardcor headless server za API pristup. Pogledajte [server docs](/docs/server) za kompletan HTTP interfejs.
+
+```bash
+dardcor serve
+```
+
+Ovo pokreće HTTP server koji pruža API pristup funkcionalnosti dardcor-a bez TUI interfejsa. Postavite `dardcor_SERVER_PASSWORD` da omogućite HTTP osnovnu auth (korisničko ime je zadano na `dardcor`).
+
+#### Opcije
+
+| Opcija                                   | Opis                                                  |
+| ---------------------------------------- | ----------------------------------------------------- |
+| <nobr><code>{"--port"}</code></nobr>     | Port na kojem treba slušati                           |
+| <nobr><code>{"--hostname"}</code></nobr> | Hostname na kojem treba slušati                       |
+| <nobr><code>{"--mdns"}</code></nobr>     | Omogući mDNS otkrivanje                               |
+| <nobr><code>{"--cors"}</code></nobr>     | Dodatni origin(i) pretraživača koji dozvoljavaju CORS |
+
+---
+
+### session
+
+Upravljajte dardcor sesijama.
+
+```bash
+dardcor session [command]
+```
+
+---
+
+#### list
+
+Navedite sve dardcor sesije.
+
+```bash
+dardcor session list
+```
+
+##### Opcije
+
+| Opcija                                    | Kratko | Opis                                   |
+| ----------------------------------------- | ------ | -------------------------------------- |
+| <nobr><code>{"--max-count"}</code></nobr> | `-n`   | Ograničenje na N najnovijih sesija     |
+| <nobr><code>{"--format"}</code></nobr>    |        | Izlazni format: table ili json (table) |
+
+---
+
+### stats
+
+Prikaži statistiku upotrebe tokena i troškova za vaše dardcor sesije.
+
+```bash
+dardcor stats
+```
+
+#### Opcije
+
+| Opcija                                  | Opis                                                                                                       |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| <nobr><code>{"--days"}</code></nobr>    | Prikaži statistiku za zadnjih N dana (sva vremena)                                                         |
+| <nobr><code>{"--tools"}</code></nobr>   | Broj alata za prikaz (svi)                                                                                 |
+| <nobr><code>{"--models"}</code></nobr>  | Prikaži raščlambu korištenja modela (skriveno prema zadanim postavkama). Proslijedite broj za prikaz top N |
+| <nobr><code>{"--project"}</code></nobr> | Filtriraj po projektu (svi projekti, prazan niz: trenutni projekt)                                         |
+
+---
+
+### export
+
+Izvezite podatke sesije kao JSON.
+
+```bash
+dardcor export [sessionID]
+```
+
+Ako ne unesete ID sesije, od vas će biti zatraženo da odaberete neku od dostupnih sesija.
+
+---
+
+### import
+
+Uvezite podatke sesije iz JSON datoteke ili dardcor dijeljenog URL-a.
+
+```bash
+dardcor import <file>
+```
+
+Možete uvesti iz lokalne datoteke ili dardcor dijeljenog URL-a.
+
+```bash
+dardcor import session.json
+dardcor import https://opncd.ai/s/abc123
+```
+
+---
+
+### web
+
+Pokrenite dardcor headless server sa web interfejsom.
+
+```bash
+dardcor web
+```
+
+Ovo pokreće HTTP server i otvara web pretraživač za pristup dardcor-u preko web interfejsa. Postavite `dardcor_SERVER_PASSWORD` da omogućite HTTP osnovnu auth (korisničko ime je zadano na `dardcor`).
+
+#### Opcije
+
+| Opcija                                   | Opis                                                  |
+| ---------------------------------------- | ----------------------------------------------------- |
+| <nobr><code>{"--port"}</code></nobr>     | Port na kojem treba slušati                           |
+| <nobr><code>{"--hostname"}</code></nobr> | Hostname na kojem treba slušati                       |
+| <nobr><code>{"--mdns"}</code></nobr>     | Omogući mDNS otkrivanje                               |
+| <nobr><code>{"--cors"}</code></nobr>     | Dodatni origin(i) pretraživača koji dozvoljavaju CORS |
+
+---
+
+### acp
+
+Pokrenite ACP (Agent Client Protocol) server.
+
+```bash
+dardcor acp
+```
+
+Ova naredba pokreće ACP server koji komunicira preko stdin/stdout koristeći nd-JSON.
+
+#### Opcije
+
+| Opcija                                   | Opis                        |
+| ---------------------------------------- | --------------------------- |
+| <nobr><code>{"--cwd"}</code></nobr>      | Radni direktorij            |
+| <nobr><code>{"--port"}</code></nobr>     | Port na kojem treba slušati |
+| <nobr><code>{"--hostname"}</code></nobr> | Hostname na kojem slušati   |
+
+---
+
+### uninstall
+
+Deinstalirajte dardcor i uklonite sve povezane datoteke.
+
+```bash
+dardcor uninstall
+```
+
+#### Opcije
+
+| Opcija                                      | Kratko | Opis                                          |
+| ------------------------------------------- | ------ | --------------------------------------------- |
+| <nobr><code>{"--keep-config"}</code></nobr> | `-c`   | Sačuvajte konfiguracijske datoteke            |
+| <nobr><code>{"--keep-data"}</code></nobr>   | `-d`   | Sačuvajte podatke i snimke sesije             |
+| <nobr><code>{"--dry-run"}</code></nobr>     |        | Pokažite šta bi bilo uklonjeno bez uklanjanja |
+| <nobr><code>{"--force"}</code></nobr>       | `-f`   | Preskoči upite za potvrdu                     |
+
+---
+
+### upgrade
+
+Ažurira dardcor na najnoviju verziju ili određenu verziju.
+
+```bash
+dardcor upgrade [target]
+```
+
+Za nadogradnju na najnoviju verziju.
+
+```bash
+dardcor upgrade
+```
+
+Za nadogradnju na određenu verziju.
+
+```bash
+dardcor upgrade v0.1.48
+```
+
+#### Opcije
+
+| Opcija                                 | Kratko | Opis                                                    |
+| -------------------------------------- | ------ | ------------------------------------------------------- |
+| <nobr><code>{"--method"}</code></nobr> | `-m`   | Korišteni način instalacije; curl, npm, pnpm, bun, brew |
+
+---
+
+## Globalne opcije
+
+dardcor CLI prihvata sljedeće globalne zastavice.
+
+| Opcija                                     | Kratko | Opis                                      |
+| ------------------------------------------ | ------ | ----------------------------------------- |
+| <nobr><code>{"--help"}</code></nobr>       | `-h`   | Prikaži pomoć                             |
+| <nobr><code>{"--version"}</code></nobr>    | `-v`   | Ispiši broj verzije                       |
+| <nobr><code>{"--print-logs"}</code></nobr> |        | Ispis logova u stderr                     |
+| <nobr><code>{"--log-level"}</code></nobr>  |        | Nivo logovanja (DEBUG, INFO, WARN, ERROR) |
+
+---
+
+## Varijable okruženja
+
+dardcor se može konfigurirati pomoću varijabli okruženja.
+
+| Varijabla                             | Tip     | Opis                                                               |
+| ------------------------------------- | ------- | ------------------------------------------------------------------ |
+| `dardcor_AUTO_SHARE`                 | boolean | Automatski dijeli sesije                                           |
+| `dardcor_GIT_BASH_PATH`              | string  | Putanja do Git Bash izvršne datoteke na Windows-u                  |
+| `dardcor_CONFIG`                     | string  | Putanja do konfiguracijskog fajla                                  |
+| `dardcor_TUI_CONFIG`                 | string  | Putanja do TUI konfiguracijskog fajla                              |
+| `dardcor_CONFIG_DIR`                 | string  | Putanja do konfiguracijskog direktorija                            |
+| `dardcor_CONFIG_CONTENT`             | string  | Inline json konfiguracijski sadržaj                                |
+| `dardcor_DISABLE_AUTOUPDATE`         | boolean | Onemogući automatske provjere ažuriranja                           |
+| `dardcor_DISABLE_PRUNE`              | boolean | Onemogući brisanje (pruning) starih podataka                       |
+| `dardcor_DISABLE_TERMINAL_TITLE`     | boolean | Onemogući automatsko ažuriranje naslova terminala                  |
+| `dardcor_PERMISSION`                 | string  | Inline json konfiguracija dozvola                                  |
+| `dardcor_DISABLE_DEFAULT_PLUGINS`    | boolean | Onemogući podrazumijevane dodatke (plugins)                        |
+| `dardcor_DISABLE_LSP_DOWNLOAD`       | boolean | Onemogući automatsko preuzimanje LSP servera                       |
+| `dardcor_ENABLE_EXPERIMENTAL_MODELS` | boolean | Omogući eksperimentalne modele                                     |
+| `dardcor_DISABLE_AUTOCOMPACT`        | boolean | Onemogući automatsko sažimanje konteksta                           |
+| `dardcor_DISABLE_CLAUDE_CODE`        | boolean | Onemogući čitanje iz `.claude` (prompt + vještine)                 |
+| `dardcor_DISABLE_CLAUDE_CODE_PROMPT` | boolean | Onemogući čitanje `~/.claude/CLAUDE.md`                            |
+| `dardcor_DISABLE_CLAUDE_CODE_SKILLS` | boolean | Onemogući učitavanje `.claude/skills`                              |
+| `dardcor_DISABLE_MODELS_FETCH`       | boolean | Onemogući dohvaćanje modela iz udaljenih izvora                    |
+| `dardcor_FAKE_VCS`                   | string  | Lažni VCS provajder za potrebe testiranja                          |
+| `dardcor_CLIENT`                     | string  | Identifikator klijenta (zadano na `cli`)                           |
+| `dardcor_ENABLE_EXA`                 | boolean | Omogući Exa alate za web pretraživanje                             |
+| `dardcor_SERVER_PASSWORD`            | string  | Omogući osnovnu autentifikaciju za `serve`/`web`                   |
+| `dardcor_SERVER_USERNAME`            | string  | Poništi osnovno korisničko ime autentifikacije (zadano `dardcor`) |
+| `dardcor_MODELS_URL`                 | string  | Prilagođeni URL za dohvaćanje konfiguracije modela                 |
+
+---
+
+### Eksperimentalno
+
+Ove varijable okruženja omogućavaju eksperimentalne karakteristike koje se mogu promijeniti ili ukloniti.
+
+| Varijabla                                       | Tip     | Opis                                                    |
+| ----------------------------------------------- | ------- | ------------------------------------------------------- |
+| `dardcor_EXPERIMENTAL`                         | boolean | Omogući eksperimentalne funkcije pod zbirnom zastavicom |
+| `dardcor_EXPERIMENTAL_ICON_DISCOVERY`          | boolean | Omogući otkrivanje ikona                                |
+| `dardcor_EXPERIMENTAL_DISABLE_COPY_ON_SELECT`  | boolean | Onemogući kopiranje pri odabiru u TUI                   |
+| `dardcor_EXPERIMENTAL_BASH_DEFAULT_TIMEOUT_MS` | number  | Zadano vremensko ograničenje za bash naredbe u ms       |
+| `dardcor_EXPERIMENTAL_OUTPUT_TOKEN_MAX`        | number  | Maksimalni izlazni tokeni za LLM odgovore               |
+| `dardcor_EXPERIMENTAL_FILEWATCHER`             | boolean | Omogući praćenje datoteka za cijeli direktorij          |
+| `dardcor_EXPERIMENTAL_OXFMT`                   | boolean | Omogući oxfmt formatter                                 |
+| `dardcor_EXPERIMENTAL_LSP_TOOL`                | boolean | Omogući eksperimentalni LSP alat                        |
+| `dardcor_EXPERIMENTAL_DISABLE_FILEWATCHER`     | boolean | Onemogući praćenje datoteka                             |
+| `dardcor_EXPERIMENTAL_EXA`                     | boolean | Omogući eksperimentalne Exa funkcije                    |
+| `dardcor_EXPERIMENTAL_LSP_TY`                  | boolean | Omogući TY LSP za python datoteke                       |
+| `dardcor_EXPERIMENTAL_PLAN_MODE`               | boolean | Omogući Plan mod                                        |
+| `dardcor_EXPERIMENTAL_BACKGROUND_SUBAGENTS`    | boolean | Omogući pozadinske zadatke subagenata                   |
+| `dardcor_EXPERIMENTAL_EVENT_SYSTEM`            | boolean | Omogući eksperimentalni sistem događaja                 |
+| `dardcor_EXPERIMENTAL_NATIVE_LLM`              | boolean | Omogući nativnu putanju LLM zahtjeva                    |
+| `dardcor_EXPERIMENTAL_PARALLEL`                | boolean | Omogući paralelno izvršavanje web pretrage              |
+| `dardcor_EXPERIMENTAL_SCOUT`                   | boolean | Omogući Scout subagenta                                 |
+| `dardcor_EXPERIMENTAL_WORKSPACES`              | boolean | Omogući podršku za radne prostore                       |
